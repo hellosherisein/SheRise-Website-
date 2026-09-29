@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Sparkles,
   SunMedium,
+  TruckIcon,
   Utensils,
   Waves,
 } from "lucide-react";
@@ -107,45 +108,166 @@ export const infoTitles: Record<string, string> = {
 export const policies: Record<string, { q: string; a: string }[]> = {
   "privacy-policy": [
     {
-      q: "Preview data and storage",
-      a: "Customer profiles, saved addresses, wishlists, preview orders and newsletter signups are stored in the server database. Passwords are stored as salted hashes, and login uses an HttpOnly session cookie. Cart selections are stored in this browser. Contact forms validate locally unless connected later.",
+      q: "Information we collect",
+      a: "SheRise may collect your name, phone number, email address, delivery address, order details, payment status, customer support messages, newsletter signups and basic website usage information needed to run the store.",
     },
     {
-      q: "Your choices",
-      a: "Manage your profile, remove addresses and update your wishlist from your account. Clearing browser data removes the local cart and cookie, but does not delete your server account. The business must supply its retention policy and privacy contact before live operations.",
+      q: "How we use your information",
+      a: "We use your information to create and manage your account, process orders, arrange delivery, provide customer support, send order updates, prevent misuse, improve the website and share product or wellness updates when you choose to receive them.",
+    },
+    {
+      q: "Payments and sensitive details",
+      a: "Online payments, when enabled, are processed through payment service providers. SheRise does not ask you to share card PINs, OTPs or banking passwords and does not store full card details on the website.",
+    },
+    {
+      q: "Sharing with service partners",
+      a: "We may share only the information required with delivery partners, payment providers, technology service providers, customer support tools, auditors, legal authorities or business partners who help us operate the SheRise store.",
+    },
+    {
+      q: "Cookies and local storage",
+      a: "The website may use cookies or browser storage for login sessions, cart, wishlist, preferences, security and analytics. You can clear browser data, but some features may stop working until you sign in or add items again.",
+    },
+    {
+      q: "Data security",
+      a: "We use reasonable technical and organisational safeguards to protect customer information. No online system is completely risk-free, so customers should keep account details private and report suspicious activity promptly.",
+    },
+    {
+      q: "Your choices and requests",
+      a: "You can update account details, remove saved addresses and unsubscribe from marketing communication where available. For access, correction or deletion requests, contact SheRise support using the official contact details on the website.",
+    },
+    {
+      q: "Retention and updates",
+      a: "We keep information only as long as needed for orders, support, legal, accounting and security purposes. This policy may be updated when business processes, laws or website features change.",
     },
   ],
   terms: [
     {
-      q: "About this preview",
-      a: "This website is a demonstration of the SheRise shopping experience. Products, prices, stock and offers are illustrative. Submitting checkout saves a preview order to your customer account and does not form a purchase agreement.",
+      q: "Using the SheRise website",
+      a: "By using this website, creating an account or placing an order, you agree to use the SheRise store lawfully and in accordance with these terms, our privacy policy and applicable customer policies.",
     },
     {
-      q: "Before launch",
-      a: "The brand must confirm its legal entity, contact details, final catalog, payment terms and applicable customer policies before accepting real orders.",
+      q: "Product information",
+      a: "We aim to display product names, pack counts, sizes, prices, images, features and availability accurately. Minor differences in packaging, colour, batch details or display appearance may occur. Always read the product pack before use.",
+    },
+    {
+      q: "Health and hygiene note",
+      a: "SheRise sanitary pads are hygiene products and are not a substitute for medical advice. If you experience severe pain, very heavy bleeding, unusual symptoms, irritation or allergy, stop use if needed and consult a qualified healthcare professional.",
+    },
+    {
+      q: "Orders, pricing and availability",
+      a: "An order is confirmed only after successful order placement and acceptance by SheRise. Prices, offers, stock and delivery availability may change without prior notice. We may cancel or contact you about orders affected by errors, stock issues or delivery restrictions.",
+    },
+    {
+      q: "Payments",
+      a: "Customers must provide accurate billing and contact information. Online payment, COD or other payment options may be available depending on order value, location and business rules shown at checkout.",
+    },
+    {
+      q: "Account responsibility",
+      a: "You are responsible for keeping your login details confidential and for all activity under your account. Please make sure your name, phone number and delivery address are correct before placing an order.",
+    },
+    {
+      q: "Website content and brand rights",
+      a: "The SheRise name, logo, product content, images, design, text and website materials belong to SheRise or its licensors. They may not be copied, reused or modified for commercial use without written permission.",
+    },
+    {
+      q: "Limitation of liability",
+      a: "To the extent permitted by law, SheRise is not responsible for indirect losses, delays outside our control, incorrect customer-provided information, misuse of products or issues caused by third-party services.",
+    },
+    {
+      q: "Changes to terms",
+      a: "SheRise may update these terms as the business, website features or legal requirements change. Continued use of the website after updates means you accept the revised terms.",
     },
   ],
   "shipping-policy": [
     {
-      q: "Shipping is not active",
-      a: "This preview does not dispatch goods. The standard ?40 shipping and free-shipping threshold shown at checkout are illustrative.",
+      q: "Where we ship",
+      a: "SheRise currently accepts delivery details for serviceable locations in India. Delivery availability may depend on courier coverage, pincode, product availability and order value.",
     },
     {
-      q: "Details awaiting confirmation",
-      a: "Delivery areas, courier partners, dispatch times, shipping charges, tracking, delays and lost-package procedures will be provided by SheRise before launch.",
+      q: "Order processing time",
+      a: "Orders are usually processed within 1-2 business days after confirmation, excluding Sundays, public holidays or days affected by stock checks, payment review or operational delays.",
+    },
+    {
+      q: "Estimated delivery time",
+      a: "Most orders are expected to arrive within 3-7 business days after dispatch, depending on your city, pincode and courier movement. Remote or high-demand locations may take longer.",
+    },
+    {
+      q: "Shipping charges",
+      a: "Shipping charges, COD charges or free-shipping eligibility are shown at checkout before order confirmation. Charges may vary based on order value, delivery location, offer rules and logistics partner terms.",
+    },
+    {
+      q: "Tracking updates",
+      a: "Once an order is dispatched, tracking details will be shared through the available contact method or account order page. Tracking may take some time to update after pickup by the courier.",
+    },
+    {
+      q: "Address and contact details",
+      a: "Please enter a complete address, correct pincode and reachable phone number. SheRise is not responsible for delays or failed delivery caused by incomplete, incorrect or unreachable delivery details.",
+    },
+    {
+      q: "Failed delivery or returned shipment",
+      a: "If a courier cannot deliver because the customer is unavailable, refuses delivery or provides incorrect details, the shipment may return to us. Re-shipping may require an additional delivery charge.",
+    },
+    {
+      q: "Damaged package at delivery",
+      a: "If the outer package appears damaged, tampered or wet, please record photos before opening and contact SheRise support as soon as possible with order details.",
     },
   ],
   "return-refund-policy": [
     {
-      q: "No real transactions in this preview",
-      a: "Demo orders cannot be refunded because no payment is collected. Do not ship products to any address associated with this preview.",
+      q: "Hygiene product return rule",
+      a: "Sanitary pads are hygiene-sensitive products. For customer safety, opened, used, damaged-after-delivery or unsealed packs cannot be returned or exchanged unless the issue is due to wrong, defective or damaged goods received from SheRise.",
     },
     {
-      q: "Final return policy pending",
-      a: "Eligibility for sealed hygiene products, damaged or incorrect items, reporting windows, required evidence, refund timing and support contact details must be approved and published by SheRise before launch.",
+      q: "Eligible return or replacement cases",
+      a: "You may request support if you receive an incorrect product, missing item, damaged pack, expired product or a manufacturing defect. The request must include order details and clear photos or videos of the package and product.",
+    },
+    {
+      q: "Reporting window",
+      a: "Please report damaged, missing, incorrect or defective items within 48 hours of delivery. Requests raised after this window may be difficult to verify and may not qualify for replacement or refund.",
+    },
+    {
+      q: "Non-returnable cases",
+      a: "Returns are not accepted for opened packs, used products, change of mind, dislike of product after opening, incorrect product ordered by the customer, wrong address, refusal of delivery or damage caused after delivery.",
+    },
+    {
+      q: "Cancellation before dispatch",
+      a: "Orders may be cancellable before dispatch from the customer account or by contacting support. Once dispatched, cancellation may not be possible and the standard delivery and return rules will apply.",
+    },
+    {
+      q: "Refund method and timeline",
+      a: "Approved refunds are usually processed to the original payment method or approved refund channel within 5-10 business days after verification. Bank or payment provider timelines may vary.",
+    },
+    {
+      q: "Replacement process",
+      a: "If a replacement is approved, SheRise may ship the correct product or suitable replacement based on stock availability. In some cases, refund may be offered instead of replacement.",
+    },
+    {
+      q: "How to raise a request",
+      a: "Contact SheRise support with your order number, registered phone or email, issue description and clear photos or videos. Please keep the product and packaging until the review is completed.",
     },
   ],
 };
+function PolicyList({ items }: { items: { q: string; a: string }[] }) {
+  return (
+    <div className="max-w-4xl border-y border-[#eadbd2]">
+      {items.map((item, index) => (
+        <section key={item.q} className="grid gap-4 border-b border-[#eadbd2] py-6 last:border-b-0 sm:grid-cols-[72px_minmax(0,1fr)]">
+          <span className="font-display text-2xl leading-none text-brand-coral">
+            {String(index + 1).padStart(2, "0")}
+          </span>
+          <div>
+            <h2 className="font-display text-2xl leading-tight text-brand-navy sm:text-3xl">
+              {item.q}
+            </h2>
+            <p className="mt-3 max-w-3xl text-justify text-base leading-7 text-muted-foreground">
+              {item.a}
+            </p>
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
 export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a: string }[] }) {
   const [sent, setSent] = useState(false);
   const faqItems = items || faq;
@@ -153,7 +275,7 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
     <>
       <div
         className={`container-shell ${
-          kind === "period-guide" || kind === "why-sherise" || kind === "about" ? "py-8 md:py-10" : "section-space"
+          kind === "period-guide" || kind === "why-sherise" || kind === "about" ? "py-8 md:py-10" : policies[kind] ? "pt-8 pb-12 md:pt-10 md:pb-16" : "pt-8 pb-12 md:pt-10 md:pb-16"
         }`}
       >
         {kind !== "period-guide" && kind !== "why-sherise" && kind !== "about" && (
@@ -163,7 +285,7 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
             align={kind === "faq" ? "center" : "left"}
             copy={
               policies[kind]
-                ? "Preview policy. Final business terms must be approved before launch."
+                ? "Clear information for shopping with SheRise."
                 : kind === "faq"
                   ? "Answers to help you feel a little more at home."
                   : "Release. Renew & Rise."
@@ -171,66 +293,95 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
           />
         )}
         {policies[kind] ? (
-          <div className="max-w-3xl">
-            <Accordion items={policies[kind]} />
-          </div>
+          <PolicyList items={policies[kind]} />
         ) : kind === "faq" ? (
           <div className="mx-auto max-w-3xl">
             <Accordion items={faqItems} />
           </div>
         ) : kind === "contact" ? (
-          <div className="grid gap-12 md:grid-cols-2">
-            <div>
-              <h2 className="text-3xl">We’re here for the conversation.</h2>
-              <p className="mt-5 leading-7">
-                Questions about products, your routine or SheRise? Leave a preview message below.
-                The customer support inbox and official social channels will be added before launch.
-              </p>
-              <p className="mt-5 text-sm text-muted-foreground">
-                This form validates your message locally; it does not send an email.
-              </p>
-              <Link to="/faq" className="mt-6 inline-block underline">
-                Explore frequently asked questions ?
-              </Link>
+          <section className="grid gap-8 md:grid-cols-[0.9fr_1.1fr] md:items-stretch">
+            <div className="overflow-hidden border border-[#eadbd2] bg-brand-blush/70">
+              <img
+                src={story}
+                alt="SheRise support and care conversation"
+                width="800"
+                height="560"
+                className="aspect-[4/3] w-full object-cover"
+              />
+              <div className="p-6 md:p-8">
+                <p className="eyebrow">SHERISE SUPPORT</p>
+                <h2 className="font-display text-3xl leading-tight text-brand-navy">
+                  We are here to help you choose with comfort.
+                </h2>
+                <p className="mt-4 text-justify leading-7 text-muted-foreground">
+                  Questions about products, sizing, flow, orders or partnerships? Send your details and the SheRise team will guide you with clear, thoughtful support.
+                </p>
+                <div className="mt-6 grid gap-3 text-sm">
+                  <div className="border border-[#eadbd2] bg-white p-4">
+                    <p className="font-bold uppercase text-brand-burgundy">Product guidance</p>
+                    <p className="mt-1 text-muted-foreground">Pads, pack sizes, comfort and flow selection.</p>
+                  </div>
+                  <div className="border border-[#eadbd2] bg-white p-4">
+                    <p className="font-bold uppercase text-brand-burgundy">Order support</p>
+                    <p className="mt-1 text-muted-foreground">Shipping, returns, account and checkout help.</p>
+                  </div>
+                </div>
+                <Link to="/faq" className="mt-6 inline-flex font-semibold text-brand-navy underline underline-offset-4">
+                  View FAQs
+                </Link>
+              </div>
             </div>
             <form
-              className="space-y-5"
+              className="border border-[#eadbd2] bg-white p-6 shadow-sm md:p-8"
               onSubmit={(e) => {
                 e.preventDefault();
                 setSent(true);
               }}
             >
-              <label className="field">
-                Name
-                <input required autoComplete="name" />
-              </label>
-              <label className="field">
-                Email
-                <input required type="email" autoComplete="email" />
-              </label>
-              <label className="field">
-                Topic
-                <select>
-                  <option>Product question</option>
-                  <option>Order support</option>
-                  <option>Partnerships</option>
-                  <option>Something else</option>
-                </select>
-              </label>
-              <label className="field">
-                Your message
-                <textarea required rows={5} minLength={10} />
-              </label>
-              <Button type="submit" size="lg">
-                Preview message
-              </Button>
-              <p role="status">
-                {sent
-                  ? "Your message is valid. Sending will be available when customer support is connected."
-                  : ""}
-              </p>
+              <div className="mb-6">
+                <p className="eyebrow">SEND A MESSAGE</p>
+                <h2 className="font-display text-3xl leading-tight text-brand-navy">Contact SheRise</h2>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  Share your question and we will help you with the next step.
+                </p>
+              </div>
+              <div className="grid gap-5">
+                <label className="field">
+                  Name
+                  <input required autoComplete="name" placeholder="Your full name" />
+                </label>
+                <label className="field">
+                  Email
+                  <input required type="email" autoComplete="email" placeholder="you@example.com" />
+                </label>
+                <label className="field">
+                  Topic
+                  <select>
+                    <option>Help me choose a pad</option>
+                    <option>Flow or size guidance</option>
+                    <option>First-time SheRise user</option>
+                    <option>Order or delivery support</option>
+                    <option>Returns or replacement</option>
+                    <option>Bulk / retail partnership</option>
+                    <option>Feedback or suggestion</option>
+                    <option>Something else</option>
+                  </select>
+                </label>
+                <label className="field">
+                  Your message
+                  <textarea required rows={5} minLength={10} placeholder="Write your message here" />
+                </label>
+              </div>
+              <div className="mt-6 flex flex-wrap items-center gap-4">
+                <Button type="submit" size="lg">
+                  Submit message
+                </Button>
+                <p className="text-sm text-muted-foreground" role="status">
+                  {sent ? "Your message is ready. Support email connection can be enabled for live sending." : ""}
+                </p>
+              </div>
             </form>
-          </div>
+          </section>
         ) : kind === "period-guide" ? (
           <>
             <section className="grid gap-6 md:grid-cols-[1.05fr_0.95fr] md:gap-8">

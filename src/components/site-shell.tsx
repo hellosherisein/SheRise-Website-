@@ -605,8 +605,8 @@ export function WelcomePopup() {
 export function Footer() {
   return (
     <footer className="border-t bg-[#211877] text-white">
-      <div className="container-shell grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-5">
-        <div className="lg:col-span-2">
+      <div className="container-shell grid grid-cols-2 gap-x-8 gap-y-10 py-10 sm:grid-cols-2 sm:py-14 lg:grid-cols-5">
+        <div className="col-span-2 lg:col-span-2">
           <Brand />
           <p className="mt-5 max-w-sm text-sm leading-7 opacity-80">
             Thoughtful period care for comfort, confidence and everyday movement.

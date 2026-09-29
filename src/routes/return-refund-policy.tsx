@@ -4,8 +4,8 @@ import { seo } from "@/lib/seo";
 export const Route = createFileRoute("/return-refund-policy")({
   head: () =>
     seo(
-      "return refund policy",
-      "return refund policy â€” explore thoughtful care and the SheRise shopping experience.",
+      "Return & refund policy",
+      "Return, replacement, cancellation and refund rules for SheRise hygiene products.",
       "/return-refund-policy",
       false,
     ),

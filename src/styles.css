@@ -919,3 +919,138 @@ footer a[aria-label="SheRise home"] span {
     overflow-x: auto;
   }
 }
+
+/* Responsive polish for mobile and tablet layouts */
+@media (max-width: 1024px) {
+  .container-shell {
+    width: min(100% - 1.5rem, 84rem);
+  }
+
+  .section-space {
+    padding-block: clamp(3rem, 7vw, 5.5rem);
+  }
+
+  .hero-copy {
+    padding: clamp(36px, 5vw, 64px);
+  }
+
+  .hero-copy h1 {
+    font-size: clamp(46px, 7vw, 72px);
+  }
+
+  .hero-visual {
+    min-height: 480px;
+  }
+
+  .category-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  body {
+    font-size: 15px;
+  }
+
+  main :is(p, li, label, input, textarea, select, button, td, th, summary):not(.eyebrow),
+  footer :is(p, li, a, span) {
+    font-size: 0.95rem !important;
+  }
+
+  .container-shell {
+    width: min(100% - 1.25rem, 84rem);
+  }
+
+  .section-space {
+    padding-block: 2.75rem;
+  }
+
+  .hero-copy {
+    padding: 34px 22px;
+  }
+
+  .hero-copy h1 {
+    font-size: clamp(42px, 13vw, 58px);
+    line-height: 1.03;
+  }
+
+  .hero-note {
+    max-width: calc(100% - 40px);
+  }
+
+  .hero-note .font-display {
+    font-size: 1.55rem;
+    line-height: 1.08;
+  }
+
+  .brand-ribbon {
+    justify-content: flex-start;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scroll-snap-type: x proximity;
+  }
+
+  .brand-ribbon span {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+  }
+
+  .category-tile h3,
+  .flow-tile span:first-of-type {
+    overflow-wrap: anywhere;
+  }
+
+  .editorial-grid > div,
+  .bg-brand-blush.p-8,
+  .bg-brand-blush.md\:p-16 {
+    padding: 1.5rem;
+  }
+
+  .community-strip img {
+    flex-basis: 48%;
+    width: 48%;
+  }
+
+  .purchase-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .field input:not([type="range"]),
+  .field select,
+  .field textarea {
+    min-height: 48px;
+  }
+
+  footer .container-shell {
+    width: min(100% - 2rem, 84rem);
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-visual {
+    min-height: 320px;
+    height: 350px;
+  }
+
+  .category-tile {
+    flex-basis: 88%;
+  }
+
+  .flow-tile {
+    padding: 22px 12px;
+  }
+
+  .account-content,
+  .dashboard-welcome {
+    padding: 18px;
+  }
+
+  .auth-page-shell .auth-panel {
+    border-radius: 0;
+  }
+
+  .auth-page-shell .auth-form-panel,
+  .auth-page-shell .auth-story {
+    padding: 24px;
+  }
+}

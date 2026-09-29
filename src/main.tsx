@@ -142,6 +142,7 @@ function App() {
   if (!match || error) return <NotFound />;
   const Page = match.route.component;
   const adminPage = window.location.pathname.startsWith("/admin");
+  const routeLoading = loading || (Boolean(match.route.loader) && loaderData === undefined);
 
   return (
     <AuthProvider>
@@ -152,7 +153,7 @@ function App() {
           ) : (
             <>
               <Header />
-              <main>{loading ? null : <Page />}</main>
+              <main>{routeLoading ? null : <Page />}</main>
               <Footer />
               <CartDrawer />
               <SearchOverlay />

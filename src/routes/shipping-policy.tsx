@@ -4,8 +4,8 @@ import { seo } from "@/lib/seo";
 export const Route = createFileRoute("/shipping-policy")({
   head: () =>
     seo(
-      "shipping policy",
-      "shipping policy â€” explore thoughtful care and the SheRise shopping experience.",
+      "Shipping policy",
+      "Shipping timelines, delivery charges, tracking and delivery support information for SheRise orders.",
       "/shipping-policy",
       false,
     ),
