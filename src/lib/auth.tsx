@@ -55,10 +55,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setData(next);
         setError("");
       }
-    } catch (e) {
+    } catch {
       if (version === generation.current) {
         setData(emptyCustomerData);
-        setError(e instanceof Error ? e.message : "Account service unavailable");
+        setError("");
       }
     } finally {
       if (version === generation.current) setLoading(false);
