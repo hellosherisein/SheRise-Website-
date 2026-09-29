@@ -1,0 +1,3 @@
+User-agent: *
+Disallow: /
+Sitemap: https://sherise.example/sitemap.xml

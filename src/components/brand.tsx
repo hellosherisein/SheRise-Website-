@@ -1,0 +1,2 @@
+﻿import { Link } from "@/router-shim";
+export function Brand(){return <Link to="/" aria-label="SheRise home" className="inline-flex flex-col leading-none"><span className="font-display text-[1.9rem] text-brand-navy">She<span className="text-brand-coral">Rise</span></span><span className="mt-1 text-[10px] font-bold uppercase tracking-[.2em] text-muted-foreground">Release Â· Renew Â· Rise</span></Link>}
