@@ -840,20 +840,20 @@ footer a[aria-label="SheRise home"] span {
   .account-content {
     padding: 22px;
   }
-  .auth-panel {
+  .auth-page-shell .auth-panel {
     grid-template-columns: 1fr;
   }
-  .auth-story {
+  .auth-page-shell .auth-story {
     padding: 28px;
   }
-  .auth-story h1 {
+  .auth-page-shell .auth-story h1 {
     font-size: 36px;
   }
-  .auth-story > svg,
-  .auth-story ul {
+  .auth-page-shell .auth-story > svg,
+  .auth-page-shell .auth-story ul {
     display: none;
   }
-  .auth-story p {
+  .auth-page-shell .auth-story p {
     margin-top: 12px;
   }
   .dashboard-stat {
@@ -870,7 +870,7 @@ footer a[aria-label="SheRise home"] span {
   .dashboard-stat {
     padding: 10px;
   }
-  .auth-story {
+  .auth-page-shell .auth-story {
     padding: 24px;
   }
 }
@@ -1026,6 +1026,57 @@ footer a[aria-label="SheRise home"] span {
   }
 }
 
+@media (max-width: 640px) {
+  .auth-page-shell {
+    width: min(100% - 28px, 420px);
+    padding-top: 22px;
+    padding-bottom: 28px;
+  }
+
+  .auth-page-shell .auth-panel {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+    border-radius: 8px;
+  }
+
+  .auth-page-shell .auth-story {
+    min-height: auto;
+    padding: 22px 24px;
+  }
+
+  .auth-page-shell .auth-story h1 {
+    max-width: 12ch;
+    font-size: 30px;
+  }
+
+  .auth-page-shell .auth-story > p:not(.eyebrow),
+  .auth-page-shell .auth-story > svg,
+  .auth-page-shell .auth-story ul {
+    display: none;
+  }
+
+  .auth-page-shell .auth-form-panel {
+    border-left: 0;
+    border-top: 1px solid var(--brand-blush);
+    padding: 26px 24px 28px;
+  }
+
+  .auth-page-shell .auth-form-panel h2 {
+    font-size: 30px;
+  }
+
+  .auth-page-shell .auth-form-panel > p {
+    margin-bottom: 22px;
+  }
+
+  .auth-page-shell form {
+    gap: 16px;
+  }
+
+  .auth-page-shell .auth-panel button[type="submit"] {
+    min-height: 48px;
+  }
+}
 @media (max-width: 480px) {
   .hero-visual {
     min-height: 320px;
@@ -1054,3 +1105,4 @@ footer a[aria-label="SheRise home"] span {
     padding: 24px;
   }
 }
+
