@@ -89,6 +89,17 @@ JOIN admin_permissions p ON p.code IN (
 )
 WHERE r.code = 'INVENTORY_MANAGER';
 
+INSERT INTO admins (role_id, name, email, mobile, password_hash, status)
+SELECT r.id, 'Super Admin', 'hello_sherise', NULL, 'ba9df0fe2b12d33e2ffd2505f08a1dec28e9791d0432bc10c301d8eed0eac29e', 'ACTIVE'
+FROM admin_roles r
+WHERE r.code = 'SUPER_ADMIN'
+ON DUPLICATE KEY UPDATE
+  role_id = VALUES(role_id),
+  name = VALUES(name),
+  password_hash = VALUES(password_hash),
+  status = VALUES(status),
+  deleted_at = NULL;
+
 INSERT INTO product_categories (name, slug, description, display_in_navigation, status, sort_order)
 VALUES
   ('Sanitary Pads', 'sanitary-pads', 'SheRise sanitary pad products.', 1, 'ACTIVE', 10),
