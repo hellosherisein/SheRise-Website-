@@ -115,9 +115,21 @@ export function Header() {
                   >
                     Period Care <ChevronDown className="ml-1 size-3 transition-transform group-hover:rotate-180 group-focus-within:rotate-180" />
                   </button>
-                  <div className="absolute left-0 top-[70px] hidden w-56 gap-1 border bg-background p-4 shadow-lg group-hover:grid group-focus-within:grid">
-                    <Link className="p-3 hover:bg-brand-blush" to="/period-guide">
-                      Period Guide
+                  <div className="absolute left-0 top-[70px] hidden w-64 gap-1 border bg-background p-4 shadow-lg group-hover:grid group-focus-within:grid">
+                    <Link className="p-3 hover:bg-brand-blush" to="/period-guide#period-guide-overview">
+                      Period Guide Overview
+                    </Link>
+                    <Link className="p-3 hover:bg-brand-blush" to="/period-guide#wellness-tips">
+                      Wellness Tips
+                    </Link>
+                    <Link className="p-3 hover:bg-brand-blush" to="/period-guide#red-dot-method">
+                      Red Dot Disposal
+                    </Link>
+                    <Link className="p-3 hover:bg-brand-blush" to="/period-guide#during-period">
+                      During Your Period
+                    </Link>
+                    <Link className="p-3 hover:bg-brand-blush" to="/period-guide#mindful-self-care">
+                      Mindful Self-Care
                     </Link>
                     <Link className="p-3 hover:bg-brand-blush" to="/faq">
                       FAQs
@@ -218,8 +230,20 @@ export function Header() {
                     Period Care <ChevronDown className="size-5" />
                   </summary>
                   <div className="mt-4 grid gap-3 pl-4 text-base">
-                    <Link to="/period-guide" onClick={() => setMenu(false)}>
-                      Period Guide
+                    <Link to="/period-guide#period-guide-overview" onClick={() => setMenu(false)}>
+                      Period Guide Overview
+                    </Link>
+                    <Link to="/period-guide#wellness-tips" onClick={() => setMenu(false)}>
+                      Wellness Tips
+                    </Link>
+                    <Link to="/period-guide#red-dot-method" onClick={() => setMenu(false)}>
+                      Red Dot Disposal
+                    </Link>
+                    <Link to="/period-guide#during-period" onClick={() => setMenu(false)}>
+                      During Your Period
+                    </Link>
+                    <Link to="/period-guide#mindful-self-care" onClick={() => setMenu(false)}>
+                      Mindful Self-Care
                     </Link>
                     <Link to="/faq" onClick={() => setMenu(false)}>
                       FAQs

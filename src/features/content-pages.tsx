@@ -388,14 +388,36 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
           </section>
         ) : kind === "period-guide" ? (
           <>
-            <section className="grid gap-6 md:grid-cols-[1.05fr_0.95fr] md:gap-8">
+            <section id="period-guide-overview" className="scroll-mt-28 grid gap-6 md:grid-cols-[1.05fr_0.95fr] md:gap-8">
               <div className="flex flex-col justify-center">
                 <p className="eyebrow">MENSTRUAL WELLNESS & MINDFUL SELF-CARE</p>
                 <h2 className="font-display text-3xl leading-tight md:text-4xl">
                   Comfort and calm for your cycle.
                 </h2>
-                <div className="mt-6 border bg-gradient-to-br from-brand-blush/70 via-white to-brand-cream p-5 shadow-sm md:p-6">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div className="mt-6 space-y-4 border bg-gradient-to-br from-brand-blush/70 via-white to-brand-cream p-5 text-justify leading-7 text-muted-foreground shadow-sm md:p-6">
+                  <p>
+                    The Period Guide is a simple space to understand your body, care for your flow,
+                    and make everyday menstrual hygiene feel less confusing. It brings together
+                    practical comfort tips, safe disposal guidance, and mindful self-care habits.
+                  </p>
+                  <p>
+                    Every cycle can feel different. Start with what your body needs today, choose
+                    products that suit your flow, and keep hygiene, rest, hydration and emotional
+                    care as part of your routine.
+                  </p>
+                </div>
+              </div>
+              <img
+                src={story}
+                alt="A calm moment for personal care"
+                width="700"
+                height="700"
+                className="period-guide-side-image aspect-[16/10] w-full self-start object-cover md:aspect-[4/5]"
+              />
+            </section>
+
+            <section id="wellness-tips" className="mt-14 scroll-mt-28 border bg-gradient-to-br from-brand-blush/70 via-white to-brand-cream p-5 shadow-sm md:mt-16 md:p-6">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                       <p className="eyebrow">WELLNESS TIPS DURING MENSTRUATION</p>
                       <h3 className="font-display text-2xl leading-tight text-brand-navy">
@@ -406,7 +428,7 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                       Daily care
                     </span>
                   </div>
-                  <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
+              <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
                     {[
                       {
                         icon: ShieldCheck,
@@ -442,7 +464,6 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                         icon: MessageCircleHeart,
                         title: "Emotional Care",
                         copy: "Talk to someone you trust if you feel low.",
-                        wide: true,
                       },
                     ].map(({ icon: Icon, title, copy, wide }, index) => (
                       <div
@@ -465,19 +486,10 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                         </div>
                       </div>
                     ))}
-                  </div>
-                </div>
               </div>
-              <img
-                src={story}
-                alt="A calm moment for personal care"
-                width="700"
-                height="700"
-                className="period-guide-side-image aspect-[16/10] w-full self-start object-cover md:aspect-[4/5]"
-              />
             </section>
 
-            <section className="mt-14 overflow-hidden border border-brand-coral/20 bg-white shadow-sm md:mt-16">
+            <section id="red-dot-method" className="mt-14 scroll-mt-28 overflow-hidden border border-brand-coral/20 bg-white shadow-sm md:mt-16">
               <div className="bg-brand-navy p-6 text-white md:p-8 lg:p-10">
                 <div className="grid gap-6 lg:grid-cols-[0.7fr_1fr] lg:items-end">
                   <div>
@@ -582,7 +594,7 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
               </div>
             </section>
 
-            <section className="mt-14 grid gap-6 bg-brand-blush/60 p-6 md:mt-16 md:grid-cols-[0.8fr_1.2fr] md:p-8">
+            <section id="wellness-essence" className="mt-14 scroll-mt-28 grid gap-6 bg-brand-blush/60 p-6 md:mt-16 md:grid-cols-[0.8fr_1.2fr] md:p-8">
               <div>
                 <p className="eyebrow">OUR ESSENCE</p>
                 <h2 className="font-display text-3xl leading-tight text-brand-navy md:text-4xl">
@@ -675,7 +687,7 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
               </div>
             </section>
 
-            <section className="mt-14 grid gap-5 md:mt-16 md:grid-cols-2">
+            <section id="during-period" className="mt-14 scroll-mt-28 grid gap-5 md:mt-16 md:grid-cols-2">
               <div className="bg-brand-blush p-5 md:p-6">
                 <Moon className="mb-3 size-7 text-brand-coral" />
                 <h3 className="font-display text-3xl">During your period</h3>
@@ -694,7 +706,7 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                   ))}
                 </ul>
               </div>
-              <div className="border p-5 md:p-6">
+              <div id="mindful-self-care" className="scroll-mt-28 border p-5 md:p-6">
                 <SunMedium className="mb-3 size-7 text-brand-coral" />
                 <h3 className="font-display text-3xl">Mindful self-care</h3>
                 <ul className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
