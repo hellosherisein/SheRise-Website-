@@ -377,6 +377,40 @@ function CustomerCheckout() {
                 </p>
               </label>
             </section>
+            <section className="rounded-3xl border border-[#f0d8cf] bg-[#fffaf6] p-5 shadow-sm">
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <h2 className="font-serif text-xl font-semibold leading-tight text-[#7f1d2a] md:text-2xl">
+                    Donate & Support Transformative Social Work In India
+                  </h2>
+                  <p className="mt-1 text-sm text-[#8b6f66]">
+                    SheRise Welfare Foundation - NGO
+                  </p>
+                </div>
+                <a
+                  href="/about"
+                  className="inline-flex shrink-0 items-center justify-center rounded-full border border-[#d9686e] px-4 py-2 text-sm font-semibold text-[#8f1f2d] transition hover:bg-[#fff1ed]"
+                >
+                  Know More
+                </a>
+              </div>
+              <div className="mt-4 grid grid-cols-2 justify-items-center gap-3 sm:grid-cols-5">
+                {[10, 20, 50, 80, 100].map((amount) => (
+                  <label
+                    key={amount}
+                    className="relative w-24 cursor-pointer rounded-2xl border-2 border-[#efd9d0] bg-white px-4 py-3 text-center text-base font-semibold text-[#7f1d2a] transition hover:border-[#d9686e] hover:bg-[#fff1ed] has-[:checked]:border-[#8f1f2d] has-[:checked]:bg-[#fff1ed] has-[:checked]:shadow-sm"
+                  >
+                    <input
+                      type="radio"
+                      name="donationAmount"
+                      value={amount}
+                      className="peer sr-only"
+                    />
+                    ₹{amount}
+                  </label>
+                ))}
+              </div>
+            </section>
             <fieldset>
               <legend className="mb-4 text-2xl font-display">03 · Payment method preview</legend>
               <div className="grid gap-2 sm:grid-cols-2">
