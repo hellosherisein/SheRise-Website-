@@ -227,6 +227,9 @@ footer :is(p, li, a, span) {
   color: var(--brand-burgundy);
   margin-bottom: 16px;
 }
+.red-dot-eyebrow {
+  color: #f8ece5;
+}
 .hero-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

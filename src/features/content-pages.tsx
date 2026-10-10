@@ -27,6 +27,10 @@ import {
 } from "@/components/commerce";
 import { Button } from "@/components/ui/button";
 import { posts, type BlogPost } from "@/lib/catalog";
+import disposeSafelyImage from "@/assets/period guide/Dispose safely.png";
+import markItImage from "@/assets/period guide/Mark it.png";
+import rollOrFoldImage from "@/assets/period guide/Roll or fold.png";
+import wrapItImage from "@/assets/period guide/Wrap it.png";
 import story from "@/assets/sherise-story.jpg";
 export const faq = [
   {
@@ -473,6 +477,111 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
               />
             </section>
 
+            <section className="mt-14 overflow-hidden border border-brand-coral/20 bg-white shadow-sm md:mt-16">
+              <div className="bg-brand-navy p-6 text-white md:p-8 lg:p-10">
+                <div className="grid gap-6 lg:grid-cols-[0.7fr_1fr] lg:items-end">
+                  <div>
+                    <p className="eyebrow red-dot-eyebrow">SAFE PAD DISPOSAL</p>
+                    <h2 className="font-display text-3xl leading-tight md:text-4xl">
+                      Red Dot Method
+                    </h2>
+                    <p className="mt-4 text-justify leading-7 text-white/80">
+                      The Red Dot Method is a simple public-health practice for safely disposing of
+                      used sanitary pads. A visible red dot on the wrapped waste helps waste handlers
+                      identify menstrual waste without opening it.
+                    </p>
+                  </div>
+                  <div className="border-t border-white/20 pt-5 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+                    <p className="font-display text-2xl leading-tight text-brand-blush">
+                      Wrap it. Mark it. Dispose of it safely.
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-white/70">
+                      Always follow your local municipal waste-segregation rules where available.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-brand-blush/50 p-4 md:p-6 lg:p-8">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    {[
+                      {
+                        image: rollOrFoldImage,
+                        title: "Roll or fold",
+                        copy: "Roll the used pad inward so the soiled area is covered securely.",
+                      },
+                      {
+                        image: wrapItImage,
+                        title: "Wrap it",
+                        copy: "Wrap it tightly in newspaper, a paper disposal bag, or an eco-friendly disposal pouch.",
+                      },
+                      {
+                        image: markItImage,
+                        title: "Mark it",
+                        copy: "Draw or stick a clear red dot on the outside of the wrapped paper or bag.",
+                      },
+                      {
+                        image: disposeSafelyImage,
+                        title: "Dispose safely",
+                        copy: "Place it in a lidded dry-waste or sanitary-waste bin. Never flush pads.",
+                      },
+                    ].map((item, index) => (
+                      <article
+                        key={item.title}
+                        className="group overflow-hidden border border-[#eadbd2] bg-white shadow-sm transition-transform hover:-translate-y-0.5 hover:border-brand-coral/40 hover:shadow-md"
+                      >
+                        <div className="relative">
+                          <img
+                            src={item.image}
+                            alt={`${item.title} step for the Red Dot Method`}
+                            width="512"
+                            height="512"
+                            loading="lazy"
+                            className="aspect-square w-full object-cover"
+                          />
+                          <span className="absolute left-4 top-4 inline-flex size-10 items-center justify-center rounded-full bg-brand-coral text-sm font-bold text-white shadow-sm">
+                            {index + 1}
+                          </span>
+                        </div>
+                        <div className="p-4 md:p-5">
+                          <h3 className="font-display text-2xl leading-tight text-brand-navy">
+                            {item.title}
+                          </h3>
+                          <p className="mt-2 text-sm font-semibold leading-6 text-muted-foreground">
+                            {item.copy}
+                          </p>
+                        </div>
+                      </article>
+                    ))}
+                </div>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <div className="flex gap-3 border border-[#eadbd2] bg-white p-4">
+                    <ShieldCheck className="mt-1 size-6 shrink-0 text-brand-coral" />
+                    <div>
+                      <h3 className="font-display text-xl leading-tight text-brand-navy">
+                        Protects sanitation workers
+                      </h3>
+                      <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                        Wrapped and marked sanitary waste reduces accidental contact during manual
+                        sorting.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3 border border-[#eadbd2] bg-white p-4">
+                    <Droplets className="mt-1 size-6 shrink-0 text-brand-coral" />
+                    <div>
+                      <h3 className="font-display text-xl leading-tight text-brand-navy">
+                        Improves segregation
+                      </h3>
+                      <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                        The red dot alerts waste handlers to separate menstrual waste for safer
+                        disposal or processing.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
             <section className="mt-14 grid gap-6 bg-brand-blush/60 p-6 md:mt-16 md:grid-cols-[0.8fr_1.2fr] md:p-8">
               <div>
                 <p className="eyebrow">OUR ESSENCE</p>
@@ -668,6 +777,55 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
               </div>
             </div>
             <Benefits />
+            {kind === "why-sherise" && (
+              <section className="mt-14 overflow-hidden border border-brand-coral/20 bg-brand-blush/60 md:mt-16">
+                <div className="grid gap-0 md:grid-cols-[0.95fr_1.05fr]">
+                  <div className="bg-brand-navy p-6 text-white md:p-8 lg:p-10">
+                    <p className="eyebrow text-brand-blush">SHERISE INITIATIVE</p>
+                    <h2 className="font-display text-3xl leading-tight md:text-4xl">
+                      Your purchase can become someone else&apos;s support.
+                    </h2>
+                    <p className="mt-5 text-base leading-7 text-white/80">
+                      With every SheRise sanitary napkin purchase, we can create an opportunity to
+                      support women and girls who have limited access to menstrual hygiene products
+                      and education.
+                    </p>
+                    <p className="mt-5 border-t border-white/20 pt-5 font-display text-2xl leading-tight text-brand-blush">
+                      Buy SheRise. Support SheRise. Help another woman rise.
+                    </p>
+                  </div>
+                  <div className="p-6 md:p-8 lg:p-10">
+                    <p className="eyebrow">MENSTRUAL HEALTH & EMPOWERMENT</p>
+                    <h3 className="font-display text-3xl leading-tight text-brand-navy">
+                      Dignity, health and wellbeing should never feel out of reach.
+                    </h3>
+                    <p className="mt-4 text-justify leading-7 text-muted-foreground">
+                      SheRise believes that menstrual health is not a luxury; it is a basic part of
+                      dignity, health and wellbeing. We invite our customers, partners and supporters
+                      to join us in creating a menstrual-health initiative where contributions can
+                      help build practical support and awareness.
+                    </p>
+                    <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                      {[
+                        { icon: Droplets, label: "Menstrual hygiene products" },
+                        { icon: MessageCircleHeart, label: "Menstrual-health awareness sessions" },
+                        { icon: Sparkles, label: "Education for adolescent girls" },
+                        { icon: Heart, label: "Support for underserved communities" },
+                        { icon: Flower2, label: "Women's health programs" },
+                        { icon: ShieldCheck, label: "Women's empowerment programs" },
+                      ].map(({ icon: Icon, label }) => (
+                        <div key={label} className="flex items-start gap-3 border border-[#eadbd2] bg-white p-4">
+                          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-blush text-brand-coral">
+                            <Icon className="size-5" />
+                          </span>
+                          <p className="font-semibold leading-6 text-brand-navy">{label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
           </>
         )}
       </div>
