@@ -2,9 +2,14 @@
   RewriteEngine On
   RewriteBase /
 
+  # Do not redirect API requests to React
+  RewriteRule ^api(/|$) - [L]
+
+  # Allow existing files and directories
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
+  # React frontend routing
   RewriteRule ^ index.html [L]
 </IfModule>
