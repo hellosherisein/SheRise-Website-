@@ -13,7 +13,7 @@
     "prebuild": "node scripts/generate-seo.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node scripts/verify-store.mjs",
-    "start": "vite preview --host :: --port 8080",
+    "start": "node server/hostinger.mjs",
     "test:accounts": "playwright test"
   },
   "overrides": {
@@ -48,6 +48,7 @@
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tailwindcss/vite": "^4.2.1",
+    "@vitejs/plugin-react": "^5.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -67,6 +68,7 @@
     "tailwindcss": "^4.2.1",
     "tw-animate-css": "^1.3.4",
     "vaul": "^1.1.2",
+    "vite": "8.1.5",
     "zod": "^3.25.76"
   },
   "devDependencies": {
@@ -75,7 +77,6 @@
     "@types/node": "^22.16.5",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
-    "@vitejs/plugin-react": "^5.2.0",
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-prettier": "^5.2.6",
@@ -84,8 +85,7 @@
     "globals": "^15.15.0",
     "prettier": "^3.7.3",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.56.1",
-    "vite": "8.1.5"
+    "typescript-eslint": "^8.56.1"
   },
   "engines": {
     "node": ">=24.13.0"

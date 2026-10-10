@@ -31,6 +31,7 @@ import disposeSafelyImage from "@/assets/period guide/Dispose safely.png";
 import markItImage from "@/assets/period guide/Mark it.png";
 import rollOrFoldImage from "@/assets/period guide/Roll or fold.png";
 import wrapItImage from "@/assets/period guide/Wrap it.png";
+import guideImage from "@/assets/sherise-guide.jpg";
 import story from "@/assets/sherise-story.jpg";
 export const faq = [
   {
@@ -394,98 +395,105 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                 <h2 className="font-display text-3xl leading-tight md:text-4xl">
                   Comfort and calm for your cycle.
                 </h2>
-                <div className="mt-6 space-y-4 border bg-gradient-to-br from-brand-blush/70 via-white to-brand-cream p-5 text-justify leading-7 text-muted-foreground shadow-sm md:p-6">
-                  <p>
-                    The Period Guide is a simple space to understand your body, care for your flow,
-                    and make everyday menstrual hygiene feel less confusing. It brings together
-                    practical comfort tips, safe disposal guidance, and mindful self-care habits.
+                <div className="mt-6 border bg-gradient-to-br from-brand-blush/70 via-white to-brand-cream p-5 leading-7 text-muted-foreground shadow-sm md:p-6">
+                  <p className="text-justify">
+                    Use this guide as a quick checklist for period days: choose the right pad for
+                    your flow, change it on time, dispose of it safely, and give your body enough
+                    water, food and rest.
                   </p>
-                  <p>
-                    Every cycle can feel different. Start with what your body needs today, choose
-                    products that suit your flow, and keep hygiene, rest, hydration and emotional
-                    care as part of your routine.
-                  </p>
+                  <div className="mt-5 grid gap-3 text-sm font-semibold text-brand-navy sm:grid-cols-2">
+                    {[
+                      "Pick regular, heavy-flow or overnight coverage based on your day.",
+                      "Change your pad every 4-6 hours, or sooner if needed.",
+                      "Keep an extra pad and disposal pouch in your bag.",
+                      "Track pain, heavy bleeding or unusual changes and ask a doctor if worried.",
+                    ].map((item) => (
+                      <div key={item} className="flex gap-3 border border-brand-coral/20 bg-white/80 p-3">
+                        <span className="mt-2 size-2 shrink-0 rounded-full bg-brand-coral" />
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
               <img
                 src={story}
                 alt="A calm moment for personal care"
                 width="700"
-                height="700"
-                className="period-guide-side-image aspect-[16/10] w-full self-start object-cover md:aspect-[4/5]"
+                height="520"
+                className="h-[300px] w-full self-start object-cover sm:h-[340px] md:h-[420px]"
               />
             </section>
 
-            <section id="wellness-tips" className="mt-14 scroll-mt-28 border bg-gradient-to-br from-brand-blush/70 via-white to-brand-cream p-5 shadow-sm md:mt-16 md:p-6">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                      <p className="eyebrow">WELLNESS TIPS DURING MENSTRUATION</p>
-                      <h3 className="font-display text-2xl leading-tight text-brand-navy">
-                        Simple care tips.
-                      </h3>
-                    </div>
-                    <span className="w-fit border border-brand-coral/30 bg-white px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-brand-coral">
-                      Daily care
-                    </span>
+            <section id="wellness-tips" className="mt-14 scroll-mt-28 overflow-hidden bg-brand-blush/50 md:mt-16">
+              <div className="grid gap-0 lg:grid-cols-[0.85fr_1.15fr]">
+                <img
+                  src={guideImage}
+                  alt="Period care essentials arranged for daily comfort"
+                  width="700"
+                  height="520"
+                  loading="lazy"
+                  className="h-[280px] w-full object-cover sm:h-[340px] lg:h-full"
+                />
+                <div className="bg-gradient-to-br from-white via-white to-brand-cream p-6 md:p-8 lg:p-10">
+                  <p className="eyebrow">WELLNESS TIPS DURING MENSTRUATION</p>
+                  <h3 className="font-display text-3xl leading-tight text-brand-navy md:text-4xl">
+                    Small habits that make period days easier.
+                  </h3>
+                  <p className="mt-4 text-justify leading-7 text-muted-foreground">
+                    Start with hygiene, water, food and rest. Add movement only if it feels good,
+                    and listen to your body when cramps or mood changes show up.
+                  </p>
+                  <div className="mt-6 inline-flex border-l-4 border-brand-coral bg-brand-blush/60 px-4 py-3">
+                    <p className="font-display text-2xl leading-tight text-brand-navy">
+                      Change on time. Hydrate often. Rest without guilt.
+                    </p>
                   </div>
-              <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="mt-8 grid gap-x-8 gap-y-6 sm:grid-cols-2">
                     {[
                       {
                         icon: ShieldCheck,
-                        title: "Hygiene",
-                        copy: "Change pads every 4-6 hours and wash with clean water.",
+                        title: "Hygiene first",
+                        copy: "Change pads every 4-6 hours and keep spare pads in a clean pouch.",
                       },
                       {
                         icon: Droplets,
-                        title: "Hydration",
-                        copy: "Drink water; warm water may ease cramps and bloating.",
+                        title: "Sip water",
+                        copy: "Warm water can feel comforting during cramps or bloating.",
                       },
                       {
                         icon: Utensils,
-                        title: "Balanced Food",
-                        copy: "Choose iron-rich foods and reduce salty, oily snacks.",
+                        title: "Eat steady meals",
+                        copy: "Choose iron-rich foods, fruits and simple home meals.",
                       },
                       {
                         icon: Activity,
-                        title: "Light Exercise",
-                        copy: "Gentle walking, stretching and breathing can relax the body.",
+                        title: "Move gently",
+                        copy: "Walk, stretch or breathe deeply only if your body feels ready.",
                       },
                       {
                         icon: Waves,
-                        title: "Cramps",
-                        copy: "Use a heating pad or warm water bag on the lower abdomen.",
+                        title: "Soothe cramps",
+                        copy: "Use gentle warmth and pause when pain starts rising.",
                       },
                       {
                         icon: Bed,
-                        title: "Rest",
-                        copy: "Sleep properly and avoid overexertion.",
+                        title: "Protect rest",
+                        copy: "Sleep properly and ask for support when you feel low.",
                       },
-                      {
-                        icon: MessageCircleHeart,
-                        title: "Emotional Care",
-                        copy: "Talk to someone you trust if you feel low.",
-                      },
-                    ].map(({ icon: Icon, title, copy, wide }, index) => (
-                      <div
-                        key={title}
-                        className={`group border bg-white/85 p-4 shadow-sm transition-transform hover:-translate-y-0.5 hover:border-brand-coral/40 hover:shadow-md ${
-                          wide ? "sm:col-span-2" : ""
-                        }`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-blush text-brand-coral">
-                            <Icon className="size-5" />
-                          </span>
-                          <div>
-                            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-coral">
-                              {String(index + 1).padStart(2, "0")}
-                            </p>
-                            <p className="font-display text-xl leading-tight text-brand-navy">{title}</p>
-                            <p className="mt-1 text-base font-semibold leading-6 text-muted-foreground">{copy}</p>
-                          </div>
+                    ].map(({ icon: Icon, title, copy }) => (
+                      <div key={title} className="flex gap-3">
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-blush text-brand-coral">
+                          <Icon className="size-5" />
+                        </span>
+                        <div>
+                          <h4 className="font-display text-xl leading-tight text-brand-navy">{title}</h4>
+                          <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">{copy}</p>
                         </div>
                       </div>
                     ))}
+                  </div>
+                </div>
               </div>
             </section>
 
@@ -493,7 +501,7 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
               <div className="bg-brand-navy p-6 text-white md:p-8 lg:p-10">
                 <div className="grid gap-6 lg:grid-cols-[0.7fr_1fr] lg:items-end">
                   <div>
-                    <p className="eyebrow red-dot-eyebrow">SAFE PAD DISPOSAL</p>
+                    <p className="eyebrow eyebrow-on-dark">SAFE PAD DISPOSAL</p>
                     <h2 className="font-display text-3xl leading-tight md:text-4xl">
                       Red Dot Method
                     </h2>
@@ -793,7 +801,7 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
               <section className="mt-14 overflow-hidden border border-brand-coral/20 bg-brand-blush/60 md:mt-16">
                 <div className="grid gap-0 md:grid-cols-[0.95fr_1.05fr]">
                   <div className="bg-brand-navy p-6 text-white md:p-8 lg:p-10">
-                    <p className="eyebrow text-brand-blush">SHERISE INITIATIVE</p>
+                    <p className="eyebrow eyebrow-on-dark">SHERISE INITIATIVE</p>
                     <h2 className="font-display text-3xl leading-tight md:text-4xl">
                       Your purchase can become someone else&apos;s support.
                     </h2>
