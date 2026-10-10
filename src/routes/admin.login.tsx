@@ -29,9 +29,9 @@ function AdminLoginPage() {
     if (isAdminAuthenticated()) void navigate({ to: "/admin", replace: true });
   }, [navigate]);
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!loginAdmin(email, password)) {
+    if (!(await loginAdmin(email, password))) {
       setError("Invalid admin username or password.");
       return;
     }
@@ -61,7 +61,7 @@ function AdminLoginPage() {
             focused dashboard.
           </p>
         </div>
-        <p className="text-xs text-muted-foreground">Demo protected admin area</p>
+        <p className="text-xs text-muted-foreground">Protected admin area</p>
       </section>
 
       <main className="flex items-center justify-center px-4 py-8">
@@ -74,16 +74,6 @@ function AdminLoginPage() {
             </p>
           </div>
 
-          <div className="mb-5 border border-[#eadbd2] bg-[#fffaf6] p-4 text-sm">
-            <p className="font-semibold">Demo username and password</p>
-            <p className="mt-2 text-muted-foreground">
-              Username: <span className="font-mono text-brand-navy">{adminDemoCredentials.email}</span>
-            </p>
-            <p className="mt-1 text-muted-foreground">
-              Password: <span className="font-mono text-brand-navy">{adminDemoCredentials.password}</span>
-            </p>
-          </div>
-
           <form className="space-y-4" onSubmit={submit}>
             <div className="space-y-2">
               <Label htmlFor="admin-email">Username / Email</Label>
@@ -91,7 +81,7 @@ function AdminLoginPage() {
                 <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   id="admin-email"
-                  type="email"
+                  type="text"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   className="h-11 rounded-none border-[#e4d5cc] bg-[#fffaf6] pl-10"

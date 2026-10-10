@@ -1,7 +1,7 @@
 ﻿export const adminDemoCredentials = {
   name: "Super Admin",
-  email: "admin@sherise.local",
-  password: "admin123",
+  email: "hello_sherise",
+  passwordHash: "ba9df0fe2b12d33e2ffd2505f08a1dec28e9791d0432bc10c301d8eed0eac29e",
   role: "Owner",
 };
 
@@ -12,11 +12,19 @@ export function isAdminAuthenticated() {
   return window.localStorage.getItem(adminSessionKey) === "active";
 }
 
-export function loginAdmin(email: string, password: string) {
+async function sha256(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await window.crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+export async function loginAdmin(email: string, password: string) {
+  if (typeof window === "undefined" || !window.crypto?.subtle) return false;
+
   const ok =
     email.trim().toLowerCase() === adminDemoCredentials.email &&
-    password === adminDemoCredentials.password;
-  if (ok && typeof window !== "undefined") {
+    (await sha256(password)) === adminDemoCredentials.passwordHash;
+  if (ok) {
     window.localStorage.setItem(adminSessionKey, "active");
   }
   return ok;
