@@ -913,6 +913,10 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
   const [selectedLead, setSelectedLead] = useState<string[] | null>(null);
   const [selectedSubscriber, setSelectedSubscriber] = useState<string[] | null>(null);
   const displayConfig = liveConfig ?? config;
+  const showSaveSuccess = (message: string) => {
+    toast.dismiss();
+    toast.success(message);
+  };
   const apiSections = [
     "products",
     "categories",
@@ -1055,7 +1059,7 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
       setDialogOpen(false);
       setEditingProduct(null);
       setSavedMessage(`${formData.title || "Product"} updated in MySQL.`);
-      toast.success("Product updated.");
+      showSaveSuccess("Product updated.");
       return;
     }
 
@@ -1137,7 +1141,7 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
     setReloadKey((value) => value + 1);
     setDialogOpen(false);
     setSavedMessage(`${displayConfig.action} saved to MySQL.`);
-    toast.success(`${displayConfig.action} saved.`);
+    showSaveSuccess(`${displayConfig.action} saved.`);
   };
 
   const handleEditProduct = (row: string[]) => {
@@ -1173,7 +1177,7 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
     setLiveConfig(payload);
     setReloadKey((value) => value + 1);
     setSavedMessage(`${productName} deleted from MySQL.`);
-    toast.success("Product deleted.");
+    showSaveSuccess("Product deleted.");
   };
 
   const handleEditLocalRow = (row: string[]) => {
