@@ -989,6 +989,20 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
     toast.success("Product updated.");
   };
 
+  const createProductRowLocally = (formData: ActionFormData) => {
+    const nextRow = productFormToRow(formData, null);
+    setLiveConfig((current) => {
+      const base = current ?? displayConfig;
+      return {
+        ...base,
+        rows: [nextRow, ...base.rows],
+      };
+    });
+    setDialogOpen(false);
+    setSavedMessage(`${formData.title || "Product"} added to this admin view.`);
+    toast.success("Product added.");
+  };
+
   const saveLocalRow = (formData: ActionFormData) => {
     const nextRow = localFormDataToRow(section, formData, editingRow?.row);
     setLiveConfig((current) => {
@@ -1022,17 +1036,21 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
         updateProductRowLocally(payloadData);
         return;
       }
-      const response = await fetch(`/api/admin/${section}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(payloadData),
-      });
-      const payload = (await response.json()) as ModuleConfig & { error?: string };
-      if (!response.ok) {
-        toast.error(payload.error || "Could not update product.");
+      try {
+        const payload = await fetchAdminPayload<ModuleConfig>(
+          section,
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(payloadData),
+          },
+          "Could not update product.",
+        );
+        setLiveConfig(payload);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not update product.");
         return;
       }
-      setLiveConfig(payload);
       setReloadKey((value) => value + 1);
       setDialogOpen(false);
       setEditingProduct(null);
@@ -1089,20 +1107,30 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
       return;
     }
 
+    if (isProductSection && displayConfig.source !== "mysql") {
+      createProductRowLocally(formData);
+      return;
+    }
+
     if (!canSaveSection) {
       setDialogOpen(false);
       setSavedMessage(`${displayConfig.action} form submitted. This module is currently a frontend mirror.`);
       return;
     }
 
-    const response = await fetch(`/api/admin/${section}`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(formData),
-    });
-    const payload = (await response.json()) as ModuleConfig & { error?: string };
-    if (!response.ok) {
-      toast.error(payload.error || "Could not save admin record.");
+    let payload: ModuleConfig;
+    try {
+      payload = await fetchAdminPayload<ModuleConfig>(
+        section,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(formData),
+        },
+        "Could not save admin record.",
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save admin record.");
       return;
     }
     setLiveConfig(payload);
@@ -1835,6 +1863,12 @@ function ActionDialog({
         </DialogHeader>
         <form
           className="grid gap-4"
+          onInvalid={(event) => {
+            event.preventDefault();
+            const field = event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+            field.focus();
+            toast.error(field.validationMessage || "Please fill the required product details.");
+          }}
           onSubmit={(event) => {
             event.preventDefault();
             const formData = new FormData(event.currentTarget);
