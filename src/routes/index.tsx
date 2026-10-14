@@ -36,6 +36,12 @@ export const Route = createFileRoute("/")({
 });
 function Home() {
   const [approvedReviews, setApprovedReviews] = useState<PublicReview[]>([]);
+  const careTiles = [
+    { flow: "Light", href: "/shop?flow=Light", icon: Sun },
+    { flow: "Medium", href: "/shop?flow=Medium", icon: Droplets },
+    { flow: "Heavy", href: "/shop?flow=Heavy", icon: Droplets },
+    { flow: "Overnight", href: "/shop?flow=Overnight", icon: Moon },
+  ];
 
   useEffect(() => {
     let cancelled = false;
@@ -156,10 +162,9 @@ function Home() {
           copy="Every cycle is different. Start with what feels right for you."
         />
         <div className="mx-auto grid max-w-3xl grid-cols-2 gap-4 sm:grid-cols-4">
-          {["Light", "Medium", "Heavy", "Overnight"].map((flow, i) => {
-            const Icon = i === 3 ? Moon : i === 0 ? Sun : Droplets;
+          {careTiles.map(({ flow, href, icon: Icon }) => {
             return (
-              <Link key={flow} to="/shop" search={{ flow }} className="flow-tile">
+              <Link key={flow} to={href} className="flow-tile" aria-label={`Shop ${flow} flow products`}>
                 <Icon className="mx-auto mb-4 size-8" />
                 <span>{flow}</span>
                 <span className="mt-2 inline-flex items-center justify-center gap-1 text-xs font-bold uppercase tracking-[0.16em] opacity-70">
