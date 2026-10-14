@@ -21,6 +21,20 @@ async function sha256(value: string) {
 export async function loginAdmin(email: string, password: string) {
   if (typeof window === "undefined" || !window.crypto?.subtle) return false;
 
+  try {
+    const response = await fetch("/api/admin/login", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    if (response.ok) {
+      window.localStorage.setItem(adminSessionKey, "active");
+      return true;
+    }
+  } catch {
+    // Local static/demo deployments can still use the bundled admin preview login.
+  }
+
   const ok =
     email.trim().toLowerCase() === adminDemoCredentials.email &&
     (await sha256(password)) === adminDemoCredentials.passwordHash;
@@ -32,6 +46,7 @@ export async function loginAdmin(email: string, password: string) {
 
 export function logoutAdmin() {
   if (typeof window !== "undefined") {
+    void fetch("/api/admin/logout", { method: "POST" }).catch(() => undefined);
     window.localStorage.removeItem(adminSessionKey);
   }
 }
