@@ -86,6 +86,10 @@ export default async function handler(req, res) {
       res.status(200).json(await inventoryPayload());
       return;
     }
+    if (moduleName === "customers") {
+      res.status(200).json(await customersPayload());
+      return;
+    }
     if (moduleName === "coupons") {
       res.status(200).json(await couponsPayload());
       return;
@@ -601,6 +605,53 @@ async function inventoryPayload() {
         trend: outOfStock.length ? "Urgent" : "Clean",
         tone: outOfStock.length ? "danger" : "up",
       },
+    ],
+    source: "mysql",
+  };
+}
+
+async function customersPayload() {
+  const rows = await queryRows(`
+    SELECT
+      c.id,
+      c.name,
+      c.email,
+      c.mobile,
+      c.whatsapp_number,
+      c.status,
+      c.created_at,
+      c.last_login_at,
+      COUNT(DISTINCT o.id) AS order_count
+    FROM customers c
+    LEFT JOIN orders o ON o.customer_id = c.id AND o.deleted_at IS NULL
+    WHERE c.deleted_at IS NULL
+    GROUP BY c.id
+    ORDER BY c.created_at DESC, c.id DESC
+    LIMIT 300
+  `);
+  const active = rows.filter((row) => row.status === "ACTIVE").length;
+  const blocked = rows.filter((row) => row.status === "BLOCKED").length;
+  const withOrders = rows.filter((row) => Number(row.order_count || 0) > 0).length;
+
+  return {
+    title: "Customers",
+    action: "Add New",
+    columns: ["Name", "Email", "Mobile", "WhatsApp", "Orders", "Joined", "Last Login", "Status"],
+    rows: rows.map((row) => [
+      value(row.name),
+      value(row.email),
+      value(row.mobile, "-"),
+      value(row.whatsapp_number, "-"),
+      String(row.order_count || 0),
+      dateOnly(row.created_at),
+      dateOnly(row.last_login_at),
+      value(row.status, "ACTIVE"),
+    ]),
+    metrics: [
+      { label: "Customers", value: String(rows.length), trend: `${active} active`, tone: rows.length ? "up" : "neutral" },
+      { label: "With Orders", value: String(withOrders), trend: "Order history", tone: withOrders ? "up" : "neutral" },
+      { label: "Blocked", value: String(blocked), trend: blocked ? "Review" : "Clean", tone: blocked ? "warn" : "up" },
+      { label: "Source", value: "MySQL", trend: "Live accounts", tone: "up" },
     ],
     source: "mysql",
   };
