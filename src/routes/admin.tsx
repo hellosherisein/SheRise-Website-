@@ -81,6 +81,7 @@ type ModuleConfig = {
   metrics: Array<{ label: string; value: string; trend: string; tone: string }>;
   source?: "mysql" | "frontend" | "sqlite";
 };
+type ApiPayload<T> = T & { error?: string };
 type AdminBadgeCounts = Record<NonNullable<NavItem["badgeKey"]>, number>;
 type ActionFormData = {
   adminAction?: "create" | "update" | "delete";
@@ -428,6 +429,34 @@ const fallbackModule: ModuleConfig = {
   ],
 };
 
+const adminApiUnavailableMessage =
+  "Admin API is not available in this deployment. Showing demo data until MySQL is available.";
+
+async function parseApiJson<T>(response: Response, fallbackMessage = adminApiUnavailableMessage): Promise<ApiPayload<T>> {
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.toLowerCase().includes("application/json")) {
+    await response.text().catch(() => "");
+    throw new Error(fallbackMessage);
+  }
+
+  try {
+    return (await response.json()) as ApiPayload<T>;
+  } catch {
+    throw new Error(fallbackMessage);
+  }
+}
+
+async function fetchAdminPayload<T>(
+  module: string,
+  init?: RequestInit,
+  fallbackMessage = "Admin data could not be loaded.",
+): Promise<ApiPayload<T>> {
+  const response = await fetch(`/api/admin/${module}`, init);
+  const payload = await parseApiJson<T>(response);
+  if (!response.ok) throw new Error(payload.error || fallbackMessage);
+  return payload;
+}
+
 const kpis = [
   { label: "Today's Sales", value: "Rs.24,850", trend: "+12.4%", tone: "up" },
   { label: "Total Sales", value: "Rs.8.42L", trend: "+8.1%", tone: "up" },
@@ -518,10 +547,7 @@ export function AdminConsole() {
 
     let cancelled = false;
     const fetchModule = async (module: string) => {
-      const response = await fetch(`/api/admin/${module}`);
-      const payload = (await response.json()) as ModuleConfig & { error?: string };
-      if (!response.ok) throw new Error(payload.error || `${module} could not be loaded.`);
-      return payload;
+      return fetchAdminPayload<ModuleConfig>(module, undefined, `${module} could not be loaded.`);
     };
     const refreshBadges = () => {
       Promise.all([
@@ -922,10 +948,8 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
 
     setLoadingLiveData(true);
     setConnectionError("");
-    fetch(`/api/admin/${section}`)
-      .then(async (response) => {
-        const payload = (await response.json()) as ModuleConfig & { error?: string };
-        if (!response.ok) throw new Error(payload.error || "Admin data could not be loaded.");
+    fetchAdminPayload<ModuleConfig>(section)
+      .then((payload) => {
         if (!cancelled) setLiveConfig(payload);
       })
       .catch((error: unknown) => {

@@ -227,6 +227,67 @@ export function Collection({
           )}
         </div>
       </div>
+      <section className="mt-14 overflow-hidden bg-brand-cream px-5 py-8 shadow-[0_18px_55px_rgba(35,26,112,0.08)] md:px-10 md:py-12">
+        <div className="grid items-center gap-10 lg:grid-cols-[0.85fr_1.15fr]">
+          <div className="max-w-2xl">
+            <div className="mb-6 inline-flex items-center gap-3 bg-white px-4 py-3 text-brand-burgundy shadow-sm">
+              <Heart className="size-5 fill-current" />
+              <span className="text-xs font-bold uppercase tracking-[0.18em]">
+                NGO impact highlight
+              </span>
+            </div>
+            <p className="eyebrow">CARE THAT REACHES FURTHER</p>
+            <h2 className="mt-3 max-w-2xl text-3xl leading-tight text-brand-navy md:text-5xl">
+              Supporting NGO-led menstrual health conversations.
+            </h2>
+            <p className="mt-5 max-w-2xl leading-7 text-muted-foreground">
+              SheRise partners with community-focused NGO initiatives to make period care
+              information feel approachable, practical and shame-free. The goal is simple: more
+              awareness, more dignity and more confidence for girls and women who need it most.
+            </p>
+            <div className="mt-7 grid max-w-md grid-cols-2 border-y border-brand-navy/15 py-4">
+              <div>
+                <p className="font-display text-4xl text-brand-burgundy">3</p>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                  focus areas
+                </p>
+              </div>
+              <div className="border-l border-brand-navy/15 pl-5">
+                <p className="font-display text-4xl text-brand-burgundy">1</p>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                  shared mission
+                </p>
+              </div>
+            </div>
+          </div>
+          <div
+            className="-mx-5 flex snap-x snap-mandatory gap-5 overflow-x-auto px-5 pb-5 pt-4 md:mx-0 md:px-1 lg:overflow-visible"
+            aria-label="NGO impact highlights"
+          >
+            {[
+              ["Awareness", "Open conversations around menstrual hygiene and body literacy."],
+              ["Access", "Helping community programs highlight the need for reliable period care."],
+              ["Dignity", "Encouraging confident, shame-free choices for every cycle."],
+            ].map(([title, copy], index) => (
+              <article
+                key={title}
+                className={`relative min-h-64 min-w-[82%] snap-center overflow-hidden border border-brand-navy/10 bg-white p-6 shadow-[0_24px_55px_rgba(35,26,112,0.14)] transition-transform sm:min-w-[48%] lg:min-w-0 lg:flex-1 ${
+                  index === 1 ? "lg:translate-y-8" : "lg:-translate-y-2"
+                }`}
+              >
+                <span className="mb-8 flex size-14 items-center justify-center rounded-full bg-brand-blush text-brand-burgundy shadow-inner">
+                  <Heart className="size-5 fill-current" />
+                </span>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-burgundy">
+                  0{index + 1}
+                </p>
+                <h3 className="mt-2 text-2xl text-brand-navy">{title}</h3>
+                <p className="mt-4 text-sm leading-6 text-muted-foreground">{copy}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent className="overflow-auto p-6">
           <SheetHeader>
