@@ -12,7 +12,7 @@ import {
   Action,
 } from "@/components/commerce";
 import { useAuth, customerRequest } from "@/lib/auth";
-import { calculateOrderTotals, FREE_SHIPPING_THRESHOLD } from "@/lib/pricing";
+import { calculateOrderTotals, FREE_SHIPPING_THRESHOLD, type CouponDiscount } from "@/lib/pricing";
 import { AccountGate } from "./account-pages";
 import type { CustomerOrder, Address } from "@/lib/customer-types";
 import { Button } from "@/components/ui/button";
@@ -25,34 +25,82 @@ export type DemoOrder = {
   payment: string;
 };
 
-const activeCoupons = [
-  {
-    code: "RISE10",
-    label: "10% off preview order",
-    detail: "Active now",
-  },
-];
+type PublicCoupon = Exclude<CouponDiscount, boolean | null | undefined> & {
+  code: string;
+  description?: string;
+  startsAt?: string;
+  expiresAt?: string;
+};
+
 const COD_MINIMUM_TOTAL = 1000;
 const paymentMethods = ["UPI", "Cards", "Net Banking", "Wallet", "Cash on Delivery"];
 
+function useActiveCoupons() {
+  const [coupons, setCoupons] = useState<PublicCoupon[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/catalog/coupons?t=${Date.now()}`, { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) return { coupons: [] };
+        return (await response.json()) as { coupons?: PublicCoupon[] };
+      })
+      .then((payload) => {
+        if (!cancelled) {
+          setCoupons(
+            Array.isArray(payload.coupons)
+              ? payload.coupons.filter((coupon) => coupon.code && coupon.discountValue > 0)
+              : [],
+          );
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setCoupons([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return coupons;
+}
+
+function couponLabel(coupon: PublicCoupon) {
+  const discount =
+    coupon.discountType === "FIXED"
+      ? `${money(coupon.discountValue)} off`
+      : `${coupon.discountValue}% off`;
+  const minimum = Number(coupon.minimumOrderAmount || 0);
+  return `${discount}${minimum > 0 ? ` above ${money(minimum)}` : ""}`;
+}
+
+function couponAppliedMessage(coupon: PublicCoupon) {
+  return `${coupon.code} applied: ${couponLabel(coupon)}.`;
+}
+
 export function Coupon({
-  applied = false,
+  appliedCoupon,
   onApply,
+  subtotal,
 }: {
-  applied?: boolean;
-  onApply: (v: boolean) => void;
+  appliedCoupon?: PublicCoupon | null;
+  onApply: (coupon: PublicCoupon | null) => void;
+  subtotal: number;
 }) {
-  const [code, setCode] = useState(applied ? activeCoupons[0]?.code || "" : ""),
-    [message, setMessage] = useState(applied ? "Coupon active: 10% off." : "");
+  const coupons = useActiveCoupons();
+  const [code, setCode] = useState(appliedCoupon?.code || ""),
+    [message, setMessage] = useState(appliedCoupon ? couponAppliedMessage(appliedCoupon) : "");
 
   function applyCoupon(nextCode = code) {
     const normalized = nextCode.trim().toUpperCase();
-    const valid = activeCoupons.some((coupon) => coupon.code === normalized);
+    const coupon = coupons.find((coupon) => coupon.code === normalized) || null;
     setCode(normalized);
-    onApply(valid);
+    onApply(coupon && subtotal >= Number(coupon.minimumOrderAmount || 0) ? coupon : null);
     setMessage(
-      valid
-        ? "Coupon active: 10% off."
+      coupon
+        ? subtotal >= Number(coupon.minimumOrderAmount || 0)
+          ? couponAppliedMessage(coupon)
+          : `Minimum order ${money(Number(coupon.minimumOrderAmount || 0))} required.`
         : normalized
           ? "Coupon not active. You can enter another code manually."
           : "",
@@ -65,7 +113,7 @@ export function Coupon({
       applyCoupon();
     }}>
       <div className="mb-3 space-y-2">
-        {activeCoupons.map((coupon) => (
+        {coupons.map((coupon) => (
           <button
             key={coupon.code}
             type="button"
@@ -76,11 +124,11 @@ export function Coupon({
           >
             <span>
               <span className="font-bold text-brand-navy">{coupon.code}</span>
-              <span className="block text-xs text-muted-foreground">{coupon.label}</span>
+              <span className="block text-xs text-muted-foreground">{couponLabel(coupon)}</span>
             </span>
             <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700">
               <CheckCircle2 className="size-4" />
-              {coupon.detail}
+              Active now
             </span>
           </button>
         ))}
@@ -93,11 +141,12 @@ export function Coupon({
             onChange={(e) => {
               const nextCode = e.target.value.toUpperCase();
               setCode(nextCode);
-              if (activeCoupons.some((coupon) => coupon.code === nextCode.trim())) {
-                onApply(true);
-                setMessage("Coupon active: 10% off.");
+              const coupon = coupons.find((coupon) => coupon.code === nextCode.trim()) || null;
+              if (coupon && subtotal >= Number(coupon.minimumOrderAmount || 0)) {
+                onApply(coupon);
+                setMessage(couponAppliedMessage(coupon));
               } else {
-                onApply(false);
+                onApply(null);
                 setMessage(nextCode.trim() ? "Manual code entered. Click Apply to check." : "");
               }
             }}
@@ -108,13 +157,13 @@ export function Coupon({
           </Button>
         </div>
       </label>
-      <p role="status" className={`mt-2 text-xs ${applied ? "text-emerald-700" : "text-muted-foreground"}`}>
+      <p role="status" className={`mt-2 text-xs ${appliedCoupon ? "text-emerald-700" : "text-muted-foreground"}`}>
         {message}
       </p>
     </form>
   );
 }
-function Summary({ subtotal, discount }: { subtotal: number; discount: boolean }) {
+function Summary({ subtotal, discount }: { subtotal: number; discount: CouponDiscount }) {
   const totals = calculateOrderTotals(subtotal, discount);
   return (
     <dl className="space-y-4">
@@ -142,7 +191,7 @@ function Summary({ subtotal, discount }: { subtotal: number; discount: boolean }
 }
 export function Cart() {
   const { cart, update, remove } = useStore();
-  const [discount, setDiscount] = useState(false);
+  const [discount, setDiscount] = useState<PublicCoupon | null>(null);
   const total = cart.reduce((a, i) => a + i.quantity * i.price, 0);
   return (
     <div className="container-shell section-space">
@@ -198,9 +247,9 @@ export function Cart() {
           <aside className="border bg-brand-cream p-6">
             <h2 className="mb-6 text-2xl">Order summary</h2>
             <Summary subtotal={total} discount={discount} />
-            <Coupon applied={discount} onApply={setDiscount} />
+            <Coupon appliedCoupon={discount} onApply={setDiscount} subtotal={total} />
             <Button asChild size="lg" className="w-full">
-              <Link to="/checkout" search={{ coupon: discount ? "RISE10" : undefined }}>
+              <Link to="/checkout" search={{ coupon: discount?.code }}>
                 Continue to checkout
               </Link>
             </Button>
@@ -231,13 +280,16 @@ function CustomerCheckout() {
   const requestId = useRef(crypto.randomUUID());
   const { cart, clear } = useStore();
   const navigate = useNavigate();
-  const [discount, setDiscount] = useState(false),
+  const coupons = useActiveCoupons();
+  const [discount, setDiscount] = useState<PublicCoupon | null>(null),
     [payment, setPayment] = useState("UPI"),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   useEffect(() => {
-    setDiscount(new URLSearchParams(location.search).get("coupon") === "RISE10");
-  }, []);
+    const couponCode = new URLSearchParams(location.search).get("coupon")?.toUpperCase() || "";
+    if (!couponCode || !coupons.length) return;
+    setDiscount(coupons.find((coupon) => coupon.code === couponCode) || null);
+  }, [coupons]);
   const total = cart.reduce((a, i) => a + i.price * i.quantity, 0);
   const orderTotals = calculateOrderTotals(total, discount);
   const codAvailable = orderTotals.total >= COD_MINIMUM_TOTAL;
@@ -277,7 +329,7 @@ function CustomerCheckout() {
           name: name || getProduct(slug)?.name || titleFromSlug(slug),
           image,
         })),
-        coupon: discount ? "RISE10" : "",
+        coupon: discount?.code || "",
         payment,
       });
       clear();
@@ -454,7 +506,7 @@ function CustomerCheckout() {
               </div>
             ))}
             <Summary subtotal={total} discount={discount} />
-            <Coupon applied={discount} onApply={setDiscount} />
+            <Coupon appliedCoupon={discount} onApply={setDiscount} subtotal={total} />
             <label className="my-5 flex gap-2 text-xs leading-5">
               <input type="checkbox" required />
               <span>

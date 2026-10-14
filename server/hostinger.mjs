@@ -59,6 +59,11 @@ async function handleNodeApiRequest(req, res, pathname) {
     await handleCatalogProducts(req, responseAdapter(res));
     return true;
   }
+  if (pathname === "/api/catalog/coupons") {
+    const { default: handleCatalogCoupons } = await import("../api/catalog/coupons.mjs");
+    await handleCatalogCoupons(req, responseAdapter(res));
+    return true;
+  }
   return false;
 }
 

@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { z } from "zod";
 import { database, transaction } from "./database.server";
 import { getProduct } from "../lib/catalog";
-import { calculateOrderTotals } from "../lib/pricing";
+import { calculateOrderTotals, type CouponDiscount } from "../lib/pricing";
 import type { Address, Customer, CustomerOrder, OrderItem } from "../lib/customer-types";
 const cookieName = "sherise_session";
 const COD_MINIMUM_TOTAL = 1000;
@@ -161,6 +161,50 @@ function customerData(user: Row) {
     orders: rows<CustomerOrder>("orders", user.id),
   };
 }
+
+async function activeCouponDiscount(code: string, subtotal: number): Promise<CouponDiscount> {
+  const normalizedCode = code.trim().toUpperCase();
+  if (!normalizedCode) return false;
+  if (!process.env["MYSQL_HOST"] || !process.env["MYSQL_USER"] || !process.env["MYSQL_DATABASE"]) {
+    return normalizedCode === "RISE10";
+  }
+
+  try {
+    const { queryRows } = await import("./mysql.server");
+    const rows = await queryRows<{
+      discount_type: "PERCENTAGE" | "FIXED";
+      discount_value: number | string;
+      minimum_order_amount: number | string;
+      maximum_discount_amount: number | string | null;
+    }>(
+      `SELECT discount_type, discount_value, minimum_order_amount, maximum_discount_amount
+       FROM coupons
+       WHERE code = ?
+         AND deleted_at IS NULL
+         AND status = 'ACTIVE'
+         AND (starts_at IS NULL OR starts_at <= NOW())
+         AND (expires_at IS NULL OR expires_at >= NOW())
+       LIMIT 1`,
+      [normalizedCode],
+    );
+    const coupon = rows[0];
+    if (!coupon) return false;
+    const minimumOrderAmount = Number(coupon.minimum_order_amount || 0);
+    if (subtotal < minimumOrderAmount) return false;
+    return {
+      discountType: coupon.discount_type === "FIXED" ? "FIXED" : "PERCENTAGE",
+      discountValue: Number(coupon.discount_value || 0),
+      minimumOrderAmount,
+      maximumDiscountAmount:
+        coupon.maximum_discount_amount === null || coupon.maximum_discount_amount === undefined
+          ? null
+          : Number(coupon.maximum_discount_amount),
+    };
+  } catch {
+    return false;
+  }
+}
+
 async function readBody(request: Request) {
   if (!request.headers.get("content-type")?.includes("application/json"))
     throw new ApiError(415, "Use a JSON request.");
@@ -451,7 +495,7 @@ export async function handleCustomerRequest(request: Request, action: string): P
             )
             .min(1)
             .max(50),
-          coupon: z.enum(["", "RISE10"]).default(""),
+          coupon: z.string().trim().max(50).default(""),
           payment: z.enum(["UPI", "Cards", "Net Banking", "Wallet", "Cash on Delivery"]),
         })
         .parse(input);
@@ -478,10 +522,9 @@ export async function handleCustomerRequest(request: Request, action: string): P
         if (pack.stock > 0 && qty > pack.stock) throw new ApiError(409, `${p.name} does not have enough stock.`);
         return { ...i, name: p.name, price: pack.price, image: i.image || p.images[0] };
       });
-      const totals = calculateOrderTotals(
-        items.reduce((s, i) => s + i.quantity * i.price, 0),
-        data.coupon === "RISE10",
-      );
+      const subtotal = items.reduce((s, i) => s + i.quantity * i.price, 0);
+      const couponDiscount = await activeCouponDiscount(data.coupon, subtotal);
+      const totals = calculateOrderTotals(subtotal, couponDiscount);
       if (totals.total >= COD_MINIMUM_TOTAL && data.payment !== "Cash on Delivery") {
         throw new ApiError(400, "Orders of ₹1,000 and above are Cash on Delivery only.");
       }
