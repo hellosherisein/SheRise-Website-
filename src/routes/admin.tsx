@@ -2761,7 +2761,7 @@ function DataTable({
         <thead className="border-b border-[#eadbd2] text-xs uppercase text-muted-foreground">
           <tr>
             {columns.map((column) => (
-              <th key={column} className="py-3 pr-4">
+              <th key={column} className={column === "Image" ? "w-24 py-3 pr-4" : "py-3 pr-4"}>
                 {column}
               </th>
             ))}
@@ -2773,23 +2773,15 @@ function DataTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-[#eadbd2]">
-          {rows.map((row) => (
+          {rows.map((row, rowIndex) => (
             <tr
-              key={row.join("-")}
+              key={`${row[0] || "row"}-${row[2] || rowIndex}`}
               className={onRowClick ? "cursor-pointer transition-colors hover:bg-brand-cream/70" : undefined}
               onClick={() => onRowClick?.(row)}
             >
               {row.map((cell, index) => (
-                <td key={`${cell}-${index}`} className="py-4 pr-4">
-                  {isStatus(cell) ? (
-                    <StatusBadge tone={statusTone(cell)}>{cell}</StatusBadge>
-                  ) : index === 0 ? (
-                    <span className={onRowClick ? "font-semibold text-brand-navy underline-offset-4 hover:underline" : "font-semibold"}>
-                      {cell}
-                    </span>
-                  ) : (
-                    cell
-                  )}
+                <td key={`${index}-${cell.slice(0, 24)}`} className={columns[index] === "Image" ? "w-24 py-4 pr-4" : "max-w-[260px] py-4 pr-4 align-middle"}>
+                  <TableCellContent cell={cell} column={columns[index] || ""} isFirst={index === 0} onRowClick={Boolean(onRowClick)} />
                 </td>
               ))}
               {renderActions ? (
@@ -2803,6 +2795,53 @@ function DataTable({
       </table>
     </div>
   );
+}
+
+function TableCellContent({
+  cell,
+  column,
+  isFirst,
+  onRowClick,
+}: {
+  cell: string;
+  column: string;
+  isFirst: boolean;
+  onRowClick: boolean;
+}) {
+  if (column === "Image") {
+    const imageSrc = productImagePath(cell);
+    if (!imageSrc || cell === "No Image") {
+      return <span className="text-xs text-muted-foreground">No image</span>;
+    }
+    return (
+      <img
+        src={imageSrc}
+        alt=""
+        className="size-14 border border-[#eadbd2] bg-[#fffaf6] object-cover"
+        loading="lazy"
+      />
+    );
+  }
+
+  if (isStatus(cell)) {
+    return <StatusBadge tone={statusTone(cell)}>{cell}</StatusBadge>;
+  }
+
+  if (isFirst) {
+    return (
+      <span
+        className={
+          onRowClick
+            ? "block max-w-[220px] whitespace-normal break-words font-semibold text-brand-navy underline-offset-4 hover:underline"
+            : "block max-w-[220px] whitespace-normal break-words font-semibold"
+        }
+      >
+        {cell}
+      </span>
+    );
+  }
+
+  return <span className="block max-w-[240px] truncate">{cell}</span>;
 }
 
 function ReviewModerationDialog({

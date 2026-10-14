@@ -58,6 +58,11 @@ async function handleNodeApiRequest(req, res, pathname) {
     await handleAdminModule(req, responseAdapter(res));
     return true;
   }
+  if (pathname === "/api/catalog/products") {
+    const { default: handleCatalogProducts } = await import("../api/catalog/products.mjs");
+    await handleCatalogProducts(req, responseAdapter(res));
+    return true;
+  }
   return false;
 }
 
