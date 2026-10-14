@@ -132,7 +132,7 @@ async function createProduct(input) {
   const rawStatus = cleanText(input.status, 20);
   const stock = rawStatus === "OUT OF STOCK" ? 0 : Math.max(0, Number.parseInt(cleanText(input.stock, 8) || "0", 10));
   const packQuantity = cleanText(input.packQuantity, 80) || null;
-  const imageUrls = imageList(input.imageUrls, cleanText(input.imageUrl, 1000000) || `/uploads/products/${slug}.jpg`);
+  const imageUrls = imageList(input.imageUrls, cleanImageText(input.imageUrl) || `/uploads/products/${slug}.jpg`);
   const status = productStatusValue(rawStatus);
   const features = csvJson(input.features);
   const usage = csvJson(input.usageInstructions);
@@ -264,7 +264,7 @@ async function updateProduct(input) {
   const stockText = cleanText(input.stock, 8);
   const stock = rawStatus === "OUT OF STOCK" ? 0 : stockText ? Math.max(0, Number.parseInt(stockText, 10)) : Number(existing.stock);
   const status = productStatusValue(rawStatus || existing.status);
-  const imageUrls = imageList(input.imageUrls, cleanText(input.imageUrl, 1000000));
+  const imageUrls = imageList(input.imageUrls, cleanImageText(input.imageUrl));
   const shortDescription = cleanText(input.shortDescription, 500) || existing.short_description;
   const description = cleanText(input.description, 5000) || existing.description;
   const materials = cleanText(input.materials, 1000) || existing.material_composition;
@@ -617,6 +617,10 @@ function cleanText(input, maxLength) {
   return String(input ?? "").trim().slice(0, maxLength);
 }
 
+function cleanImageText(input) {
+  return cleanText(input, 6000000);
+}
+
 function productStatusValue(input) {
   const status = String(input);
   return status === "INACTIVE" || status === "DRAFT" ? status : "ACTIVE";
@@ -646,11 +650,11 @@ function jsonListOrExisting(input, fallback) {
 }
 
 function imageList(input, fallback) {
-  const images = cleanText(input, 2500000)
+  const images = cleanImageText(input)
     .split(/\r?\n/)
-    .map((item) => cleanText(item, 1000000))
+    .map((item) => cleanImageText(item))
     .filter(Boolean);
-  const normalizedFallback = cleanText(fallback, 1000000);
+  const normalizedFallback = cleanImageText(fallback);
   const list = normalizedFallback ? [normalizedFallback, ...images] : images;
   return list.filter((item, index) => list.indexOf(item) === index);
 }

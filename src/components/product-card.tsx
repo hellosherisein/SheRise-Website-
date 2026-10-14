@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Link } from "@/router-shim";
 import { Heart, ShoppingBag, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,10 +11,18 @@ import {
 } from "@/components/ui/dialog";
 import { type Product, money } from "@/lib/catalog";
 import { useStore } from "@/lib/store";
+import fallbackProductImage from "@/assets/sherise-flatlay.jpg";
+
 export function ProductCard({ product: p }: { product: Product }) {
   const { wishlist, toggleWish, add, ready } = useStore();
   const [quick, setQuick] = useState(false);
+  const [imageSrc, setImageSrc] = useState(p.images[0] || fallbackProductImage);
   const wished = wishlist.includes(p.slug);
+
+  useEffect(() => {
+    setImageSrc(p.images[0] || fallbackProductImage);
+  }, [p.images]);
+
   const addDefault = () =>
     add({
       slug: p.slug,
@@ -24,8 +32,9 @@ export function ProductCard({ product: p }: { product: Product }) {
       pack: p.packOptions[0]!.label,
       price: p.packOptions[0]!.price,
       name: p.name,
-      image: p.images[0],
+      image: imageSrc,
     });
+
   return (
     <article className="group relative flex h-full min-w-0 flex-col bg-white">
       <div className="relative aspect-[4/5] overflow-hidden bg-brand-cream">
@@ -36,11 +45,12 @@ export function ProductCard({ product: p }: { product: Product }) {
           className="block h-full"
         >
           <img
-            src={p.images[0]}
+            src={imageSrc}
             alt={`Product photography placeholder for ${p.name}`}
             width={1008}
             height={1008}
             loading="lazy"
+            onError={() => setImageSrc(fallbackProductImage)}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           />
         </Link>
@@ -67,7 +77,7 @@ export function ProductCard({ product: p }: { product: Product }) {
         </button>
       </div>
       <div className="flex flex-1 flex-col border-2 border-brand-navy border-t-0 p-3">
-        <p className="mb-2 text-[10px] text-muted-foreground">Preview product · No reviews yet</p>
+        <p className="mb-2 text-[10px] text-muted-foreground">Preview product - No reviews yet</p>
         <Link
           to="/products/$slug"
           params={{ slug: p.slug }}
@@ -79,13 +89,13 @@ export function ProductCard({ product: p }: { product: Product }) {
           {p.shortDescription}
         </p>
         <p className="mt-2 text-[10px] font-semibold uppercase text-brand-navy">
-          {p.sizes.join(" · ")} | {p.flow.join(" · ")}
+          {p.sizes.join(" - ")} | {p.flow.join(" - ")}
         </p>
         <div className="mt-auto flex items-end justify-between gap-2 pt-4">
           <div>
             <span className="font-bold">{money(p.salePrice)}</span>{" "}
             <del className="text-xs text-muted-foreground">{money(p.mrp)}</del>
-            <p className="text-xs text-brand-burgundy">{p.discount}% off · demo</p>
+            <p className="text-xs text-brand-burgundy">{p.discount}% off - demo</p>
           </div>
           <Button
             variant="navy"
@@ -105,10 +115,11 @@ export function ProductCard({ product: p }: { product: Product }) {
             <DialogDescription>{p.shortDescription}</DialogDescription>
           </DialogHeader>
           <img
-            src={p.images[0]}
+            src={imageSrc}
             alt="Replace with actual SheRise product image"
             width="400"
             height="400"
+            onError={() => setImageSrc(fallbackProductImage)}
             className="mx-auto max-h-[35vh] object-contain"
           />
           <p className="text-xs text-muted-foreground">Replace with actual SheRise product image</p>
@@ -116,7 +127,7 @@ export function ProductCard({ product: p }: { product: Product }) {
             {money(p.salePrice)} <del className="text-sm font-normal">{money(p.mrp)}</del>
           </p>
           <p className="text-sm">
-            {p.sizes[0]} · {p.flow[0]} · {p.packOptions[0]?.label}
+            {p.sizes[0]} - {p.flow[0]} - {p.packOptions[0]?.label}
           </p>
           <Button
             disabled={!ready}
