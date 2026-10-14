@@ -1418,6 +1418,9 @@ function basename(value: string) {
 function normalizeImagePath(value: string) {
   const trimmed = value.trim();
   if (!trimmed) return "";
+  const fallbackProductUploadImage = "/uploads/products/1790248547777-eabeac00-product.png";
+  const fileName = basename(trimmed).toLowerCase();
+  if (fileName === "pad.jpg" || fileName === "product.jpg") return fallbackProductUploadImage;
   if (trimmed.startsWith("/") || trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("blob:")) {
     return trimmed;
   }

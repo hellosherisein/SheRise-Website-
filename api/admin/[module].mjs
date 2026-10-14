@@ -262,6 +262,9 @@ function setJsonHeaders(res) {
 function normalizeImagePath(imageUrl) {
   const trimmed = String(imageUrl || "").trim();
   if (!trimmed) return "No Image";
+  const fallbackProductUploadImage = "/uploads/products/1790248547777-eabeac00-product.png";
+  const fileName = basename(trimmed).toLowerCase();
+  if (fileName === "pad.jpg" || fileName === "product.jpg") return fallbackProductUploadImage;
   if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith("/uploads/")) return trimmed;
   return `/uploads/products/${basename(trimmed)}`;
 }

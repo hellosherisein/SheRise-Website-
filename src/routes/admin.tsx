@@ -132,6 +132,8 @@ type ActionFormData = {
   isBestseller?: string;
 };
 
+const fallbackProductUploadImage = "/uploads/products/1790248547777-eabeac00-product.png";
+
 const navGroups: Array<{ label: string; items: NavItem[] }> = [
   {
     label: "Dashboard",
@@ -1697,6 +1699,8 @@ function safeUploadFileName(value: string) {
 function productImagePath(value: string) {
   const trimmed = value.trim();
   if (!trimmed) return "";
+  const fileName = basenameFromPath(trimmed).toLowerCase();
+  if (fileName === "pad.jpg" || fileName === "product.jpg") return fallbackProductUploadImage;
   if (trimmed.startsWith("/") || trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("blob:")) {
     return trimmed;
   }
@@ -2264,17 +2268,29 @@ function ProductFormFields({
     if (!files?.length) return;
     const selectedFiles = Array.from(files);
     const localPreviews = selectedFiles.map((file) => URL.createObjectURL(file));
+    setUploadedFileName(selectedFiles.length === 1 ? selectedFiles[0]!.name : `${selectedFiles.length} images selected`);
+    if (options.makePrimary || !imageUrl) setImagePreview(localPreviews[0] || "");
+
     const uploadData = new FormData();
     selectedFiles.forEach((file) => uploadData.append("images", file));
-    const response = await fetch("/api/admin/upload-product-image", {
-      method: "POST",
-      body: uploadData,
-    });
-    const payload = (await response.json()) as { urls?: string[]; error?: string };
-    if (!response.ok || !payload.urls?.length) {
-      toast.error(payload.error || "Could not upload image.");
+
+    let response: Response;
+    let payload: { urls?: string[]; error?: string };
+    try {
+      response = await fetch("/api/admin/upload-product-image", {
+        method: "POST",
+        body: uploadData,
+      });
+      payload = (await response.json()) as { urls?: string[]; error?: string };
+    } catch {
+      toast.error("Image preview is shown, but upload storage is not available on this deployment.");
       return;
     }
+    if (!response.ok || !payload.urls?.length) {
+      toast.error(payload.error || "Image preview is shown, but upload storage is not available.");
+      return;
+    }
+
     const nextImages = payload.urls.map((url, index) => ({
       url,
       preview: localPreviews[index] || url,
@@ -2526,7 +2542,12 @@ function ProductFormFields({
           <p className="text-sm font-bold">Product Image</p>
           <div className="mt-3 grid aspect-square place-items-center overflow-hidden border border-dashed border-[#d8c7bd] bg-white">
             {imagePreview ? (
-              <img src={imagePreview} alt="Product preview" className="h-full w-full object-cover" />
+              <img
+                src={imagePreview}
+                alt="Product preview"
+                className="h-full w-full object-cover"
+                onError={() => setImagePreview("")}
+              />
             ) : (
               <div className="grid justify-items-center gap-2 text-muted-foreground">
                 <ImagePlus className="size-9" />
@@ -2540,7 +2561,7 @@ function ProductFormFields({
               name="imageUrl"
               value={imageUrl}
               className="admin-input"
-              placeholder="/uploads/products/pad.jpg"
+              placeholder={fallbackProductUploadImage}
               onChange={(event) => {
                 const nextValue = productImagePath(event.target.value);
                 setPrimaryImage(nextValue);
