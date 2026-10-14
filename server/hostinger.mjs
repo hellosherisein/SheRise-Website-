@@ -17,6 +17,9 @@ let vite;
 const server = createHttpServer(async (req, res) => {
   try {
     const requestUrl = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+    if (await handleNodeApiRequest(req, res, requestUrl.pathname)) {
+      return;
+    }
     if (requestUrl.pathname.startsWith("/api/")) {
       await sendWebResponse(res, await handleApiRequest(req));
       return;
@@ -36,6 +39,27 @@ const server = createHttpServer(async (req, res) => {
 server.listen(port, "0.0.0.0", () => {
   console.log(`SheRise server listening on port ${port}`);
 });
+
+async function handleNodeApiRequest(req, res, pathname) {
+  const adminModuleMatch = pathname.match(/^\/api\/admin\/([^/]+)$/);
+  if (pathname === "/api/admin/login") {
+    const { default: handleAdminLogin } = await import("../api/admin/login.mjs");
+    await handleAdminLogin(req, responseAdapter(res));
+    return true;
+  }
+  if (pathname === "/api/admin/logout") {
+    const { default: handleAdminLogout } = await import("../api/admin/logout.mjs");
+    await handleAdminLogout(req, responseAdapter(res));
+    return true;
+  }
+  if (adminModuleMatch && pathname !== "/api/admin/upload-product-image") {
+    const { default: handleAdminModule } = await import("../api/admin/[module].mjs");
+    req.query = { module: decodeURIComponent(adminModuleMatch[1]) };
+    await handleAdminModule(req, responseAdapter(res));
+    return true;
+  }
+  return false;
+}
 
 async function handleApiRequest(req) {
   const request = nodeRequestToWebRequest(req);
@@ -84,6 +108,20 @@ async function handleApiRequest(req) {
   }
 
   return json({ error: "Not found." }, 404);
+}
+
+function responseAdapter(res) {
+  res.status = (statusCode) => {
+    res.statusCode = statusCode;
+    return res;
+  };
+  res.json = (body) => {
+    if (!res.getHeader("content-type")) {
+      res.setHeader("content-type", "application/json; charset=utf-8");
+    }
+    res.end(JSON.stringify(body));
+  };
+  return res;
 }
 
 async function loadModule(id) {
