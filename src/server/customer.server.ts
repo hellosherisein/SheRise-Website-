@@ -50,6 +50,15 @@ type Row = {
   password_hash: string;
   created_at: string;
 };
+type MysqlCustomerRow = {
+  id: number | string;
+  name: string;
+  email: string;
+  phone: string | null;
+  whatsapp_number: string;
+  password_hash: string;
+  created_at: string | Date;
+};
 class ApiError extends Error {
   constructor(
     public status: number,
@@ -129,6 +138,151 @@ function json(body: unknown, status = 200, cookie?: string) {
   };
   if (cookie) headers["set-cookie"] = cookie;
   return new Response(JSON.stringify(body), { status, headers });
+}
+function hasMysqlCustomerStore() {
+  return Boolean(process.env["MYSQL_HOST"] && process.env["MYSQL_USER"] && process.env["MYSQL_DATABASE"]);
+}
+function mysqlCustomerData(user: MysqlCustomerRow) {
+  return {
+    user: {
+      id: String(user.id),
+      name: user.name,
+      email: user.email,
+      phone: user.phone || "",
+      whatsappNumber: user.whatsapp_number,
+      createdAt:
+        user.created_at instanceof Date ? user.created_at.toISOString() : String(user.created_at),
+    },
+    addresses: [],
+    wishlist: [],
+    orders: [],
+  };
+}
+async function mysqlSessionUser(request: Request) {
+  const { queryRows } = await import("./mysql.server");
+  const rows = await queryRows<any>(
+    `SELECT c.id, c.name, c.email, c.mobile AS phone, c.whatsapp_number, c.password_hash, c.created_at
+     FROM customers c
+     JOIN customer_sessions s ON s.customer_id = c.id
+     WHERE s.token_hash = ?
+       AND s.expires_at > NOW()
+       AND c.deleted_at IS NULL
+       AND c.status = 'ACTIVE'
+     LIMIT 1`,
+    [hash(token(request))],
+  );
+  return rows[0] as MysqlCustomerRow | undefined;
+}
+async function mysqlNewSession(userId: string | number, remember: boolean, request: Request) {
+  const { executeSql } = await import("./mysql.server");
+  const t = randomBytes(32).toString("hex");
+  const seconds = (remember ? 30 : 1) * 86400;
+  await executeSql("INSERT INTO customer_sessions (token_hash, customer_id, expires_at) VALUES (?, ?, ?)", [
+    hash(t),
+    userId,
+    mysqlDateTime(new Date(Date.now() + seconds * 1000)),
+  ]);
+  await executeSql("DELETE FROM customer_sessions WHERE expires_at <= NOW()");
+  return setCookie(t, seconds, request);
+}
+async function handleMysqlCustomerRequest(request: Request, action: string) {
+  const { queryRows, executeSql } = await import("./mysql.server");
+  if (request.method === "GET") {
+    if (action !== "session") throw new ApiError(404, "Not found.");
+    const user = await mysqlSessionUser(request);
+    return json(user ? mysqlCustomerData(user) : { user: null, addresses: [], wishlist: [], orders: [] });
+  }
+  if (request.method !== "POST") throw new ApiError(405, "Method not allowed.");
+  guardOrigin(request);
+  const input = await readBody(request);
+  if (["register", "login"].includes(action)) await mysqlLimit("global-auth", 200);
+
+  if (action === "register") {
+    const data = z
+      .object({ name, email, phone: optionalPhone, whatsappNumber, password, remember: z.boolean().default(false) })
+      .parse(input);
+    await mysqlLimit("register:" + data.email, 5);
+    const passwordHash = await hashPassword(data.password);
+    try {
+      const result = await executeSql(
+        `INSERT INTO customers (name, email, mobile, whatsapp_number, password_hash, status)
+         VALUES (?, ?, ?, ?, ?, 'ACTIVE')`,
+        [data.name, data.email, data.phone, data.whatsappNumber, passwordHash],
+      );
+      const rows = await queryRows<any>(
+        "SELECT id, name, email, mobile AS phone, whatsapp_number, password_hash, created_at FROM customers WHERE id = ?",
+        [result.insertId],
+      );
+      const user = rows[0] as MysqlCustomerRow;
+      return json(mysqlCustomerData(user), 201, await mysqlNewSession(user.id, data.remember, request));
+    } catch (error) {
+      if (String(error).includes("Duplicate") || String(error).includes("uq_customers"))
+        throw new ApiError(
+          409,
+          "An account with these details already exists. Please sign in or reset your password.",
+        );
+      throw error;
+    }
+  }
+
+  if (action === "login") {
+    const data = z
+      .object({
+        identifier: z.string().trim().toLowerCase().min(3).max(254),
+        password: z.string().max(128),
+        remember: z.boolean().default(false),
+      })
+      .parse(input);
+    await mysqlLimit("login:" + data.identifier, 10);
+    const rows = await queryRows<any>(
+      `SELECT id, name, email, mobile AS phone, whatsapp_number, password_hash, created_at
+       FROM customers
+       WHERE deleted_at IS NULL
+         AND status = 'ACTIVE'
+         AND (email = ? OR mobile = ?)
+       LIMIT 1`,
+      [data.identifier, data.identifier],
+    );
+    const user = rows[0] as MysqlCustomerRow | undefined;
+    const valid = await verifyPassword(
+      data.password,
+      user?.password_hash || "scrypt:00000000000000000000000000000000:" + "00".repeat(64),
+    );
+    if (!user || !valid) throw new ApiError(401, "Email/mobile number or password is incorrect.");
+    await executeSql("DELETE FROM customer_sessions WHERE token_hash = ?", [hash(token(request))]);
+    await executeSql("UPDATE customers SET last_login_at = NOW() WHERE id = ?", [user.id]);
+    return json(mysqlCustomerData(user), 200, await mysqlNewSession(user.id, data.remember, request));
+  }
+
+  if (action === "logout") {
+    await executeSql("DELETE FROM customer_sessions WHERE token_hash = ?", [hash(token(request))]);
+    return json({ ok: true }, 200, setCookie("", 0, request));
+  }
+
+  throw new ApiError(503, "Customer account action is not available yet. Please try again after launch.");
+}
+async function mysqlLimit(key: string, max: number, window = 15 * 60 * 1000) {
+  const { queryRows, executeSql } = await import("./mysql.server");
+  const rateKey = hash(key);
+  const expiresAt = mysqlDateTime(new Date(Date.now() + window));
+  await executeSql("DELETE FROM auth_rate_limits WHERE expires_at <= NOW()");
+  await executeSql(
+    `INSERT INTO auth_rate_limits (rate_key, attempt_count, expires_at)
+     VALUES (?, 1, ?)
+     ON DUPLICATE KEY UPDATE
+       attempt_count = IF(expires_at <= NOW(), 1, attempt_count + 1),
+       expires_at = IF(expires_at <= NOW(), VALUES(expires_at), expires_at)`,
+    [rateKey, expiresAt],
+  );
+  const rows = await queryRows<any>("SELECT attempt_count FROM auth_rate_limits WHERE rate_key = ?", [
+    rateKey,
+  ]);
+  if (Number(rows[0]?.attempt_count || 0) > max) {
+    throw new ApiError(429, "Too many attempts. Please try again in 15 minutes.");
+  }
+}
+function mysqlDateTime(date: Date) {
+  return date.toISOString().slice(0, 19).replace("T", " ");
 }
 function limit(key: string, max: number, window = 15 * 60 * 1000) {
   const db = database();
@@ -247,6 +401,12 @@ function guardOrigin(request: Request) {
 }
 export async function handleCustomerRequest(request: Request, action: string): Promise<Response> {
   try {
+    if (
+      hasMysqlCustomerStore() &&
+      ["session", "register", "login", "logout"].includes(action)
+    ) {
+      return await handleMysqlCustomerRequest(request, action);
+    }
     // Local SQLite is not durable on Vercel. Keep browsing available until
     // a hosted database adapter is connected; never create throwaway accounts.
     if (process.env["VERCEL"] === "1") {
