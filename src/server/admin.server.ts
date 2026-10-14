@@ -298,6 +298,7 @@ async function ensureProductPackagingColumns() {
       if (!/duplicate column|Duplicate column/i.test(message)) throw error;
     }
   }
+  await executeSql("ALTER TABLE product_images MODIFY image_url LONGTEXT NOT NULL");
 }
 
 function packagingSafetyText(input: Record<string, unknown>) {
@@ -1376,11 +1377,11 @@ function jsonListOrExisting(value: unknown, fallback: string | null) {
 }
 
 function imageList(value: unknown, fallback: string) {
-  const images = cleanText(value, 5000)
-    .split(/\r?\n|,/)
-    .map((item) => cleanText(item, 500))
+  const images = cleanText(value, 2500000)
+    .split(/\r?\n/)
+    .map((item) => cleanText(item, 1000000))
     .filter(Boolean);
-  const normalizedFallback = cleanText(fallback, 500);
+  const normalizedFallback = cleanText(fallback, 1000000);
   const list = normalizedFallback ? [normalizedFallback, ...images] : images;
   return list.filter((item, index) => list.indexOf(item) === index);
 }
@@ -1421,7 +1422,13 @@ function normalizeImagePath(value: string) {
   const fallbackProductUploadImage = "/uploads/products/1790248547777-eabeac00-product.png";
   const fileName = basename(trimmed).toLowerCase();
   if (fileName === "pad.jpg" || fileName === "product.jpg") return fallbackProductUploadImage;
-  if (trimmed.startsWith("/") || trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("blob:")) {
+  if (
+    trimmed.startsWith("/") ||
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("blob:") ||
+    trimmed.startsWith("data:image/")
+  ) {
     return trimmed;
   }
   return `/uploads/products/${basename(trimmed)}`;

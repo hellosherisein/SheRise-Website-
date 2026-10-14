@@ -282,7 +282,13 @@ function normalizeImagePath(value: string) {
   const fallbackProductUploadImage = "/uploads/products/1790248547777-eabeac00-product.png";
   const fallbackFileName = trimmed.split(/[\\/]/).filter(Boolean).at(-1)?.toLowerCase() || trimmed.toLowerCase();
   if (fallbackFileName === "pad.jpg" || fallbackFileName === "product.jpg") return fallbackProductUploadImage;
-  if (trimmed.startsWith("/") || trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("blob:")) {
+  if (
+    trimmed.startsWith("/") ||
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("blob:") ||
+    trimmed.startsWith("data:image/")
+  ) {
     return trimmed;
   }
   const fileName = trimmed.split(/[\\/]/).filter(Boolean).at(-1) || trimmed;

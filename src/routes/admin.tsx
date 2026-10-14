@@ -1701,7 +1701,13 @@ function productImagePath(value: string) {
   if (!trimmed) return "";
   const fileName = basenameFromPath(trimmed).toLowerCase();
   if (fileName === "pad.jpg" || fileName === "product.jpg") return fallbackProductUploadImage;
-  if (trimmed.startsWith("/") || trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("blob:")) {
+  if (
+    trimmed.startsWith("/") ||
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("blob:") ||
+    trimmed.startsWith("data:image/")
+  ) {
     return trimmed;
   }
   return `/uploads/products/${safeUploadFileName(trimmed)}`;
@@ -2267,33 +2273,16 @@ function ProductFormFields({
   const addGalleryFiles = async (files: FileList | null, options: { makePrimary?: boolean } = {}) => {
     if (!files?.length) return;
     const selectedFiles = Array.from(files);
-    const localPreviews = selectedFiles.map((file) => URL.createObjectURL(file));
+    const oversized = selectedFiles.find((file) => file.size > 2 * 1024 * 1024);
+    if (oversized) {
+      toast.error("Please upload product images under 2 MB each.");
+      return;
+    }
+    const dataImages = await Promise.all(selectedFiles.map(fileToDataUrl));
     setUploadedFileName(selectedFiles.length === 1 ? selectedFiles[0]!.name : `${selectedFiles.length} images selected`);
-    if (options.makePrimary || !imageUrl) setImagePreview(localPreviews[0] || "");
-
-    const uploadData = new FormData();
-    selectedFiles.forEach((file) => uploadData.append("images", file));
-
-    let response: Response;
-    let payload: { urls?: string[]; error?: string };
-    try {
-      response = await fetch("/api/admin/upload-product-image", {
-        method: "POST",
-        body: uploadData,
-      });
-      payload = (await response.json()) as { urls?: string[]; error?: string };
-    } catch {
-      toast.error("Image preview is shown, but upload storage is not available on this deployment.");
-      return;
-    }
-    if (!response.ok || !payload.urls?.length) {
-      toast.error(payload.error || "Image preview is shown, but upload storage is not available.");
-      return;
-    }
-
-    const nextImages = payload.urls.map((url, index) => ({
+    const nextImages = dataImages.map((url, index) => ({
       url,
-      preview: localPreviews[index] || url,
+      preview: url,
       name: selectedFiles[index]?.name || basenameFromPath(url),
     }));
     setGalleryImages((current) => {
@@ -2301,8 +2290,8 @@ function ProductFormFields({
       const unique = merged.filter((item, index, items) => items.findIndex((entry) => entry.url === item.url) === index);
       return unique;
     });
-    setUploadedFileName(nextImages.length === 1 ? nextImages[0]!.name : `${nextImages.length} images selected`);
     if (options.makePrimary || !imageUrl) setPrimaryImage(nextImages[0]!.url, nextImages[0]!.preview);
+    toast.success("Image ready to save in database.");
   };
 
   const removeGalleryImage = (url: string) => {
@@ -2558,8 +2547,7 @@ function ProductFormFields({
           <label className="mt-3 grid gap-1 text-sm font-medium">
             Image URL
             <input
-              name="imageUrl"
-              value={imageUrl}
+              value={imageUrl.startsWith("data:image/") ? "Database image selected" : imageUrl}
               className="admin-input"
               placeholder={fallbackProductUploadImage}
               onChange={(event) => {
@@ -2572,6 +2560,7 @@ function ProductFormFields({
                 );
               }}
             />
+            <input type="hidden" name="imageUrl" value={imageUrl} />
           </label>
           <label className="mt-3 grid gap-2 text-sm font-medium">
             Upload Image
@@ -2682,6 +2671,15 @@ function ProductFormFields({
       </aside>
     </div>
   );
+}
+
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error || new Error("Could not read image."));
+    reader.readAsDataURL(file);
+  });
 }
 
 function StatusField({
