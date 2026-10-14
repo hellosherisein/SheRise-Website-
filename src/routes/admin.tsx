@@ -430,7 +430,7 @@ const fallbackModule: ModuleConfig = {
 };
 
 const adminApiUnavailableMessage =
-  "Admin API is not available in this deployment. Showing demo data until MySQL is available.";
+  "Admin API is not available in this deployment.";
 
 async function parseApiJson<T>(response: Response, fallbackMessage = adminApiUnavailableMessage): Promise<ApiPayload<T>> {
   const contentType = response.headers.get("content-type") || "";
