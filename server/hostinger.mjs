@@ -12,12 +12,7 @@ const distDir = path.join(root, "dist");
 const publicDir = path.join(root, "public");
 const port = Number(process.env.PORT || 8080);
 
-const vite = await createViteServer({
-  root,
-  appType: "custom",
-  logLevel: "error",
-  server: { middlewareMode: true },
-});
+let vite;
 
 const server = createHttpServer(async (req, res) => {
   try {
@@ -91,7 +86,15 @@ async function handleApiRequest(req) {
   return json({ error: "Not found." }, 404);
 }
 
-function loadModule(id) {
+async function loadModule(id) {
+  if (!vite) {
+    vite = await createViteServer({
+      root,
+      appType: "custom",
+      logLevel: "error",
+      server: { middlewareMode: true },
+    });
+  }
   return vite.ssrLoadModule(id);
 }
 
