@@ -4,15 +4,11 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 
-import { createServer as createViteServer } from "vite";
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const distDir = path.join(root, "dist");
 const publicDir = path.join(root, "public");
-const port = Number(process.env.PORT || 8080);
-
-let vite;
+const port = Number(process.env.PORT || 3000);
 
 const server = createHttpServer(async (req, res) => {
   try {
@@ -68,51 +64,8 @@ async function handleNodeApiRequest(req, res, pathname) {
 
 async function handleApiRequest(req) {
   const request = nodeRequestToWebRequest(req);
-  const pathname = new URL(request.url).pathname;
-
-  if (pathname === "/api/admin/upload-product-image") {
-    const { handleProductImageUpload } = await loadModule("/src/server/uploads.server.ts");
-    return handleProductImageUpload(request);
-  }
-  if (pathname.startsWith("/api/admin/")) {
-    const { handleAdminRequest } = await loadModule("/src/server/admin.server.ts");
-    return handleAdminRequest(request, pathname.replace("/api/admin/", ""));
-  }
-  if (pathname === "/api/catalog/products") {
-    const { handleCatalogRequest } = await loadModule("/src/server/catalog.server.ts");
-    return handleCatalogRequest();
-  }
-  if (pathname.startsWith("/api/customer/")) {
-    const { handleCustomerRequest } = await loadModule("/src/server/customer.server.ts");
-    return handleCustomerRequest(request, pathname.replace("/api/customer/", ""));
-  }
-  if (pathname === "/api/newsletter") {
-    const { handleNewsletterRequest } = await loadModule("/src/server/newsletter.server.ts");
-    return handleNewsletterRequest(request);
-  }
-  if (pathname === "/api/popup-leads") {
-    const { handlePopupLeadRequest } = await loadModule("/src/server/popup-leads.server.ts");
-    return handlePopupLeadRequest(request);
-  }
-  if (pathname === "/api/reviews") {
-    const { handleReviewsRequest } = await loadModule("/src/server/reviews.server.ts");
-    return handleReviewsRequest(request);
-  }
-  if (pathname === "/api/content/blogs") {
-    const { listContentBlogs } = await loadModule("/src/server/content.server.ts");
-    return json({ posts: listContentBlogs() });
-  }
-  if (pathname.startsWith("/api/content/blogs/")) {
-    const slug = decodeURIComponent(pathname.replace("/api/content/blogs/", ""));
-    const { getContentBlog, listContentBlogs } = await loadModule("/src/server/content.server.ts");
-    return json({ post: getContentBlog(slug), related: listContentBlogs() });
-  }
-  if (pathname === "/api/content/faqs") {
-    const { listContentFaqs } = await loadModule("/src/server/content.server.ts");
-    return json({ faqs: listContentFaqs() });
-  }
-
-  return json({ error: "Not found." }, 404);
+  const { handleProductionApiRequest } = await loadProductionApi();
+  return handleProductionApiRequest(request);
 }
 
 function responseAdapter(res) {
@@ -129,16 +82,8 @@ function responseAdapter(res) {
   return res;
 }
 
-async function loadModule(id) {
-  if (!vite) {
-    vite = await createViteServer({
-      root,
-      appType: "custom",
-      logLevel: "error",
-      server: { middlewareMode: true },
-    });
-  }
-  return vite.ssrLoadModule(id);
+async function loadProductionApi() {
+  return import("../dist/server/production-api.js");
 }
 
 function nodeRequestToWebRequest(req) {
