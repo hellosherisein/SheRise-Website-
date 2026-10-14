@@ -13,7 +13,7 @@
     "prebuild": "node scripts/generate-seo.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node scripts/verify-store.mjs",
-    "start": "node server/hostinger.mjs",
+    "start": "node app.js",
     "test:accounts": "playwright test"
   },
   "overrides": {
