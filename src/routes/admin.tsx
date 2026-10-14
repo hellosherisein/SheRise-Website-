@@ -130,6 +130,15 @@ type ActionFormData = {
   metaKeywords?: string;
   isFeatured?: string;
   isBestseller?: string;
+  discountType?: string;
+  discountValue?: string;
+  minimumOrderAmount?: string;
+  maximumDiscountAmount?: string;
+  startsAt?: string;
+  expiresAt?: string;
+  usageLimit?: string;
+  usageLimitPerCustomer?: string;
+  firstOrderOnly?: string;
 };
 
 const fallbackProductUploadImage = "/uploads/products/1790248547777-eabeac00-product.png";
@@ -941,6 +950,7 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
   const isNewsletterSection = section === "newsletter";
   const isContentSection = section === "blogs" || section === "faqs";
   const isInventorySection = section === "inventory";
+  const isCouponSection = section === "coupons";
   const hasLocalRowActions = section === "homepage" || section === "faqs" || section === "blogs";
 
   useEffect(() => {
@@ -1111,6 +1121,30 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
       return;
     }
 
+    if (isCouponSection) {
+      const response = await fetch(`/api/admin/${section}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ...formData,
+          adminAction: editingRow ? "update" : "create",
+          originalKey: editingRow?.data.originalKey,
+        }),
+      });
+      const payload = (await response.json()) as ModuleConfig & { error?: string };
+      if (!response.ok) {
+        toast.error(payload.error || "Could not save coupon.");
+        return;
+      }
+      setLiveConfig(payload);
+      setReloadKey((value) => value + 1);
+      setDialogOpen(false);
+      setEditingRow(null);
+      setSavedMessage(`${formData.code || formData.title || "Coupon"} ${editingRow ? "updated" : "saved"} to MySQL.`);
+      toast.success(`Coupon ${editingRow ? "updated" : "saved"}.`);
+      return;
+    }
+
     if (isProductSection && displayConfig.source !== "mysql") {
       createProductRowLocally(formData);
       return;
@@ -1188,6 +1222,24 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
   const handleDeleteLocalRow = async (row: string[]) => {
     const title = row[0] || "this item";
     if (!window.confirm(`Delete ${title}?`)) return;
+    if (isCouponSection) {
+      const data = localRowToFormData(section, row);
+      const response = await fetch(`/api/admin/${section}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ adminAction: "delete", originalKey: data.originalKey, code: data.code }),
+      });
+      const payload = (await response.json()) as ModuleConfig & { error?: string };
+      if (!response.ok) {
+        toast.error(payload.error || "Could not delete coupon.");
+        return;
+      }
+      setLiveConfig(payload);
+      setReloadKey((value) => value + 1);
+      setSavedMessage(`${title} deleted from MySQL.`);
+      toast.success("Coupon deleted.");
+      return;
+    }
     if (isContentSection) {
       const data = localRowToFormData(section, row);
       const response = await fetch(`/api/admin/${section}`, {
@@ -1393,6 +1445,39 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
                       >
                         <Pencil className="size-4" />
                         <span className="sr-only">Edit stock</span>
+                      </Button>
+                    </div>
+                  )
+              : isCouponSection
+                ? (row) => (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="size-8 bg-white"
+                        title="Edit coupon"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleEditLocalRow(row);
+                        }}
+                      >
+                        <Pencil className="size-4" />
+                        <span className="sr-only">Edit coupon</span>
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="size-8 bg-white text-red-700 hover:text-red-800"
+                        title="Delete coupon"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void handleDeleteLocalRow(row);
+                        }}
+                      >
+                        <Trash2 className="size-4" />
+                        <span className="sr-only">Delete coupon</span>
                       </Button>
                     </div>
                   )
@@ -1638,6 +1723,23 @@ function localRowToFormData(section: string, row: string[]): ActionFormData {
       notes: "",
     };
   }
+  if (section === "coupons") {
+    const discountText = row[2] || "";
+    const discountMatch = discountText.match(/^([\d.]+)\s*(%|Rs\.)?/i);
+    return {
+      title: row[0] || "",
+      code: row[0] || "",
+      discountType: row[1] === "FIXED" ? "FIXED" : "PERCENTAGE",
+      discountValue: discountMatch?.[1] || "",
+      minimumOrderAmount: row[3]?.replace(/[^\d.]/g, "") || "",
+      usageLimit: row[4] === "Unlimited" ? "" : row[4] || "",
+      startsAt: dateInputValue(row[5]),
+      expiresAt: dateInputValue(row[6]),
+      status: row.at(-1) || "ACTIVE",
+      originalKey: row[0] || "",
+      notes: "",
+    };
+  }
   return {
     title: row[0] || "",
     code: row[1] || "",
@@ -1673,6 +1775,21 @@ function localFormDataToRow(section: string, formData: ActionFormData, fallback?
       formData.author || fallback?.[4] || "SheRise Team",
       formData.imageUrl || fallback?.[5] || "-",
       formData.notes || formData.shortDescription || fallback?.[6] || "-",
+      formData.status || fallback?.at(-1) || "ACTIVE",
+    ];
+  }
+  if (section === "coupons") {
+    const code = (formData.code || formData.title || fallback?.[0] || "COUPON").toUpperCase();
+    const type = formData.discountType || fallback?.[1] || "PERCENTAGE";
+    const value = formData.discountValue || fallback?.[2]?.replace(/[^\d.]/g, "") || "0";
+    return [
+      code,
+      type,
+      type === "FIXED" ? `Rs.${value}` : `${value}%`,
+      formData.minimumOrderAmount || fallback?.[3]?.replace(/[^\d.]/g, "") || "0",
+      formData.usageLimit || fallback?.[4] || "Unlimited",
+      formData.startsAt || fallback?.[5] || "-",
+      formData.expiresAt || fallback?.[6] || "-",
       formData.status || fallback?.at(-1) || "ACTIVE",
     ];
   }
@@ -1924,6 +2041,15 @@ function ActionDialog({
                 metaKeywords: String(formData.get("metaKeywords") ?? ""),
                 isFeatured: String(formData.get("isFeatured") ?? ""),
                 isBestseller: String(formData.get("isBestseller") ?? ""),
+                discountType: String(formData.get("discountType") ?? "PERCENTAGE"),
+                discountValue: String(formData.get("discountValue") ?? ""),
+                minimumOrderAmount: String(formData.get("minimumOrderAmount") ?? ""),
+                maximumDiscountAmount: String(formData.get("maximumDiscountAmount") ?? ""),
+                startsAt: String(formData.get("startsAt") ?? ""),
+                expiresAt: String(formData.get("expiresAt") ?? ""),
+                usageLimit: String(formData.get("usageLimit") ?? ""),
+                usageLimitPerCustomer: String(formData.get("usageLimitPerCustomer") ?? ""),
+                firstOrderOnly: String(formData.get("firstOrderOnly") ?? ""),
               }),
             ).finally(() => setSaving(false));
           }}
@@ -1960,6 +2086,7 @@ function BasicFormFields({
   const isFaq = section === "faqs";
   const isBlog = section === "blogs";
   const isInventory = section === "inventory";
+  const isCoupon = section === "coupons";
 
   if (isFaq) {
     return (
@@ -2061,6 +2188,10 @@ function BasicFormFields({
     );
   }
 
+  if (isCoupon) {
+    return <CouponFormFields initialData={initialData} />;
+  }
+
   return (
     <>
       <label className="grid gap-1 text-sm font-medium">
@@ -2105,6 +2236,132 @@ function BasicFormFields({
           placeholder={isHomepage ? "Section text or content source" : "Description, subtitle or image URL"}
         />
       </label>
+    </>
+  );
+}
+
+function CouponFormFields({ initialData }: { initialData?: ActionFormData | null }) {
+  return (
+    <>
+      <label className="grid gap-1 text-sm font-medium">
+        Coupon Code
+        <input
+          name="code"
+          required
+          defaultValue={initialData?.code || initialData?.title || ""}
+          className="admin-input uppercase"
+          placeholder="SHERISE10"
+        />
+      </label>
+      <label className="grid gap-1 text-sm font-medium">
+        Description
+        <input
+          name="title"
+          defaultValue={initialData?.title && initialData.title !== initialData.code ? initialData.title : ""}
+          className="admin-input"
+          placeholder="Launch offer, festive sale, first order offer"
+        />
+      </label>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="grid gap-1 text-sm font-medium">
+          Discount Type
+          <select
+            name="discountType"
+            defaultValue={initialData?.discountType || "PERCENTAGE"}
+            className="admin-input"
+          >
+            <option value="PERCENTAGE">Percentage</option>
+            <option value="FIXED">Fixed amount</option>
+          </select>
+        </label>
+        <label className="grid gap-1 text-sm font-medium">
+          Discount Value
+          <input
+            name="discountValue"
+            type="number"
+            min="0"
+            step="0.01"
+            required
+            defaultValue={initialData?.discountValue || ""}
+            className="admin-input"
+            placeholder="10"
+          />
+        </label>
+        <label className="grid gap-1 text-sm font-medium">
+          Minimum Order Amount
+          <input
+            name="minimumOrderAmount"
+            type="number"
+            min="0"
+            step="0.01"
+            defaultValue={initialData?.minimumOrderAmount || "0"}
+            className="admin-input"
+            placeholder="499"
+          />
+        </label>
+        <label className="grid gap-1 text-sm font-medium">
+          Maximum Discount Amount
+          <input
+            name="maximumDiscountAmount"
+            type="number"
+            min="0"
+            step="0.01"
+            defaultValue={initialData?.maximumDiscountAmount || ""}
+            className="admin-input"
+            placeholder="100"
+          />
+        </label>
+        <label className="grid gap-1 text-sm font-medium">
+          Usage Limit
+          <input
+            name="usageLimit"
+            type="number"
+            min="1"
+            defaultValue={initialData?.usageLimit || ""}
+            className="admin-input"
+            placeholder="100"
+          />
+        </label>
+        <label className="grid gap-1 text-sm font-medium">
+          Limit Per Customer
+          <input
+            name="usageLimitPerCustomer"
+            type="number"
+            min="1"
+            defaultValue={initialData?.usageLimitPerCustomer || "1"}
+            className="admin-input"
+            placeholder="1"
+          />
+        </label>
+        <label className="grid gap-1 text-sm font-medium">
+          Starts On
+          <input
+            name="startsAt"
+            type="date"
+            defaultValue={initialData?.startsAt || ""}
+            className="admin-input"
+          />
+        </label>
+        <label className="grid gap-1 text-sm font-medium">
+          Expires On
+          <input
+            name="expiresAt"
+            type="date"
+            defaultValue={initialData?.expiresAt || ""}
+            className="admin-input"
+          />
+        </label>
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <input
+            name="firstOrderOnly"
+            type="checkbox"
+            value="1"
+            defaultChecked={initialData?.firstOrderOnly === "1"}
+          />
+          First order only
+        </label>
+        <StatusField defaultValue={initialData?.status} options={["ACTIVE", "INACTIVE", "EXPIRED"]} />
+      </div>
     </>
   );
 }
@@ -2760,10 +3017,13 @@ function fileToDataUrl(file: File) {
 function StatusField({
   defaultValue = "ACTIVE",
   includeOutOfStock = false,
+  options,
 }: {
   defaultValue?: string;
   includeOutOfStock?: boolean;
+  options?: string[];
 }) {
+  const statusOptions = options || ["ACTIVE", "DRAFT", ...(includeOutOfStock ? ["OUT OF STOCK"] : []), "INACTIVE"];
   return (
     <label className="grid gap-1 text-sm font-medium">
       Status
@@ -2772,10 +3032,9 @@ function StatusField({
         defaultValue={defaultValue}
         className="border border-[#e4d5cc] bg-[#fffaf6] px-3 py-2 outline-none focus:border-brand-coral"
       >
-        <option>ACTIVE</option>
-        <option>DRAFT</option>
-        {includeOutOfStock ? <option>OUT OF STOCK</option> : null}
-        <option>INACTIVE</option>
+        {statusOptions.map((option) => (
+          <option key={option}>{option}</option>
+        ))}
       </select>
     </label>
   );

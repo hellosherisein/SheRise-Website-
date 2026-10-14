@@ -55,6 +55,18 @@ export default async function handler(req, res) {
       res.status(200).json(await inventoryPayload());
       return;
     }
+    if (req.method === "POST" && moduleName === "coupons") {
+      const body = await readJsonBody(req);
+      if (body.adminAction === "update") {
+        await updateCoupon(body);
+      } else if (body.adminAction === "delete") {
+        await deleteCoupon(body);
+      } else {
+        await createCoupon(body);
+      }
+      res.status(200).json(await couponsPayload());
+      return;
+    }
 
     if (req.method !== "GET") {
       res.status(405).json({ error: "Method not allowed." });
@@ -72,6 +84,10 @@ export default async function handler(req, res) {
     }
     if (moduleName === "inventory") {
       res.status(200).json(await inventoryPayload());
+      return;
+    }
+    if (moduleName === "coupons") {
+      res.status(200).json(await couponsPayload());
       return;
     }
 
@@ -590,6 +606,148 @@ async function inventoryPayload() {
   };
 }
 
+async function couponsPayload() {
+  const rows = await queryRows(`
+    SELECT code, description, discount_type, discount_value, minimum_order_amount,
+      maximum_discount_amount, starts_at, expires_at, usage_limit,
+      usage_limit_per_customer, first_order_only, status
+    FROM coupons
+    WHERE deleted_at IS NULL
+    ORDER BY created_at DESC, id DESC
+    LIMIT 200
+  `);
+  const activeCount = rows.filter((row) => row.status === "ACTIVE").length;
+  const expiringSoon = rows.filter((row) => {
+    if (!row.expires_at) return false;
+    const expiry = new Date(row.expires_at).getTime();
+    const now = Date.now();
+    return expiry >= now && expiry <= now + 1000 * 60 * 60 * 24 * 7;
+  }).length;
+
+  return {
+    title: "Coupons",
+    action: "Create Coupon",
+    columns: ["Code", "Type", "Discount", "Min Order", "Usage Limit", "Starts", "Expires", "Status"],
+    rows: rows.map((row) => [
+      value(row.code),
+      value(row.discount_type),
+      row.discount_type === "FIXED"
+        ? `Rs.${Number(row.discount_value || 0).toLocaleString("en-IN")}`
+        : `${Number(row.discount_value || 0).toLocaleString("en-IN")}%`,
+      `Rs.${Number(row.minimum_order_amount || 0).toLocaleString("en-IN")}`,
+      row.usage_limit === null || row.usage_limit === undefined ? "Unlimited" : String(row.usage_limit),
+      dateOnly(row.starts_at),
+      dateOnly(row.expires_at),
+      value(row.status, "ACTIVE"),
+    ]),
+    metrics: [
+      { label: "Coupons", value: String(rows.length), trend: "Live MySQL rows", tone: "neutral" },
+      { label: "Active", value: String(activeCount), trend: "Currently usable", tone: activeCount ? "up" : "neutral" },
+      { label: "Ending Soon", value: String(expiringSoon), trend: "Next 7 days", tone: expiringSoon ? "warn" : "up" },
+      { label: "Expired", value: String(rows.filter((row) => row.status === "EXPIRED").length), trend: "Needs review", tone: "neutral" },
+    ],
+    source: "mysql",
+  };
+}
+
+async function createCoupon(input) {
+  const coupon = couponInput(input);
+  await executeSql(
+    `INSERT INTO coupons (
+      code, description, discount_type, discount_value, minimum_order_amount,
+      maximum_discount_amount, starts_at, expires_at, usage_limit,
+      usage_limit_per_customer, first_order_only, status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      coupon.code,
+      coupon.description,
+      coupon.discountType,
+      coupon.discountValue,
+      coupon.minimumOrderAmount,
+      coupon.maximumDiscountAmount,
+      coupon.startsAt,
+      coupon.expiresAt,
+      coupon.usageLimit,
+      coupon.usageLimitPerCustomer,
+      coupon.firstOrderOnly,
+      coupon.status,
+    ],
+  );
+}
+
+async function updateCoupon(input) {
+  const originalCode = cleanText(input.originalKey || input.code, 50).toUpperCase();
+  if (!originalCode) {
+    const error = new Error("Coupon code is required.");
+    error.statusCode = 400;
+    throw error;
+  }
+  const coupon = couponInput(input);
+  await executeSql(
+    `UPDATE coupons SET
+      code = ?, description = ?, discount_type = ?, discount_value = ?,
+      minimum_order_amount = ?, maximum_discount_amount = ?, starts_at = ?,
+      expires_at = ?, usage_limit = ?, usage_limit_per_customer = ?,
+      first_order_only = ?, status = ?
+    WHERE code = ? AND deleted_at IS NULL`,
+    [
+      coupon.code,
+      coupon.description,
+      coupon.discountType,
+      coupon.discountValue,
+      coupon.minimumOrderAmount,
+      coupon.maximumDiscountAmount,
+      coupon.startsAt,
+      coupon.expiresAt,
+      coupon.usageLimit,
+      coupon.usageLimitPerCustomer,
+      coupon.firstOrderOnly,
+      coupon.status,
+      originalCode,
+    ],
+  );
+}
+
+async function deleteCoupon(input) {
+  const code = cleanText(input.originalKey || input.code, 50).toUpperCase();
+  if (!code) {
+    const error = new Error("Coupon code is required.");
+    error.statusCode = 400;
+    throw error;
+  }
+  await executeSql("UPDATE coupons SET deleted_at = NOW(), status = 'INACTIVE' WHERE code = ? AND deleted_at IS NULL", [code]);
+}
+
+function couponInput(input) {
+  const code = cleanText(input.code || input.title, 50).toUpperCase();
+  if (!code) {
+    const error = new Error("Coupon code is required.");
+    error.statusCode = 400;
+    throw error;
+  }
+  const discountType = input.discountType === "FIXED" ? "FIXED" : "PERCENTAGE";
+  const discountValue = moneyValue(input.discountValue);
+  if (discountValue <= 0) {
+    const error = new Error("Discount value is required.");
+    error.statusCode = 400;
+    throw error;
+  }
+  return {
+    code,
+    description: cleanText(input.title || input.notes, 255) || null,
+    discountType,
+    discountValue,
+    minimumOrderAmount: moneyValue(input.minimumOrderAmount),
+    maximumDiscountAmount: optionalNullableMoney(input.maximumDiscountAmount),
+    startsAt: dateTimeOrNull(input.startsAt, false),
+    expiresAt: dateTimeOrNull(input.expiresAt, true),
+    usageLimit: optionalPositiveInt(input.usageLimit),
+    usageLimitPerCustomer: optionalPositiveInt(input.usageLimitPerCustomer),
+    firstOrderOnly: input.firstOrderOnly ? 1 : 0,
+    status: ["ACTIVE", "INACTIVE", "EXPIRED"].includes(String(input.status)) ? String(input.status) : "ACTIVE",
+  };
+}
+
 function emptyPayload(moduleName) {
   const title = titleFromSlug(moduleName);
   return {
@@ -669,6 +827,32 @@ function optionalMoneyValue(input, fallback) {
   const text = cleanText(input, 16);
   if (!text) return Number.isFinite(fallback) ? Math.max(0, fallback) : 0;
   return moneyValue(text);
+}
+
+function optionalNullableMoney(input) {
+  const text = cleanText(input, 16);
+  if (!text) return null;
+  return moneyValue(text);
+}
+
+function optionalPositiveInt(input) {
+  const text = cleanText(input, 12);
+  if (!text) return null;
+  const parsed = Number.parseInt(text, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function dateTimeOrNull(input, endOfDay) {
+  const text = cleanText(input, 20);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return null;
+  return `${text} ${endOfDay ? "23:59:59" : "00:00:00"}`;
+}
+
+function dateOnly(input) {
+  if (!input) return "-";
+  const date = input instanceof Date ? input : new Date(input);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toISOString().slice(0, 10);
 }
 
 function csvJson(input) {
