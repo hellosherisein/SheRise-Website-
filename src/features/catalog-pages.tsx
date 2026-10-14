@@ -52,7 +52,7 @@ export function Collection({
   }, [category]);
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/catalog/products")
+    fetch(`/api/catalog/products?t=${Date.now()}`, { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) return;
         const payload = (await response.json()) as { products?: Product[] };
@@ -308,7 +308,7 @@ export function Wishlist() {
   const [catalogProducts, setCatalogProducts] = useState(products);
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/catalog/products")
+    fetch(`/api/catalog/products?t=${Date.now()}`, { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) return;
         const payload = (await response.json()) as { products?: Product[] };

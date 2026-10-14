@@ -384,7 +384,7 @@ function AccountDashboard({ section }: { section: string }) {
   useEffect(() => {
     if (section !== "orders") return;
     let cancelled = false;
-    fetch("/api/catalog/products")
+    fetch(`/api/catalog/products?t=${Date.now()}`, { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) return;
         const payload = (await response.json()) as { products?: Product[] };
@@ -1206,7 +1206,7 @@ function AccountWishlistGrid({ wishlist }: { wishlist: string[] }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/catalog/products")
+    fetch(`/api/catalog/products?t=${Date.now()}`, { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) return;
         const payload = (await response.json()) as { products?: Product[] };

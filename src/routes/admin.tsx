@@ -1844,6 +1844,7 @@ function ActionDialog({
   onSave: (formData: ActionFormData) => void | Promise<void>;
 }) {
   const [imagePreview, setImagePreview] = useState("");
+  const [saving, setSaving] = useState(false);
   const isProduct = section === "products";
   const isBlog = section === "blogs";
 
@@ -1875,52 +1876,56 @@ function ActionDialog({
           }}
           onSubmit={(event) => {
             event.preventDefault();
+            if (saving) return;
             const formData = new FormData(event.currentTarget);
-            void onSave({
-              title: String(formData.get("title") ?? ""),
-              code: String(formData.get("code") ?? ""),
-              status: String(formData.get("status") ?? "ACTIVE"),
-              notes: String(formData.get("notes") ?? ""),
-              author: String(formData.get("author") ?? ""),
-              publishedDate: String(formData.get("publishedDate") ?? ""),
-              slug: String(formData.get("slug") ?? ""),
-              sku: String(formData.get("sku") ?? ""),
-              category: String(formData.get("category") ?? ""),
-              shortDescription: String(formData.get("shortDescription") ?? ""),
-              description: String(formData.get("description") ?? ""),
-              mrp: String(formData.get("mrp") ?? ""),
-              sellingPrice: String(formData.get("sellingPrice") ?? ""),
-              gstPercent: String(formData.get("gstPercent") ?? ""),
-              stock: String(formData.get("stock") ?? ""),
-              lowStockThreshold: String(formData.get("lowStockThreshold") ?? ""),
-              packQuantity: String(formData.get("packQuantity") ?? ""),
-              sizes: String(formData.get("sizes") ?? ""),
-              productDimensions: String(formData.get("productDimensions") ?? ""),
-              padLength: String(formData.get("padLength") ?? ""),
-              frontPackContent: String(formData.get("frontPackContent") ?? ""),
-              flow: formData.getAll("flow").map(String).join(","),
-              imageUrl: String(formData.get("imageUrl") ?? ""),
-              imageUrls: String(formData.get("imageUrls") ?? ""),
-              anionStripNotes: String(formData.get("anionStripNotes") ?? ""),
-              brandMessage: String(formData.get("brandMessage") ?? ""),
-              features: String(formData.get("features") ?? ""),
-              materials: String(formData.get("materials") ?? ""),
-              usageInstructions: String(formData.get("usageInstructions") ?? ""),
-              disposalInstructions: String(formData.get("disposalInstructions") ?? ""),
-              safetyInformation: String(formData.get("safetyInformation") ?? ""),
-              storageInstruction: String(formData.get("storageInstruction") ?? ""),
-              manufacturerDetails: String(formData.get("manufacturerDetails") ?? ""),
-              marketerDetails: String(formData.get("marketerDetails") ?? ""),
-              productContact: String(formData.get("productContact") ?? ""),
-              productEmail: String(formData.get("productEmail") ?? ""),
-              productWebsite: String(formData.get("productWebsite") ?? ""),
-              shelfLife: String(formData.get("shelfLife") ?? ""),
-              metaTitle: String(formData.get("metaTitle") ?? ""),
-              metaDescription: String(formData.get("metaDescription") ?? ""),
-              metaKeywords: String(formData.get("metaKeywords") ?? ""),
-              isFeatured: String(formData.get("isFeatured") ?? ""),
-              isBestseller: String(formData.get("isBestseller") ?? ""),
-            });
+            setSaving(true);
+            void Promise.resolve(
+              onSave({
+                title: String(formData.get("title") ?? ""),
+                code: String(formData.get("code") ?? ""),
+                status: String(formData.get("status") ?? "ACTIVE"),
+                notes: String(formData.get("notes") ?? ""),
+                author: String(formData.get("author") ?? ""),
+                publishedDate: String(formData.get("publishedDate") ?? ""),
+                slug: String(formData.get("slug") ?? ""),
+                sku: String(formData.get("sku") ?? ""),
+                category: String(formData.get("category") ?? ""),
+                shortDescription: String(formData.get("shortDescription") ?? ""),
+                description: String(formData.get("description") ?? ""),
+                mrp: String(formData.get("mrp") ?? ""),
+                sellingPrice: String(formData.get("sellingPrice") ?? ""),
+                gstPercent: String(formData.get("gstPercent") ?? ""),
+                stock: String(formData.get("stock") ?? ""),
+                lowStockThreshold: String(formData.get("lowStockThreshold") ?? ""),
+                packQuantity: String(formData.get("packQuantity") ?? ""),
+                sizes: String(formData.get("sizes") ?? ""),
+                productDimensions: String(formData.get("productDimensions") ?? ""),
+                padLength: String(formData.get("padLength") ?? ""),
+                frontPackContent: String(formData.get("frontPackContent") ?? ""),
+                flow: formData.getAll("flow").map(String).join(","),
+                imageUrl: String(formData.get("imageUrl") ?? ""),
+                imageUrls: String(formData.get("imageUrls") ?? ""),
+                anionStripNotes: String(formData.get("anionStripNotes") ?? ""),
+                brandMessage: String(formData.get("brandMessage") ?? ""),
+                features: String(formData.get("features") ?? ""),
+                materials: String(formData.get("materials") ?? ""),
+                usageInstructions: String(formData.get("usageInstructions") ?? ""),
+                disposalInstructions: String(formData.get("disposalInstructions") ?? ""),
+                safetyInformation: String(formData.get("safetyInformation") ?? ""),
+                storageInstruction: String(formData.get("storageInstruction") ?? ""),
+                manufacturerDetails: String(formData.get("manufacturerDetails") ?? ""),
+                marketerDetails: String(formData.get("marketerDetails") ?? ""),
+                productContact: String(formData.get("productContact") ?? ""),
+                productEmail: String(formData.get("productEmail") ?? ""),
+                productWebsite: String(formData.get("productWebsite") ?? ""),
+                shelfLife: String(formData.get("shelfLife") ?? ""),
+                metaTitle: String(formData.get("metaTitle") ?? ""),
+                metaDescription: String(formData.get("metaDescription") ?? ""),
+                metaKeywords: String(formData.get("metaKeywords") ?? ""),
+                isFeatured: String(formData.get("isFeatured") ?? ""),
+                isBestseller: String(formData.get("isBestseller") ?? ""),
+              }),
+            ).finally(() => setSaving(false));
           }}
         >
           {isProduct ? (
@@ -1929,10 +1934,12 @@ function ActionDialog({
             <BasicFormFields moduleTitle={moduleTitle} section={section} initialData={initialData} />
           )}
           <DialogFooter>
-            <Button type="button" variant="outline" className="bg-white" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" className="bg-white" disabled={saving} onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit">{initialData ? "Update" : "Save"}</Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saving..." : initialData ? "Update" : "Save"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -2311,9 +2318,9 @@ function ProductFormFields({
   const addGalleryFiles = async (files: FileList | null, options: { makePrimary?: boolean } = {}) => {
     if (!files?.length) return;
     const selectedFiles = Array.from(files);
-    const oversized = selectedFiles.find((file) => file.size > 2 * 1024 * 1024);
+    const oversized = selectedFiles.find((file) => file.size > 5 * 1024 * 1024);
     if (oversized) {
-      toast.error("Please upload product images under 2 MB each.");
+      toast.error("Please upload product images under 5 MB each.");
       return;
     }
     const dataImages = await Promise.all(selectedFiles.map(fileToDataUrl));
@@ -2324,7 +2331,7 @@ function ProductFormFields({
       name: selectedFiles[index]?.name || basenameFromPath(url),
     }));
     setGalleryImages((current) => {
-      const merged = [...current, ...nextImages];
+      const merged = options.makePrimary ? nextImages : [...current, ...nextImages];
       const unique = merged.filter((item, index, items) => items.findIndex((entry) => entry.url === item.url) === index);
       return unique;
     });
@@ -2619,7 +2626,14 @@ function ProductFormFields({
               {uploadedFileName || "No file chosen"}
             </span>
           </label>
-          <input type="hidden" name="imageUrls" value={orderedGalleryImages.map((item) => item.url).join("\n")} />
+          <input
+            type="hidden"
+            name="imageUrls"
+            value={orderedGalleryImages
+              .filter((item) => item.url.startsWith("data:image/") || item.url.startsWith("http"))
+              .map((item) => item.url)
+              .join("\n")}
+          />
         </div>
 
         <div className="grid content-start gap-4">
@@ -2713,10 +2727,33 @@ function ProductFormFields({
 
 function fileToDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(reader.error || new Error("Could not read image."));
-    reader.readAsDataURL(file);
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const maxSide = 1200;
+      const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+      const width = Math.max(1, Math.round(image.width * scale));
+      const height = Math.max(1, Math.round(image.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) {
+        reject(new Error("Could not prepare image."));
+        return;
+      }
+      context.drawImage(image, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", 0.78));
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(reader.error || new Error("Could not read image."));
+      reader.readAsDataURL(file);
+    };
+    image.src = objectUrl;
   });
 }
 

@@ -5,7 +5,7 @@ import { seo, siteUrl } from "@/lib/seo";
 
 export const Route = createFileRoute("/products/$slug")({
   loader: async ({ params }) => {
-    const liveProducts = await fetch("/api/catalog/products")
+    const liveProducts = await fetch(`/api/catalog/products?t=${Date.now()}`, { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : undefined))
       .then((payload: { products?: Product[] } | undefined) => payload?.products || [])
       .catch(() => []);
