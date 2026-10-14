@@ -2055,7 +2055,7 @@ function BasicFormFields({
           </label>
         </div>
         <p className="text-xs leading-5 text-muted-foreground">
-          Stock update SKU à¤µà¤° save à¤¹à¥‹à¤ˆà¤². MySQL connected à¤…à¤¸à¥‡à¤² à¤¤à¤° product inventory live update à¤¹à¥‹à¤ˆà¤².
+          Stock updates save by SKU. When MySQL is connected, storefront inventory updates live.
         </p>
       </>
     );

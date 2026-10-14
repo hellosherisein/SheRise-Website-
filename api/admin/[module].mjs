@@ -49,6 +49,12 @@ export default async function handler(req, res) {
       res.status(201).json(await productsPayload());
       return;
     }
+    if (req.method === "POST" && moduleName === "inventory") {
+      const body = await readJsonBody(req);
+      await updateInventoryStock(body);
+      res.status(200).json(await inventoryPayload());
+      return;
+    }
 
     if (req.method !== "GET") {
       res.status(405).json({ error: "Method not allowed." });
@@ -356,6 +362,34 @@ async function deleteProduct(input) {
   const originalSku = cleanText(input.originalSku, 100).toUpperCase();
   if (!originalSku) throw new Error("Product SKU is required.");
   await executeSql("UPDATE products SET deleted_at = NOW(), status = 'INACTIVE' WHERE sku = ? AND deleted_at IS NULL", [originalSku]);
+}
+
+async function updateInventoryStock(input) {
+  const sku = (cleanText(input.sku, 100) || cleanText(input.code, 100)).toUpperCase();
+  if (!sku) throw new Error("SKU is required.");
+  const stock = Math.max(0, Number.parseInt(cleanText(input.stock, 10) || "0", 10));
+  const thresholdText = cleanText(input.lowStockThreshold, 10);
+  const threshold = thresholdText ? Math.max(0, Number.parseInt(thresholdText, 10)) : 5;
+  const product = (
+    await queryRows("SELECT id FROM products WHERE sku = ? AND deleted_at IS NULL LIMIT 1", [sku])
+  )[0];
+  if (!product) throw new Error("Product SKU not found.");
+  const existing = (
+    await queryRows("SELECT id FROM inventory WHERE product_id = ? AND inventory_level = 'PRODUCT' LIMIT 1", [product.id])
+  )[0];
+
+  if (existing) {
+    await executeSql("UPDATE inventory SET current_stock = ?, low_stock_threshold = ? WHERE id = ?", [
+      stock,
+      threshold,
+      existing.id,
+    ]);
+  } else {
+    await executeSql(
+      "INSERT INTO inventory (product_id, variant_id, inventory_level, current_stock, reserved_stock, low_stock_threshold) VALUES (?, NULL, 'PRODUCT', ?, 0, ?)",
+      [product.id, stock, threshold],
+    );
+  }
 }
 
 async function resolveCategoryId(category) {
