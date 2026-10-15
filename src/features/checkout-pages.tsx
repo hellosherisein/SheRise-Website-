@@ -163,8 +163,8 @@ export function Coupon({
     </form>
   );
 }
-function Summary({ subtotal, discount }: { subtotal: number; discount: CouponDiscount }) {
-  const totals = calculateOrderTotals(subtotal, discount);
+function Summary({ subtotal, discount, donationAmount = 0 }: { subtotal: number; discount: CouponDiscount; donationAmount?: number }) {
+  const totals = calculateOrderTotals(subtotal, discount, donationAmount);
   return (
     <dl className="space-y-4">
       <div className="flex justify-between">
@@ -179,6 +179,12 @@ function Summary({ subtotal, discount }: { subtotal: number; discount: CouponDis
         <dt>Shipping</dt>
         <dd>{totals.shippingAmount ? money(totals.shippingAmount) : "Free"}</dd>
       </div>
+      {donationAmount > 0 && (
+        <div className="flex justify-between">
+          <dt>Donation</dt>
+          <dd>{money(donationAmount)}</dd>
+        </div>
+      )}
       <div className="flex justify-between border-t pt-4 text-xl font-bold">
         <dt>Total</dt>
         <dd>{money(totals.total)}</dd>
@@ -283,6 +289,7 @@ function CustomerCheckout() {
   const coupons = useActiveCoupons();
   const [discount, setDiscount] = useState<PublicCoupon | null>(null),
     [payment, setPayment] = useState("UPI"),
+    [donationAmount, setDonationAmount] = useState(0),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   useEffect(() => {
@@ -291,7 +298,7 @@ function CustomerCheckout() {
     setDiscount(coupons.find((coupon) => coupon.code === couponCode) || null);
   }, [coupons]);
   const total = cart.reduce((a, i) => a + i.price * i.quantity, 0);
-  const orderTotals = calculateOrderTotals(total, discount);
+  const orderTotals = calculateOrderTotals(total, discount, donationAmount);
   const codAvailable = orderTotals.total >= COD_MINIMUM_TOTAL;
   useEffect(() => {
     if (codAvailable && payment !== "Cash on Delivery") setPayment("Cash on Delivery");
@@ -330,6 +337,7 @@ function CustomerCheckout() {
           image,
         })),
         coupon: discount?.code || "",
+        donationAmount,
         payment,
       });
       clear();
@@ -450,17 +458,32 @@ function CustomerCheckout() {
                 {[10, 20, 50, 80, 100].map((amount) => (
                   <label
                     key={amount}
-                    className="relative w-24 cursor-pointer rounded-2xl border-2 border-[#efd9d0] bg-white px-4 py-3 text-center text-base font-semibold text-[#7f1d2a] transition hover:border-[#d9686e] hover:bg-[#fff1ed] has-[:checked]:border-[#8f1f2d] has-[:checked]:bg-[#fff1ed] has-[:checked]:shadow-sm"
+                    className="relative w-24 cursor-pointer rounded-2xl border-2 border-[#efd9d0] bg-white px-4 py-3 text-center text-base font-semibold text-[#7f1d2a] transition hover:border-[#d9686e] hover:bg-[#fff1ed] has-[:checked]:border-[#8f1f2d] has-[:checked]:bg-[#fff1ed] has-[:checked]:shadow-sm has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[#8f1f2d]"
                   >
                     <input
                       type="radio"
                       name="donationAmount"
                       value={amount}
+                      checked={donationAmount === amount}
+                      onChange={() => setDonationAmount(amount)}
+                      disabled={busy}
                       className="peer sr-only"
                     />
                     ₹{amount}
                   </label>
                 ))}
+              </div>
+              <div className="mt-4 flex items-center justify-between gap-3 text-sm text-[#8b6f66]">
+                <p role="status">
+                  {donationAmount > 0
+                    ? `${money(donationAmount)} donation added to your order.`
+                    : "Optional: choose an amount to add to your order."}
+                </p>
+                {donationAmount > 0 && (
+                  <button type="button" disabled={busy} onClick={() => setDonationAmount(0)} className="shrink-0 font-semibold text-[#8f1f2d] underline">
+                    Remove donation
+                  </button>
+                )}
               </div>
             </section>
             <fieldset>
@@ -505,7 +528,7 @@ function CustomerCheckout() {
                 <span>{money(i.price * i.quantity)}</span>
               </div>
             ))}
-            <Summary subtotal={total} discount={discount} />
+            <Summary subtotal={total} discount={discount} donationAmount={donationAmount} />
             <Coupon appliedCoupon={discount} onApply={setDiscount} subtotal={total} />
             <label className="my-5 flex gap-2 text-xs leading-5">
               <input type="checkbox" required />

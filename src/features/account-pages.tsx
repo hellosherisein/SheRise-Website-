@@ -794,6 +794,9 @@ function AccountDashboard({ section }: { section: string }) {
                                       <p className="mt-1 text-sm">
                                         Shipping {shippingAmount ? money(shippingAmount) : "Free"}
                                       </p>
+                                      {Number(o.donationAmount) > 0 && (
+                                        <p className="mt-1 text-sm">Donation {money(o.donationAmount!)}</p>
+                                      )}
                                       <p className="mt-1 text-sm">Payment: {o.payment}</p>
                                       <p className="mt-1 text-xs text-muted-foreground">
                                         No payment collected in preview mode.

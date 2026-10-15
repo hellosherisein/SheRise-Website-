@@ -46,6 +46,7 @@ export type CustomerOrder = {
   gstPercent?: number;
   gstAmount?: number;
   shippingAmount?: number;
+  donationAmount?: number;
   total: number;
   status: "preview" | "packed" | "shipped" | "delivered" | "cancelled";
   payment: string;

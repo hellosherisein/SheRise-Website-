@@ -11,6 +11,21 @@ const transpile = (source) =>
       jsx: ts.JsxEmit.ReactJSX,
     },
   }).outputText;
+const { calculateOrderTotals } = await import(
+  dataModule(transpile(fs.readFileSync("src/lib/pricing.ts", "utf8"))),
+);
+const withoutDonation = calculateOrderTotals(450, { discountType: "PERCENTAGE", discountValue: 10 });
+for (const amount of [0, 10, 20, 50, 80, 100]) {
+  const totals = calculateOrderTotals(450, { discountType: "PERCENTAGE", discountValue: 10 }, amount);
+  assert.equal(totals.total, withoutDonation.total + amount, "Donation adds to the final total");
+  assert.equal(totals.discountAmount, 45, "Coupon does not discount the donation");
+  assert.equal(totals.shippingAmount, 40, "Donation does not qualify the cart for free shipping");
+  assert.equal(totals.donationAmount, amount);
+}
+assert.equal(calculateOrderTotals(500, null, 100).total, 600, "Free shipping still applies to eligible products");
+assert.equal(calculateOrderTotals(450, null, 0).total, 490, "Removing the donation restores the total");
+assert.equal(calculateOrderTotals(990, null, 10).total, 1000, "Donation counts toward the payment total");
+console.log("PASS: donation totals, removal, coupon exclusion, shipping eligibility and payment threshold.");
 const catalogSource = fs
   .readFileSync("src/lib/catalog.ts", "utf8")
   .replace(

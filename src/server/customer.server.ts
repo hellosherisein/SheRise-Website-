@@ -656,6 +656,7 @@ export async function handleCustomerRequest(request: Request, action: string): P
             .min(1)
             .max(50),
           coupon: z.string().trim().max(50).default(""),
+          donationAmount: z.union([z.literal(0), z.literal(10), z.literal(20), z.literal(50), z.literal(80), z.literal(100)]).default(0),
           payment: z.enum(["UPI", "Cards", "Net Banking", "Wallet", "Cash on Delivery"]),
         })
         .parse(input);
@@ -684,7 +685,7 @@ export async function handleCustomerRequest(request: Request, action: string): P
       });
       const subtotal = items.reduce((s, i) => s + i.quantity * i.price, 0);
       const couponDiscount = await activeCouponDiscount(data.coupon, subtotal);
-      const totals = calculateOrderTotals(subtotal, couponDiscount);
+      const totals = calculateOrderTotals(subtotal, couponDiscount, data.donationAmount);
       if (totals.total >= COD_MINIMUM_TOTAL && data.payment !== "Cash on Delivery") {
         throw new ApiError(400, "Orders of ₹1,000 and above are Cash on Delivery only.");
       }
@@ -701,6 +702,7 @@ export async function handleCustomerRequest(request: Request, action: string): P
         gstPercent: totals.gstPercent,
         gstAmount: totals.gstAmount,
         shippingAmount: totals.shippingAmount,
+        donationAmount: totals.donationAmount,
         total: totals.total,
         status: "preview",
         payment: data.payment,

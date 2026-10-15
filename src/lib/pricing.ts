@@ -18,12 +18,12 @@ export type CouponDiscount =
   | null
   | undefined;
 
-export function calculateOrderTotals(subtotal: number, couponDiscount: CouponDiscount) {
+export function calculateOrderTotals(subtotal: number, couponDiscount: CouponDiscount, donationAmount = 0) {
   const discountAmount = calculateDiscountAmount(subtotal, couponDiscount);
   const taxableAmount = Math.max(0, roundMoney(subtotal - discountAmount));
   const gstAmount = roundMoney(taxableAmount * GST_RATE);
   const shippingAmount = taxableAmount >= FREE_SHIPPING_THRESHOLD ? 0 : STANDARD_SHIPPING_CHARGE;
-  const total = roundMoney(taxableAmount + gstAmount + shippingAmount);
+  const total = roundMoney(taxableAmount + gstAmount + shippingAmount + donationAmount);
 
   return {
     subtotal: roundMoney(subtotal),
@@ -32,6 +32,7 @@ export function calculateOrderTotals(subtotal: number, couponDiscount: CouponDis
     gstPercent: GST_PERCENT,
     gstAmount,
     shippingAmount,
+    donationAmount,
     total,
   };
 }
