@@ -1404,6 +1404,7 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
         <DataTable
           columns={displayConfig.columns}
           rows={displayConfig.rows}
+          subtleHeaders={section === "blogs"}
           onRowClick={section === "orders" ? setSelectedOrder : section === "reviews" ? setSelectedReview : undefined}
           renderActions={
             isProductSection
@@ -3056,18 +3057,20 @@ function StatusField({
 function DataTable({
   columns,
   rows,
+  subtleHeaders = false,
   onRowClick,
   renderActions,
 }: {
   columns: string[];
   rows: string[][];
+  subtleHeaders?: boolean;
   onRowClick?: (row: string[]) => void;
   renderActions?: (row: string[]) => ReactNode;
 }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[760px] text-left text-sm">
-        <thead className="border-b border-[#eadbd2] text-xs uppercase text-muted-foreground">
+        <thead className={`border-b border-[#eadbd2] text-xs text-muted-foreground ${subtleHeaders ? "normal-case [&_th]:font-normal" : "uppercase"}`}>
           <tr>
             {columns.map((column) => (
               <th key={column} className={column === "Image" ? "w-24 py-3 pr-4" : "py-3 pr-4"}>
