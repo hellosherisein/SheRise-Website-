@@ -64,13 +64,18 @@ assert.deepEqual(result.payload.rows, [[input.name, input.mobile, input.email, i
 assert.equal(result.payload.metrics[0].value, "1");
 assert.equal(result.payload.metrics[1].value, "1");
 assert.equal(leads[0].source, "Website popup");
-await submit({ name: "Another Visitor", mobile: "+91 9876543210" });
+await submit({ name: "Another Visitor", mobile: "9123456780" });
 assert.equal(leads[1].email, null);
 assert.equal(leads[1].interested_product_text, "Sanitary Pads");
 leads[0].deleted_at = new Date();
 assert.equal((await list()).payload.rows.length, 1);
 for (const invalid of [null, [], {}, { ...input, mobile: "invalid" }, { ...input, email: "invalid" }]) {
   assert.equal((await submit(invalid)).status, 400);
+}
+for (const mobile of ["999999999", "99999999999", "999999999999999", "+919876543210", "98765 43210", "98765abcde"]) {
+  const invalidResponse = await submit({ ...input, mobile });
+  assert.equal(invalidResponse.status, 400);
+  assert.equal((await invalidResponse.json()).error, "Enter a valid 10-digit mobile number.");
 }
 assert.equal((await submit("{broken-json", true)).status, 400);
 assert.equal(leads.length, 2, "Invalid requests must not persist leads");

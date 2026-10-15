@@ -30,7 +30,7 @@ export async function handlePopupLeadRequest(request: Request): Promise<Response
       createdAt: new Date().toISOString(),
     };
     if (!lead.name || !lead.mobile) return json({ error: "Name and phone number are required." }, 400);
-    if (!/^[+0-9 ()-]{7,20}$/.test(lead.mobile)) return json({ error: "Enter a valid phone number." }, 400);
+    if (!/^[0-9]{10}$/.test(lead.mobile)) return json({ error: "Enter a valid 10-digit mobile number." }, 400);
     if (lead.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lead.email)) return json({ error: "Enter a valid email address." }, 400);
 
     if (process.env["MYSQL_HOST"] && process.env["MYSQL_USER"] && process.env["MYSQL_DATABASE"]) {

@@ -603,7 +603,9 @@ export function WelcomePopup() {
             </DialogHeader>
             <Input name="name" required maxLength={120} placeholder="Full Name*" className="h-11" />
             <Input name="email" type="email" maxLength={254} placeholder="Email Address" className="h-11" />
-            <Input name="mobile" required maxLength={20} inputMode="tel" placeholder="Phone Number*" className="h-11" />
+            <Input name="mobile" type="tel" required minLength={10} maxLength={10} pattern="[0-9]{10}"
+              inputMode="numeric" autoComplete="tel-national" title="Enter exactly 10 digits, without +91 or spaces."
+              placeholder="Phone Number*" className="h-11" />
             <select
               name="interestedIn"
               className="h-11 border border-input bg-background px-3 text-sm outline-none focus:border-brand-coral"
