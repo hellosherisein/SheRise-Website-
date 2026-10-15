@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
-import { ArrowLeft, ArrowRight, ArrowUpRight, Pause, Play } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight } from "lucide-react";
 import { Link } from "@/router-shim";
 import flatlay from "@/assets/sherise-flatlay.jpg";
 import story from "@/assets/sherise-story.jpg";
@@ -14,7 +14,6 @@ export function CategoryCarousel() {
   const [viewport, api] = useEmblaCarousel({ loop: true, align: "start", breakpoints: { "(min-width: 768px)": { active: false } } });
   const region = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState(0);
-  const [paused, setPaused] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
 
@@ -36,7 +35,7 @@ export function CategoryCarousel() {
   }, [api]);
 
   useEffect(() => {
-    if (!api || paused || hovered || reducedMotion) return;
+    if (!api || hovered || reducedMotion) return;
     let dragging = false;
     const startDrag = () => { dragging = true; };
     const endDrag = () => { dragging = false; };
@@ -52,7 +51,7 @@ export function CategoryCarousel() {
       api.off("pointerDown", startDrag);
       api.off("pointerUp", endDrag);
     };
-  }, [api, paused, hovered, reducedMotion]);
+  }, [api, hovered, reducedMotion]);
 
   return (
     <div ref={region} role="region" aria-label="Care collections" aria-roledescription="carousel"
@@ -80,10 +79,6 @@ export function CategoryCarousel() {
         <span className="text-xs font-normal text-muted-foreground" aria-live="off">{selected + 1} / {collections.length}</span>
         <button type="button" className="grid size-11 place-items-center text-muted-foreground transition-colors hover:text-brand-navy"
           aria-label="Next collection" onClick={() => api?.scrollNext()}><ArrowRight size={16} strokeWidth={1.5} aria-hidden="true" /></button>
-        {!reducedMotion && <button type="button" className="grid size-11 place-items-center text-muted-foreground transition-colors hover:text-brand-navy"
-          aria-label={paused ? "Start automatic sliding" : "Pause automatic sliding"} onClick={() => setPaused((value) => !value)}>
-          {paused ? <Play size={14} strokeWidth={1.5} aria-hidden="true" /> : <Pause size={14} strokeWidth={1.5} aria-hidden="true" />}
-        </button>}
       </div>
     </div>
   );
