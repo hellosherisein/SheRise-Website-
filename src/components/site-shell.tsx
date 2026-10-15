@@ -503,6 +503,8 @@ export function SearchOverlay() {
 export function WelcomePopup() {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
+  const [leadSaving, setLeadSaving] = useState(false);
+  const [leadError, setLeadError] = useState("");
   const seenKey = "sherise-welcome-popup-seen";
 
   const closePopup = () => {
@@ -559,6 +561,7 @@ export function WelcomePopup() {
             className="grid content-center gap-3 p-6 sm:p-8"
             onSubmit={async (event) => {
               event.preventDefault();
+              if (leadSaving) return;
               const formData = new FormData(event.currentTarget);
               const lead = {
                 name: String(formData.get("name") ?? ""),
@@ -569,19 +572,25 @@ export function WelcomePopup() {
                 source: "Website popup",
                 createdAt: new Date().toISOString(),
               };
-              const old = readLocal<typeof lead[]>("sherise-popup-leads", []);
-              saveLocal("sherise-popup-leads", [lead, ...old].slice(0, 50));
+              setLeadSaving(true);
+              setLeadError("");
               try {
-                await fetch("/api/popup-leads", {
+                const response = await fetch("/api/popup-leads", {
                   method: "POST",
                   headers: { "content-type": "application/json" },
                   body: JSON.stringify(lead),
                 });
+                if (!response.ok) {
+                  const payload = await response.json();
+                  throw new Error(payload.error || "Could not send your enquiry. Please try again.");
+                }
+                window.dispatchEvent(new Event("sherise-popup-leads-updated"));
+                closePopup();
               } catch {
-                // Local fallback above keeps the lead available during preview/network hiccups.
+                setLeadError("Could not send your enquiry. Please try again.");
+              } finally {
+                setLeadSaving(false);
               }
-              window.dispatchEvent(new Event("sherise-popup-leads-updated"));
-              closePopup();
             }}
           >
             <DialogHeader className="text-left">
@@ -592,9 +601,9 @@ export function WelcomePopup() {
                 Fill the form below and we will help you choose comfortable period-care essentials.
               </DialogDescription>
             </DialogHeader>
-            <Input name="name" required placeholder="Full Name*" className="h-11" />
-            <Input name="email" type="email" placeholder="Email Address" className="h-11" />
-            <Input name="mobile" required inputMode="tel" placeholder="Phone Number*" className="h-11" />
+            <Input name="name" required maxLength={120} placeholder="Full Name*" className="h-11" />
+            <Input name="email" type="email" maxLength={254} placeholder="Email Address" className="h-11" />
+            <Input name="mobile" required maxLength={20} inputMode="tel" placeholder="Phone Number*" className="h-11" />
             <select
               name="interestedIn"
               className="h-11 border border-input bg-background px-3 text-sm outline-none focus:border-brand-coral"
@@ -608,17 +617,19 @@ export function WelcomePopup() {
             </select>
             <textarea
               name="message"
+              maxLength={1000}
               className="min-h-24 border border-input bg-background px-3 py-3 text-sm outline-none focus:border-brand-coral"
               placeholder="Your message / requirements"
             />
             <div className="flex flex-wrap gap-3 pt-1">
-              <Button type="submit" variant="coral" className="px-8">
-                Send Enquiry
+              <Button type="submit" variant="coral" className="px-8" disabled={leadSaving}>
+                {leadSaving ? "Sending..." : "Send Enquiry"}
               </Button>
               <Button type="button" variant="outline" onClick={closePopup}>
                 Maybe later
               </Button>
             </div>
+            {leadError ? <p role="alert" className="text-sm text-red-700">{leadError}</p> : null}
           </form>
         </div>
       </DialogContent>

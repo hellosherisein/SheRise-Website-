@@ -19,6 +19,7 @@ export async function handlePopupLeadRequest(request: Request): Promise<Response
       return json({ error: "Use a JSON request." }, 400);
     }
     const body = (await request.json()) as Record<string, unknown>;
+    if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "Use a valid enquiry." }, 400);
     const lead: PopupLead = {
       name: cleanText(body["name"], 120),
       mobile: cleanText(body["mobile"], 30),
@@ -29,13 +30,25 @@ export async function handlePopupLeadRequest(request: Request): Promise<Response
       createdAt: new Date().toISOString(),
     };
     if (!lead.name || !lead.mobile) return json({ error: "Name and phone number are required." }, 400);
+    if (!/^[+0-9 ()-]{7,20}$/.test(lead.mobile)) return json({ error: "Enter a valid phone number." }, 400);
+    if (lead.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lead.email)) return json({ error: "Enter a valid email address." }, 400);
 
-    database()
-      .prepare("INSERT INTO popup_leads (id, data, created_at) VALUES (?, ?, ?)")
-      .run(randomUUID(), JSON.stringify(lead), lead.createdAt);
+    if (process.env["MYSQL_HOST"] && process.env["MYSQL_USER"] && process.env["MYSQL_DATABASE"]) {
+      const { executeSql } = await import("./mysql.server");
+      await executeSql(
+        `INSERT INTO popup_leads (name, mobile, email, interested_product_text, message, source)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [lead.name, lead.mobile, lead.email || null, lead.interestedIn, lead.message || null, lead.source],
+      );
+    } else {
+      database()
+        .prepare("INSERT INTO popup_leads (id, data, created_at) VALUES (?, ?, ?)")
+        .run(randomUUID(), JSON.stringify(lead), lead.createdAt);
+    }
 
     return json({ ok: true, lead }, 201);
   } catch (error) {
+    if (error instanceof SyntaxError) return json({ error: "Use valid JSON." }, 400);
     console.error("Popup lead API failed:", error instanceof Error ? error.message : error);
     return json({ error: "Could not save lead." }, 500);
   }

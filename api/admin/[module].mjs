@@ -4,6 +4,7 @@ import { assertAdminRequest } from "../_admin-session.mjs";
 import { ordersPayload, updateOrderStatus } from "../_admin-orders.mjs";
 import { adminErrorResponse } from "../_admin-errors.mjs";
 import { reviewsPayload, moderateReview } from "../_reviews.mjs";
+import { popupLeadsPayload } from "../_popup-leads.mjs";
 
 let pool;
 
@@ -109,6 +110,10 @@ export default async function handler(req, res) {
     }
     if (moduleName === "reviews") {
       res.status(200).json(await reviewsPayload(queryRows));
+      return;
+    }
+    if (moduleName === "popup-leads") {
+      res.status(200).json(await popupLeadsPayload(queryRows));
       return;
     }
     if (moduleName === "coupons") {
