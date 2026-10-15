@@ -41,7 +41,7 @@ function CustomerStore({ children }: { children: ReactNode }) {
   const [catalogError, setCatalogError] = useState("");
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/catalog/products?t=${Date.now()}`, { cache: "no-store" })
+    fetch(`/api/catalog/products?t=${Date.now()}`, { cache: "no-store", signal: AbortSignal.timeout(15000) })
       .then(async (response) => {
         if (!response.ok) throw new Error("Could not check current products. Please refresh and try again.");
         const payload = await response.json() as { products?: Product[] };

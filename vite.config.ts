@@ -66,7 +66,7 @@ async function handleApiRequest(
     const { handleCatalogRequest } = await loadModule<typeof import("./src/server/catalog.server")>(
       "/src/server/catalog.server.ts",
     );
-    return handleCatalogRequest();
+    return handleCatalogRequest(request);
   }
   if (pathname.startsWith("/api/customer/")) {
     const { handleCustomerRequest } = await loadModule<typeof import("./src/server/customer.server")>(

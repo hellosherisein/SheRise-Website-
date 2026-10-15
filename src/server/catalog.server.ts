@@ -39,8 +39,14 @@ type ProductRow = RowDataPacket & {
   image_urls: string | null;
 };
 
-export async function handleCatalogRequest(): Promise<Response> {
+export async function handleCatalogRequest(request?: Request): Promise<Response> {
   try {
+    const slug = request ? new URL(request.url).searchParams.get("slug") : null;
+    if (slug) {
+      if (slug.length > 220) return json({ products: [], error: "Invalid product." }, 400);
+      const product = await loadCatalogProduct(slug);
+      return json({ products: product ? [product] : [], source: "mysql" });
+    }
     return json({ products: await loadCatalogProducts(), source: "mysql" });
   } catch (error) {
     console.error("Catalog MySQL API failed:", error instanceof Error ? error.message : error);
@@ -162,7 +168,16 @@ export async function loadCatalogProduct(slug: string): Promise<Product | undefi
   return rows[0] ? productRowToProduct(rows[0]) : undefined;
 }
 
-async function ensureCatalogPackagingColumns() {
+let catalogSchemaReady: Promise<void> | undefined;
+function ensureCatalogPackagingColumns() {
+  catalogSchemaReady ??= prepareCatalogPackagingColumns().catch((error) => {
+    catalogSchemaReady = undefined;
+    throw error;
+  });
+  return catalogSchemaReady;
+}
+
+async function prepareCatalogPackagingColumns() {
   const columns: Array<[string, string]> = [
     ["product_dimensions", "VARCHAR(120) NULL"],
     ["pad_length", "VARCHAR(80) NULL"],

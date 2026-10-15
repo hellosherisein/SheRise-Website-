@@ -22,11 +22,16 @@ function getPool() {
   return pool;
 }
 
-export default async function handler(_req, res) {
+export default async function handler(req, res) {
   setJsonHeaders(res);
 
   try {
-    const products = await loadCatalogProducts();
+    const slug = new URL(req.url || "/", "http://localhost").searchParams.get("slug") || undefined;
+    if (slug && slug.length > 220) {
+      res.status(400).json({ products: [], error: "Invalid product." });
+      return;
+    }
+    const products = await loadCatalogProducts(slug);
     res.status(200).json({ products, source: "mysql" });
   } catch (error) {
     console.error("Catalog MySQL API failed:", error instanceof Error ? error.message : error);
@@ -44,7 +49,7 @@ async function executeSql(sql, params = []) {
   return result;
 }
 
-async function loadCatalogProducts() {
+async function loadCatalogProducts(slug) {
   await ensureCatalogSchema();
   const rows = await queryRows(`
     SELECT
@@ -88,14 +93,25 @@ async function loadCatalogProducts() {
     WHERE p.deleted_at IS NULL
       AND c.deleted_at IS NULL
       AND p.status = 'ACTIVE'
+      ${slug ? "AND p.slug = ?" : ""}
     ORDER BY p.is_featured DESC, p.created_at DESC, p.id DESC
-  `);
+    ${slug ? "LIMIT 1" : ""}
+  `, slug ? [slug] : []);
 
   const imageMap = await productImagesById(rows.map((row) => row.id));
   return rows.map((row) => productRowToProduct(row, imageMap.get(Number(row.id)) || []));
 }
 
-async function ensureCatalogSchema() {
+let catalogSchemaReady;
+function ensureCatalogSchema() {
+  catalogSchemaReady ??= prepareCatalogSchema().catch((error) => {
+    catalogSchemaReady = undefined;
+    throw error;
+  });
+  return catalogSchemaReady;
+}
+
+async function prepareCatalogSchema() {
   const columns = [
     ["product_dimensions", "VARCHAR(120) NULL"],
     ["pad_length", "VARCHAR(80) NULL"],

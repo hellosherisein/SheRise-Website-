@@ -1,15 +1,22 @@
 ﻿import { createFileRoute, notFound } from "@/router-shim";
 import { ProductDetail } from "@/features/catalog-pages";
-import { getProduct, type Product } from "@/lib/catalog";
+import type { Product } from "@/lib/catalog";
 import { seo, siteUrl } from "@/lib/seo";
 
 export const Route = createFileRoute("/products/$slug")({
   loader: async ({ params }) => {
-    const liveProducts = await fetch(`/api/catalog/products?t=${Date.now()}`, { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : undefined))
-      .then((payload: { products?: Product[] } | undefined) => payload?.products || [])
-      .catch(() => []);
-    const p = liveProducts.find((product) => product.slug === params.slug) || getProduct(params.slug);
+    let payload: { products?: Product[] };
+    try {
+      const response = await fetch(`/api/catalog/products?slug=${encodeURIComponent(params.slug!)}&t=${Date.now()}`, {
+        cache: "no-store", signal: AbortSignal.timeout(15000),
+      });
+      if (!response.ok) throw new Error("Product service unavailable");
+      payload = await response.json();
+      if (!Array.isArray(payload.products)) throw new Error("Invalid product response");
+    } catch {
+      throw new Error("Product details could not be loaded. Please try again.");
+    }
+    const p = payload.products!.find((product) => product.slug === params.slug);
     if (!p) throw notFound();
     return p;
   },

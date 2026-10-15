@@ -139,7 +139,7 @@ function App() {
     };
   }, [match]);
 
-  if (!match || error) return <NotFound />;
+  if (!match || (error as { status?: number } | undefined)?.status === 404) return <NotFound />;
   const Page = match.route.component;
   const adminPage = window.location.pathname.startsWith("/admin");
   const routeLoading = loading || (Boolean(match.route.loader) && loaderData === undefined);
@@ -153,7 +153,23 @@ function App() {
           ) : (
             <>
               <Header />
-              <main>{routeLoading ? null : <Page />}</main>
+              <main>
+                {error ? (
+                  <section className="container-shell min-h-[60vh] py-16" role="alert">
+                    <h1 className="text-3xl text-brand-navy">Could not load this page</h1>
+                    <p className="mt-4">{error instanceof Error ? error.message : "Please try again."}</p>
+                    <button type="button" onClick={() => window.location.reload()} className="mt-6 border border-brand-navy px-6 py-3 font-semibold text-brand-navy">Try again</button>
+                  </section>
+                ) : routeLoading ? (
+                  <section className="container-shell min-h-[70vh] py-10" role="status" aria-live="polite">
+                    <p className="mb-6 text-sm text-muted-foreground">{window.location.pathname.startsWith("/products/") ? "Loading product details…" : "Loading page…"}</p>
+                    <div className="grid animate-pulse gap-10 md:grid-cols-2" aria-hidden="true">
+                      <div className="aspect-square max-h-[65vh] bg-brand-blush" />
+                      <div className="space-y-6 py-4"><div className="h-10 w-3/4 bg-brand-blush" /><div className="h-6 w-1/3 bg-brand-blush" /><div className="h-24 bg-brand-cream" /><div className="h-12 bg-brand-blush" /></div>
+                    </div>
+                  </section>
+                ) : <Page />}
+              </main>
               <Footer />
               <CartDrawer />
               <SearchOverlay />

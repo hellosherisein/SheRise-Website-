@@ -19,13 +19,17 @@ let failOrderItem = false;
 const issuedSessions = new Map();
 let revokedSessions = new Set();
 let catalogFeatures = ["Soft cover", "Comfortable fit"];
+let schemaStatements = 0;
 const catalog = [{ id: "10", slug: "test-pad", name: "Test pads", sku: "TEST", sizes: ["XL"],
   flow: ["Medium"], stock: 20, images: ["/test.png"], mrp: 120,
   packOptions: [{ label: "Pack of 8", price: 100, mrp: 120, stock: 20 }] }];
 const owned = (id) => addresses.filter((a) => String(a.customer_id) === String(id) && !a.deleted_at);
 const adapter = {
   async executeSql(sql, values = []) {
-    if (sql.startsWith("ALTER TABLE products")) return { affectedRows: 0 };
+    if (sql.startsWith("ALTER TABLE products") || sql.startsWith("ALTER TABLE product_images")) {
+      schemaStatements++;
+      return { affectedRows: 0 };
+    }
     if (sql.startsWith("INSERT INTO customer_sessions")) {
       issuedSessions.set(values[0], values[1]);
       return { affectedRows: 1 };
@@ -53,7 +57,10 @@ const adapter = {
     throw new Error(`Unexpected executeSql: ${sql}`);
   },
   async queryRows(sql, values) {
-    if (sql.includes("FROM products p") && sql.includes("p.selling_price")) return catalog.map((product) => ({
+    if (sql.includes("FROM product_images") && !sql.includes("FROM products p")) return [{ product_id: 10, image_url: "/test.png" }];
+    if (sql.includes("FROM products p") && sql.includes("p.selling_price")) return catalog
+      .filter((product) => !sql.includes("AND p.slug = ?") || product.slug === values?.[0])
+      .map((product) => ({
       id: product.id, slug: product.slug, name: product.name, sku: product.sku,
       mrp: product.mrp, selling_price: product.packOptions[0].price, discount_percent: 0,
       pack_quantity: product.packOptions[0].label, flow_type: "Medium", stock: product.stock,
@@ -194,10 +201,33 @@ for (const [value, expected] of [
 }
 catalogFeatures = ["Soft cover", "Comfortable fit"];
 console.log("PASS: real catalog reader handles MySQL JSON arrays, JSON strings, legacy text and empty/malformed fields.");
+const { handleCatalogRequest } = await import(realCatalogModule);
+const beforeSingleRead = schemaStatements;
+const selectedProduct = await handleCatalogRequest(new Request("https://example.test/api/catalog/products?slug=test-pad"));
+assert.equal((await selectedProduct.json()).products[0].slug, "test-pad");
+assert.equal(schemaStatements, beforeSingleRead, "Warm catalog reads do not repeat schema work");
+assert.deepEqual((await (await handleCatalogRequest(new Request("https://example.test/api/catalog/products?slug=missing"))).json()).products, []);
 Object.assign(process.env, {
-  MYSQL_HOST: "isolated-test", MYSQL_USER: "test", MYSQL_DATABASE: "test", VERCEL: "1",
+  MYSQL_HOST: "isolated-test", MYSQL_USER: "test", MYSQL_PASSWORD: "isolated-test", MYSQL_DATABASE: "test", VERCEL: "1",
   NODE_ENV: "production", APP_ORIGIN: "https://example.test",
 });
+const productionDriver = moduleUrl(`export function createPool() { return {
+  query: async (sql, params) => [await globalThis.__addressTestAdapter.queryRows(sql, params)],
+  execute: async (sql, params) => [await globalThis.__addressTestAdapter.executeSql(sql, params)]
+}; }`);
+const productionCatalogSource = readFileSync("api/catalog/products.mjs", "utf8").replace('"mysql2/promise"', JSON.stringify(productionDriver));
+const { default: productionCatalogHandler } = await import(moduleUrl(productionCatalogSource));
+const productionCall = async (slug) => {
+  const response = { statusCode: 0, body: null, setHeader() {}, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; } };
+  await productionCatalogHandler({ url: `/api/catalog/products?slug=${encodeURIComponent(slug)}` }, response);
+  return response;
+};
+assert.equal((await productionCall("test-pad")).body.products[0].slug, "test-pad");
+const afterFirstProductionRead = schemaStatements;
+assert.deepEqual((await productionCall("missing")).body.products, []);
+assert.equal(schemaStatements, afterFirstProductionRead, "Production requests share schema initialization");
+assert.equal((await productionCall("x".repeat(221))).statusCode, 400);
+console.log("PASS: development and production catalog APIs filter by a bound product slug and reuse schema initialization.");
 let defaultSession = "session-1";
 const call = async (action, body, session = defaultSession) => {
   const response = await handleCustomerRequest(new Request(`https://example.test/api/customer/${action}`, {
