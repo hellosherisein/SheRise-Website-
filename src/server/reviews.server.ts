@@ -2,6 +2,7 @@
 import type { CustomerOrder, OrderReview } from "@/lib/customer-types";
 
 import { database } from "./database.server";
+import { approvedReviews } from "../../api/_reviews.mjs";
 
 export type PublicReview = {
   orderId: string;
@@ -21,7 +22,11 @@ function safeOrder(data: string) {
   }
 }
 
-export function collectApprovedReviews(): PublicReview[] {
+export async function collectApprovedReviews(): Promise<PublicReview[]> {
+  if (process.env["MYSQL_HOST"] && process.env["MYSQL_USER"] && process.env["MYSQL_DATABASE"]) {
+    const { queryRows } = await import("./mysql.server");
+    return approvedReviews(queryRows);
+  }
   const rows = database()
     .prepare(
       `
@@ -58,8 +63,8 @@ export function reviewStatus(review: OrderReview) {
   return review.status ?? "PENDING";
 }
 
-export function handleReviewsRequest(): Response {
-  return new Response(JSON.stringify({ reviews: collectApprovedReviews() }), {
+export async function handleReviewsRequest(): Promise<Response> {
+  return new Response(JSON.stringify({ reviews: await collectApprovedReviews() }), {
     headers: {
       "content-type": "application/json",
       "cache-control": "no-store",

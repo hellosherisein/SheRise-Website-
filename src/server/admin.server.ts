@@ -8,6 +8,7 @@ import { siteConfig } from "@/lib/site-config";
 import { database } from "./database.server";
 import { executeSql, mysqlTransaction, queryRows } from "./mysql.server";
 import { ordersPayload as mysqlOrdersPayload, updateOrderStatus as updateMysqlOrderStatus } from "../../api/_admin-orders.mjs";
+import { reviewsPayload as mysqlReviewsPayload, moderateReview } from "../../api/_reviews.mjs";
 import { reviewStatus } from "./reviews.server";
 import {
   deleteContentBlog,
@@ -154,6 +155,10 @@ export async function handleAdminRequest(_request: Request, module: string): Pro
       return json(ordersPayload(), 200);
     }
     if (_request.method === "POST" && module === "reviews") {
+      if (hasMysqlOrders()) {
+        await moderateReview(executeSql, await readBody(_request));
+        return json(await mysqlReviewsPayload(queryRows));
+      }
       await updateReviewStatus(await readBody(_request));
       return json(reviewsPayload(), 200);
     }
@@ -180,7 +185,7 @@ export async function handleAdminRequest(_request: Request, module: string): Pro
     if (module === "orders") return json(hasMysqlOrders() ? await mysqlOrdersPayload(queryRows) : ordersPayload());
     if (module === "customers") return json(customersPayload());
     if (module === "coupons") return json(couponsPayload());
-    if (module === "reviews") return json(reviewsPayload());
+    if (module === "reviews") return json(hasMysqlOrders() ? await mysqlReviewsPayload(queryRows) : reviewsPayload());
     if (module === "homepage") return json(homepagePayload());
     if (module === "banners") return json(await bannersPayload());
     if (module === "popup-leads") return json(popupLeadsPayload());

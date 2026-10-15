@@ -3,6 +3,7 @@ import { createPool } from "mysql2/promise";
 import { assertAdminRequest } from "../_admin-session.mjs";
 import { ordersPayload, updateOrderStatus } from "../_admin-orders.mjs";
 import { adminErrorResponse } from "../_admin-errors.mjs";
+import { reviewsPayload, moderateReview } from "../_reviews.mjs";
 
 let pool;
 
@@ -38,6 +39,11 @@ export default async function handler(req, res) {
     assertAdminRequest(req);
 
     const moduleName = Array.isArray(req.query.module) ? req.query.module[0] : req.query.module;
+    if (req.method === "POST" && moduleName === "reviews") {
+      await moderateReview(executeSql, await readJsonBody(req));
+      res.status(200).json(await reviewsPayload(queryRows));
+      return;
+    }
     if (req.method === "POST" && moduleName === "orders") {
       await updateOrderStatus(orderTransaction, await readJsonBody(req));
       res.status(200).json(await ordersPayload(queryRows));
@@ -99,6 +105,10 @@ export default async function handler(req, res) {
     }
     if (moduleName === "orders") {
       res.status(200).json(await ordersPayload(queryRows));
+      return;
+    }
+    if (moduleName === "reviews") {
+      res.status(200).json(await reviewsPayload(queryRows));
       return;
     }
     if (moduleName === "coupons") {

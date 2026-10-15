@@ -15,6 +15,7 @@
     "test": "node scripts/verify-store.mjs",
     "test:mysql-accounts": "node scripts/verify-mysql-addresses.mjs",
     "test:admin-orders": "node scripts/verify-admin-orders.mjs",
+    "test:reviews": "node scripts/verify-reviews.mjs",
     "start": "node app.js",
     "test:accounts": "playwright test"
   },

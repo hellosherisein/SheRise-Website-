@@ -982,8 +982,8 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
       });
     void refresh();
     const refreshOrders = () => { void refresh(); };
-    const interval = section === "orders" ? window.setInterval(refreshOrders, 20000) : undefined;
-    if (section === "orders") window.addEventListener("focus", refreshOrders);
+    const interval = ["orders", "reviews"].includes(section) ? window.setInterval(refreshOrders, 20000) : undefined;
+    if (["orders", "reviews"].includes(section)) window.addEventListener("focus", refreshOrders);
 
     return () => {
       cancelled = true;
@@ -1304,6 +1304,7 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
       body: JSON.stringify({
         orderId: selectedReview[4],
         productName: selectedReview[1],
+        reviewId: selectedReview[5],
         status,
       }),
     });
@@ -1313,7 +1314,7 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
       return;
     }
     setLiveConfig(payload);
-    const updated = payload.rows.find((row) => row[4] === selectedReview[4] && row[1] === selectedReview[1]) ?? null;
+    const updated = payload.rows.find((row) => selectedReview[5] ? row[5] === selectedReview[5] : row[4] === selectedReview[4] && row[1] === selectedReview[1]) ?? null;
     setSelectedReview(updated);
     setReloadKey((value) => value + 1);
     window.dispatchEvent(new Event("sherise-admin-orders-updated"));
