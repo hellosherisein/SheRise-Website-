@@ -11,7 +11,7 @@ import {
   SectionHeading,
   Action,
 } from "@/components/commerce";
-import { useAuth, customerRequest } from "@/lib/auth";
+import { useAuth, customerRequest, CustomerApiError } from "@/lib/auth";
 import { calculateOrderTotals, FREE_SHIPPING_THRESHOLD, type CouponDiscount } from "@/lib/pricing";
 import { AccountGate } from "./account-pages";
 import type { CustomerOrder, Address } from "@/lib/customer-types";
@@ -108,10 +108,7 @@ export function Coupon({
   }
 
   return (
-    <form className="my-5" onSubmit={(e) => {
-      e.preventDefault();
-      applyCoupon();
-    }}>
+    <div className="my-5">
       <div className="mb-3 space-y-2">
         {coupons.map((coupon) => (
           <button
@@ -151,8 +148,14 @@ export function Coupon({
               }
             }}
             placeholder="Enter coupon manually"
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                applyCoupon();
+              }
+            }}
           />
-          <Button type="submit" variant="outline" size="lg">
+          <Button type="button" variant="outline" size="lg" onClick={() => applyCoupon()}>
             Apply
           </Button>
         </div>
@@ -160,7 +163,7 @@ export function Coupon({
       <p role="status" className={`mt-2 text-xs ${appliedCoupon ? "text-emerald-700" : "text-muted-foreground"}`}>
         {message}
       </p>
-    </form>
+    </div>
   );
 }
 function Summary({ subtotal, discount, donationAmount = 0 }: { subtotal: number; discount: CouponDiscount; donationAmount?: number }) {
@@ -344,6 +347,7 @@ function CustomerCheckout() {
       await auth.refresh();
       await navigate({ to: "/order-success", search: { order: order.id } });
     } catch (e) {
+      if (e instanceof CustomerApiError && e.status === 401) await auth.refresh();
       setError(e instanceof Error ? e.message : "Could not save your order.");
     } finally {
       setBusy(false);
@@ -431,7 +435,7 @@ function CustomerCheckout() {
             <section>
               <h2 className="mb-4 text-2xl">02 · Shipping method</h2>
               <label className="block border p-4">
-                <input type="radio" defaultChecked name="shipping" /> Standard shipping · ?40
+                <input type="radio" defaultChecked name="shipping" /> Standard shipping · {orderTotals.shippingAmount ? money(orderTotals.shippingAmount) : "Free"}
                 <p className="mt-2 text-xs">
                   Shipping is calculated in the order total. Free above {money(FREE_SHIPPING_THRESHOLD)}.
                 </p>

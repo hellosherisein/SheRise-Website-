@@ -345,7 +345,7 @@ export function AccountGate({ children }: { children: ReactNode }) {
         <p className="mt-6">Opening your account…</p>
       </div>
     );
-  if (auth.error)
+  if (auth.error && !auth.user)
     return (
       <div className="container-shell section-space">
         <p role="alert" className="form-error">

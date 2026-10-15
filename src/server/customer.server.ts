@@ -21,7 +21,7 @@ const optionalPhone = z
   .refine((value) => value === null || /^[6-9][0-9]{9}$/.test(value), {
     message: "Enter a valid 10-digit mobile number.",
   })
-  .default(null);
+  .default("");
 const whatsappNumber = z
   .string()
   .trim()
@@ -150,6 +150,10 @@ async function mysqlCustomerData(user: MysqlCustomerRow) {
      ORDER BY is_default DESC, id ASC`,
     [user.id],
   );
+  const wishlist = await queryRows<any>(
+    `SELECT p.slug FROM customer_wishlists w JOIN products p ON p.id = w.product_id
+     WHERE w.customer_id = ? AND p.deleted_at IS NULL`, [user.id],
+  );
   return {
     user: {
       id: String(user.id),
@@ -172,9 +176,137 @@ async function mysqlCustomerData(user: MysqlCustomerRow) {
       label: address.label === "WORK" ? "Work" : address.label === "OTHER" ? "Other" : "Home",
       isDefault: Boolean(Number(address.is_default)),
     })),
-    wishlist: [],
-    orders: [],
+    wishlist: wishlist.map((item) => item.slug as string),
+    orders: await mysqlOrders(user.id),
   };
+}
+
+function isoDate(value: string | Date) {
+  return value instanceof Date ? value.toISOString() : String(value);
+}
+
+async function mysqlOrders(customerId: string | number): Promise<CustomerOrder[]> {
+  const { queryRows } = await import("./mysql.server");
+  const orders = await queryRows<any>(
+    "SELECT * FROM orders WHERE customer_id = ? AND deleted_at IS NULL ORDER BY created_at DESC, id DESC",
+    [customerId],
+  );
+  if (!orders.length) return [];
+  const items = await queryRows<any>(
+    `SELECT i.* FROM order_items i JOIN orders o ON o.id = i.order_id
+     WHERE o.customer_id = ? AND o.deleted_at IS NULL`, [customerId],
+  );
+  const reviews = await queryRows<any>(
+    `SELECT r.*, p.slug FROM reviews r JOIN products p ON p.id = r.product_id
+     WHERE r.customer_id = ? AND r.deleted_at IS NULL`, [customerId],
+  );
+  return orders.map((order): CustomerOrder => {
+    let metadata: { donationAmount?: number; cancellationReason?: string } = {};
+    try { metadata = JSON.parse(order.customer_note || "{}"); } catch { /* Older orders contain plain notes. */ }
+    const statuses: Record<string, CustomerOrder["status"]> = {
+      PACKED: "packed", SHIPPED: "shipped", OUT_FOR_DELIVERY: "shipped", DELIVERED: "delivered",
+      CANCELLED: "cancelled", RETURNED: "cancelled", REFUNDED: "cancelled",
+    };
+    const payments: Record<string, string> = { CARD: "Cards", NET_BANKING: "Net Banking", WALLET: "Wallet", COD: "Cash on Delivery" };
+    return {
+      id: order.order_number, createdAt: isoDate(order.created_at),
+      address: { id: String(order.id), name: order.shipping_name, phone: order.shipping_mobile,
+        line1: order.shipping_address_line1, line2: order.shipping_address_line2 || "", city: order.shipping_city,
+        state: order.shipping_state, pin: order.shipping_pincode, label: "Home", isDefault: false },
+      items: items.filter((item) => String(item.order_id) === String(order.id)).map((item) => ({
+        slug: item.product_slug || "", name: item.product_name, image: item.product_image_url || "",
+        size: item.size || "", pack: item.pack_quantity || "", flow: item.variant_name || "",
+        quantity: Number(item.quantity), price: Number(item.unit_price),
+      })),
+      subtotal: Number(order.subtotal_amount), discount: Number(order.discount_amount),
+      shippingAmount: Number(order.shipping_amount), gstAmount: Number(order.tax_amount),
+      donationAmount: Number(metadata?.donationAmount || 0), total: Number(order.grand_total),
+      payment: payments[order.payment_method] || order.payment_method,
+      status: statuses[order.order_status] || "preview",
+      ...(metadata?.cancellationReason ? { cancellationReason: metadata.cancellationReason } : {}),
+      ...(order.cancelled_at ? { cancelledAt: isoDate(order.cancelled_at) } : {}),
+      reviews: reviews.filter((review) => String(review.order_id) === String(order.id)).map((review) => ({
+        slug: review.slug, rating: Number(review.rating), reviewText: review.review_text,
+        reviewedAt: isoDate(review.updated_at || review.created_at), status: review.status,
+        ...(review.moderated_at ? { moderatedAt: isoDate(review.moderated_at) } : {}),
+      })),
+    };
+  });
+}
+
+async function mysqlCreateOrder(user: MysqlCustomerRow, input: unknown) {
+  const data = z.object({
+    requestId: z.string().uuid(),
+    address: addressSchema.extend({ id: z.string().max(64).optional() }),
+    items: z.array(z.object({
+      slug: z.string().max(220), size: z.string().max(50), flow: z.string().max(150),
+      pack: z.string().max(80), quantity: z.number().int().min(1).max(99),
+    })).min(1).max(50),
+    coupon: z.string().trim().max(50).default(""),
+    donationAmount: z.union([z.literal(0), z.literal(10), z.literal(20), z.literal(50), z.literal(80), z.literal(100)]).default(0),
+    payment: z.enum(["UPI", "Cards", "Net Banking", "Wallet", "Cash on Delivery"]),
+  }).parse(input);
+  const { mysqlTransaction } = await import("./mysql.server");
+  const { loadCatalogProducts } = await import("./catalog.server");
+  // A deterministic, customer-specific number makes retries safe without a schema migration.
+  const orderNumber = "SR-" + hash(`${user.id}:${data.requestId}`).slice(0, 32).toUpperCase();
+  const catalog = await loadCatalogProducts();
+  const created = await mysqlTransaction(async (connection) => {
+    await connection.query("SELECT id FROM customers WHERE id = ? FOR UPDATE", [user.id]);
+    const [existing] = await connection.query<any[]>(
+      "SELECT id FROM orders WHERE order_number = ? AND customer_id = ?", [orderNumber, user.id],
+    );
+    if (existing.length) return false;
+    const quantities = new Map<string, number>();
+    const items = data.items.map((item) => {
+      const product = catalog.find((product) => product.slug === item.slug);
+      const pack = product?.packOptions.find((pack) => pack.label === item.pack);
+      if (!product || !pack || !product.sizes.includes(item.size) || !product.flow.includes(item.flow))
+        throw new ApiError(400, "This product selection has changed. Please update your bag.");
+      const quantity = (quantities.get(item.slug) || 0) + item.quantity;
+      quantities.set(item.slug, quantity);
+      if (quantity > product.stock) throw new ApiError(409, `${product.name} does not have enough stock.`);
+      return { ...item, product, price: pack.price, name: product.name };
+    });
+    const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const couponDiscount = await activeCouponDiscount(data.coupon, subtotal);
+    if (data.coupon && !couponDiscount) throw new ApiError(400, "This coupon is no longer eligible. Remove it or apply another code.");
+    const totals = calculateOrderTotals(subtotal, couponDiscount, data.donationAmount);
+    if (totals.total >= COD_MINIMUM_TOTAL && data.payment !== "Cash on Delivery")
+      throw new ApiError(400, "Orders of ₹1,000 and above are Cash on Delivery only.");
+    if (totals.total < COD_MINIMUM_TOTAL && data.payment === "Cash on Delivery")
+      throw new ApiError(400, "Cash on Delivery is available only on orders of ₹1,000 and above.");
+    const payment = { UPI: "UPI", Cards: "CARD", "Net Banking": "NET_BANKING", Wallet: "WALLET", "Cash on Delivery": "COD" }[data.payment];
+    const a = data.address;
+    const [result] = await connection.execute<import("mysql2/promise").ResultSetHeader>(
+      `INSERT INTO orders (order_number, customer_id, customer_name, customer_email, customer_mobile,
+       shipping_name, shipping_mobile, shipping_address_line1, shipping_address_line2, shipping_city,
+       shipping_state, shipping_pincode, subtotal_amount, discount_amount, coupon_discount_amount,
+       shipping_amount, tax_amount, grand_total, payment_method, customer_note)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [orderNumber, user.id, user.name, user.email, user.phone || a.phone, a.name, a.phone, a.line1, a.line2,
+        a.city, a.state, a.pin, totals.subtotal, totals.discountAmount, totals.discountAmount,
+        totals.shippingAmount, totals.gstAmount, totals.total, payment,
+        JSON.stringify({ requestId: data.requestId, donationAmount: data.donationAmount, coupon: data.coupon, preview: true })],
+    );
+    for (const item of items) {
+      await connection.execute(
+        `INSERT INTO order_items (order_id, product_id, product_name, product_slug, sku, variant_name,
+         size, pack_quantity, product_image_url, quantity, unit_price, unit_mrp, line_total)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [result.insertId, item.product.id, item.name, item.slug, item.product.sku, item.flow, item.size,
+          item.pack, item.product.images.find((image) => image.length <= 500) || "", item.quantity, item.price, item.product.mrp, item.quantity * item.price],
+      );
+    }
+    await connection.execute(
+      "INSERT INTO order_status_history (order_id, new_status, note) VALUES (?, 'NEW', ?)",
+      [result.insertId, "Preview order saved by customer. No payment or shipment processed."],
+    );
+    return true;
+  });
+  const order = (await mysqlOrders(user.id)).find((order) => order.id === orderNumber);
+  if (!order) throw new ApiError(500, "Could not load your order. Please retry.");
+  return json({ order }, created ? 201 : 200);
 }
 async function mysqlSessionUser(request: Request) {
   const { queryRows } = await import("./mysql.server");
@@ -213,7 +345,7 @@ async function handleMysqlCustomerRequest(request: Request, action: string) {
   if (request.method !== "POST") throw new ApiError(405, "Method not allowed.");
   guardOrigin(request);
   const input = await readBody(request);
-  if (["register", "login"].includes(action)) await mysqlLimit("global-auth", 200);
+  if (["register", "login", "forgot-password", "reset-password"].includes(action)) await mysqlLimit("global-auth", 200);
 
   if (action === "register") {
     const data = z
@@ -277,9 +409,84 @@ async function handleMysqlCustomerRequest(request: Request, action: string) {
     return json({ ok: true }, 200, setCookie("", 0, request));
   }
 
+  if (action === "forgot-password" || action === "reset-password") {
+    throw new ApiError(503, "Password reset for this account is not configured yet. Please contact support.");
+  }
+
+  // Every authenticated action must use the same session store as login.
+  const user = await mysqlSessionUser(request);
+  if (!user) throw new ApiError(401, "Your session has expired. Please sign in again.");
+  await mysqlLimit("customer-write:" + user.id, 120);
+
+  if (action === "profile") {
+    const data = z.object({ name, phone: optionalPhone, whatsappNumber }).parse(input);
+    try {
+      await executeSql("UPDATE customers SET name = ?, mobile = ?, whatsapp_number = ? WHERE id = ?",
+        [data.name, data.phone, data.whatsappNumber, user.id]);
+    } catch (error) {
+      if (String(error).includes("Duplicate")) throw new ApiError(409, "That mobile number is already registered.");
+      throw error;
+    }
+    return json(await mysqlCustomerData({ ...user, name: data.name, phone: data.phone, whatsapp_number: data.whatsappNumber }));
+  }
+
+  if (action === "password") {
+    const data = z.object({ currentPassword: z.string().max(128), password }).parse(input);
+    await mysqlLimit("password:" + user.id, 5);
+    if (!(await verifyPassword(data.currentPassword, user.password_hash))) throw new ApiError(400, "Current password is incorrect.");
+    const newHash = await hashPassword(data.password);
+    const { mysqlTransaction } = await import("./mysql.server");
+    await mysqlTransaction(async (connection) => {
+      await connection.execute("UPDATE customers SET password_hash = ? WHERE id = ?", [newHash, user.id]);
+      await connection.execute("DELETE FROM customer_sessions WHERE customer_id = ?", [user.id]);
+    });
+    return json({ message: "Password changed. Please sign in again." }, 200, setCookie("", 0, request));
+  }
+
+  if (action === "wishlist") {
+    const data = z.object({ slug: z.string().max(220), saved: z.boolean() }).parse(input);
+    const products = await queryRows<any>("SELECT id FROM products WHERE slug = ? AND deleted_at IS NULL", [data.slug]);
+    if (products[0]) {
+      if (data.saved) await executeSql("INSERT IGNORE INTO customer_wishlists (customer_id, product_id) VALUES (?, ?)", [user.id, products[0].id]);
+      else await executeSql("DELETE FROM customer_wishlists WHERE customer_id = ? AND product_id = ?", [user.id, products[0].id]);
+    } else if (data.saved) throw new ApiError(400, "This product is no longer available.");
+    return json(await mysqlCustomerData(user));
+  }
+
+  if (action === "order-create") return await mysqlCreateOrder(user, input);
+
+  if (action === "order-cancel" || action === "order-review") {
+    const data = action === "order-cancel"
+      ? z.object({ id: z.string().max(64), reason: z.enum(["Ordered by mistake", "Need to change address", "Need to change product", "Found a better option", "Delivery is taking too long", "Other reason"]).default("Other reason") }).parse(input)
+      : z.object({ id: z.string().max(64), slug: z.string().max(220), rating: z.number().int().min(1).max(5), reviewText: z.string().trim().min(8).max(1000) }).parse(input);
+    const { mysqlTransaction } = await import("./mysql.server");
+    await mysqlTransaction(async (connection) => {
+      const [orders] = await connection.query<any[]>(
+        "SELECT id, order_status, customer_note FROM orders WHERE order_number = ? AND customer_id = ? AND deleted_at IS NULL FOR UPDATE", [data.id, user.id],
+      );
+      const order = orders[0];
+      if (!order) throw new ApiError(404, "Order not found.");
+      if ("reason" in data) {
+        if (order.order_status === "CANCELLED") return;
+        if (!["NEW", "CONFIRMED", "PROCESSING", "PACKED"].includes(order.order_status)) throw new ApiError(409, "This order can no longer be cancelled.");
+        let metadata = {};
+        try { metadata = JSON.parse(order.customer_note || "{}"); } catch { /* Older notes may be plain text. */ }
+        await connection.execute("UPDATE orders SET order_status = 'CANCELLED', cancelled_at = NOW(), customer_note = ? WHERE id = ? AND customer_id = ?",
+          [JSON.stringify({ ...metadata, cancellationReason: data.reason }), order.id, user.id]);
+        await connection.execute("INSERT INTO order_status_history (order_id, previous_status, new_status, note) VALUES (?, ?, 'CANCELLED', ?)", [order.id, order.order_status, data.reason]);
+      } else {
+        if (order.order_status !== "DELIVERED") throw new ApiError(409, "Reviews open after delivery.");
+        const [items] = await connection.query<any[]>("SELECT product_id FROM order_items WHERE order_id = ? AND product_slug = ?", [order.id, data.slug]);
+        if (!items[0]?.product_id) throw new ApiError(400, "Product not found in this order.");
+        const [reviews] = await connection.query<any[]>("SELECT id FROM reviews WHERE customer_id = ? AND order_id = ? AND product_id = ? AND deleted_at IS NULL", [user.id, order.id, items[0].product_id]);
+        if (reviews[0]) await connection.execute("UPDATE reviews SET rating = ?, review_text = ?, status = 'PENDING', moderated_at = NULL, moderated_by_admin_id = NULL, moderation_note = NULL WHERE id = ?", [data.rating, data.reviewText, reviews[0].id]);
+        else await connection.execute("INSERT INTO reviews (customer_id, order_id, product_id, rating, review_text, is_verified_purchase) VALUES (?, ?, ?, ?, ?, 1)", [user.id, order.id, items[0].product_id, data.rating, data.reviewText]);
+      }
+    });
+    return json(await mysqlCustomerData(user));
+  }
+
   if (action === "address-save" || action === "address-delete") {
-    const user = await mysqlSessionUser(request);
-    if (!user) throw new ApiError(401, "Please sign in to continue.");
     // MySQL uses numeric IDs; SQLite's address schema continues to require UUIDs.
     const idSchema = z.string().regex(/^[1-9][0-9]{0,19}$/, "Invalid address ID.");
     const data = action === "address-save"
@@ -338,7 +545,7 @@ async function handleMysqlCustomerRequest(request: Request, action: string) {
     return json(await mysqlCustomerData(user));
   }
 
-  throw new ApiError(503, "Customer account action is not available yet. Please try again after launch.");
+  throw new ApiError(404, "Not found.");
 }
 async function mysqlLimit(key: string, max: number, window = 15 * 60 * 1000) {
   const { queryRows, executeSql } = await import("./mysql.server");
@@ -480,10 +687,7 @@ function guardOrigin(request: Request) {
 }
 export async function handleCustomerRequest(request: Request, action: string): Promise<Response> {
   try {
-    if (
-      hasMysqlCustomerStore() &&
-      ["session", "register", "login", "logout", "address-save", "address-delete"].includes(action)
-    ) {
+    if (hasMysqlCustomerStore()) {
       return await handleMysqlCustomerRequest(request, action);
     }
     // Local SQLite is not durable on Vercel. Keep browsing available until

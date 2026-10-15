@@ -55,10 +55,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setData(next);
         setError("");
       }
-    } catch {
+    } catch (error) {
       if (version === generation.current) {
-        setData(emptyCustomerData);
-        setError("");
+        // A network/server error is not evidence that the session ended.
+        setError(error instanceof Error ? error.message : "Could not refresh your account. Please try again.");
       }
     } finally {
       if (version === generation.current) setLoading(false);
@@ -105,10 +105,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         saveLocal("sherise-cart-v2:guest", []);
       for (const slug of wishlistSlugs) {
         if (!next.wishlist.includes(slug)) {
-          next = await customerRequest<CustomerData>("wishlist", { slug, saved: true });
+          try {
+            next = await customerRequest<CustomerData>("wishlist", { slug, saved: true });
+          } catch {
+            // Keep guest items for a later retry without failing a successful sign-in.
+            continue;
+          }
         }
       }
-      if (wishlistSlugs.length) saveLocal("sherise-guest-wishlist", []);
+      if (wishlistSlugs.length) saveLocal("sherise-guest-wishlist", wishlistSlugs.filter((slug) => !next.wishlist.includes(slug)));
     }
     setData(next);
     setError("");
@@ -116,10 +121,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     notify();
   }
   async function mutate(action: string, body: unknown) {
-    const version = generation.current;
+    const version = ++generation.current;
     try {
       const next = await customerRequest<CustomerData>(action, body);
-      if (version === generation.current) setData(next);
+      if (version === generation.current) {
+        setData(next);
+        setError("");
+        notify();
+      }
       return next;
     } catch (e) {
       if (e instanceof CustomerApiError && e.status === 401) {
