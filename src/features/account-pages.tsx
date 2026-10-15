@@ -16,6 +16,7 @@ import {
   Mail,
   Phone,
   Flower2,
+  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -1096,12 +1097,13 @@ function ProductReviewForm({
             type="button"
             className={`rating-star ${value <= rating ? "rating-star--selected" : ""}`}
             aria-label={`${value} star rating`}
+            aria-pressed={value <= rating}
             onClick={() => {
               setRating(value);
               setSaved(false);
             }}
           >
-            ?
+            <Star size={28} fill="currentColor" strokeWidth={1.5} aria-hidden="true" />
           </button>
         ))}
         <span className="ml-2 text-sm font-semibold text-brand-navy">{rating}/5</span>
