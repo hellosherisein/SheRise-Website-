@@ -5,6 +5,7 @@ import { ordersPayload, updateOrderStatus } from "../_admin-orders.mjs";
 import { adminErrorResponse } from "../_admin-errors.mjs";
 import { reviewsPayload, moderateReview } from "../_reviews.mjs";
 import { popupLeadsPayload } from "../_popup-leads.mjs";
+import { blogsPayload, upsertBlog, deleteBlog } from "../_blogs.mjs";
 
 let pool;
 
@@ -40,6 +41,13 @@ export default async function handler(req, res) {
     assertAdminRequest(req);
 
     const moduleName = Array.isArray(req.query.module) ? req.query.module[0] : req.query.module;
+    if (req.method === "POST" && moduleName === "blogs") {
+      const body = await readJsonBody(req);
+      if (body.adminAction === "delete") await deleteBlog(executeSql, body);
+      else await upsertBlog(orderTransaction, body);
+      res.status(200).json(await blogsPayload(queryRows));
+      return;
+    }
     if (req.method === "POST" && moduleName === "reviews") {
       await moderateReview(executeSql, await readJsonBody(req));
       res.status(200).json(await reviewsPayload(queryRows));
@@ -114,6 +122,10 @@ export default async function handler(req, res) {
     }
     if (moduleName === "popup-leads") {
       res.status(200).json(await popupLeadsPayload(queryRows));
+      return;
+    }
+    if (moduleName === "blogs") {
+      res.status(200).json(await blogsPayload(queryRows));
       return;
     }
     if (moduleName === "coupons") {

@@ -870,10 +870,10 @@ export function BlogDetail({ post, relatedPosts = posts }: { post: BlogPost; rel
       <div className="mx-auto max-w-3xl">
         <PageHeading
           title={post.title}
-          copy={`${post.category} · ${post.date} · SheRise editorial preview`}
+          copy={`${post.category} · ${post.date} · ${post.author || "SheRise Team"}`}
         />
         <img
-          src={post.image}
+          src={post.image || guideImage}
           alt={post.title}
           width="1000"
           height="700"
@@ -883,14 +883,6 @@ export function BlogDetail({ post, relatedPosts = posts }: { post: BlogPost; rel
           {post.content.map((t) => (
             <p key={t}>{t}</p>
           ))}
-          <h2 className="pt-5 text-3xl">Make a little space for your routine</h2>
-          <p>
-            Keep the essentials you prefer close by, and give yourself permission to adjust your
-            plans. Comfort is personal, and your routine can be too.
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Editorial preview. This is general information, not personalised medical advice.
-          </p>
           <Action to="/period-guide">Explore the period guide</Action>
         </article>
       </div>

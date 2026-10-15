@@ -24,11 +24,11 @@ export async function handleProductionApiRequest(request: Request): Promise<Resp
     return handleReviewsRequest();
   }
   if (pathname === "/api/content/blogs") {
-    return json({ posts: listContentBlogs() });
+    return json({ posts: await listContentBlogs() });
   }
   if (pathname.startsWith("/api/content/blogs/")) {
     const slug = decodeURIComponent(pathname.replace("/api/content/blogs/", ""));
-    return json({ post: getContentBlog(slug), related: listContentBlogs() });
+    return json({ post: await getContentBlog(slug), related: await listContentBlogs() });
   }
   if (pathname === "/api/content/faqs") {
     return json({ faqs: listContentFaqs() });

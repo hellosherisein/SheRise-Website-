@@ -1,15 +1,16 @@
 ﻿import { createFileRoute } from "@/router-shim";
 
 import { BlogListing } from "@/features/content-pages";
-import { posts, type BlogPost } from "@/lib/catalog";
+import type { BlogPost } from "@/lib/catalog";
 import { seo } from "@/lib/seo";
 
 export const Route = createFileRoute("/blog/")({
-  loader: async () =>
-    await fetch("/api/content/blogs")
-      .then((response) => (response.ok ? response.json() : undefined))
-      .then((payload: { posts?: BlogPost[] } | undefined) => payload?.posts || posts)
-      .catch(() => posts),
+  loader: async () => {
+    const response = await fetch("/api/content/blogs");
+    if (!response.ok) throw new Error("Could not load blog posts. Please try again.");
+    const payload = await response.json() as { posts: BlogPost[] };
+    return payload.posts;
+  },
   head: () =>
     seo(
       "Let's talk periods",

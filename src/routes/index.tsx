@@ -9,7 +9,7 @@ import {
   ProductGrid,
   SectionHeading,
 } from "@/components/commerce";
-import { products } from "@/lib/catalog";
+import { products, type BlogPost } from "@/lib/catalog";
 import { seo } from "@/lib/seo";
 import hero from "@/assets/sherise-hero.jpg";
 import story from "@/assets/sherise-story.jpg";
@@ -37,6 +37,7 @@ export const Route = createFileRoute("/")({
 });
 function Home() {
   const [approvedReviews, setApprovedReviews] = useState<PublicReview[]>([]);
+  const [publishedPosts, setPublishedPosts] = useState<BlogPost[]>([]);
   const careTiles = [
     { flow: "Light", href: "/shop?flow=Light", icon: Sun },
     { flow: "Medium", href: "/shop?flow=Medium", icon: Droplets },
@@ -60,6 +61,18 @@ function Home() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/content/blogs")
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Could not load blogs.");
+        return await response.json() as { posts: BlogPost[] };
+      })
+      .then((payload) => { if (!cancelled) setPublishedPosts(payload.posts.slice(0, 3)); })
+      .catch(() => { if (!cancelled) setPublishedPosts([]); });
+    return () => { cancelled = true; };
   }, []);
 
   return (
@@ -217,7 +230,7 @@ function Home() {
           title="Let's talk periods."
           copy="Good reads for getting to know yourself a little better."
         />
-        <BlogGrid />
+        <BlogGrid items={publishedPosts} />
       </section>
       <section className="container-shell pb-16">
         <SectionHeading

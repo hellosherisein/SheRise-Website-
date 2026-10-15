@@ -96,14 +96,14 @@ async function handleApiRequest(
     const { listContentBlogs } = await loadModule<typeof import("./src/server/content.server")>(
       "/src/server/content.server.ts",
     );
-    return json({ posts: listContentBlogs() });
+    return json({ posts: await listContentBlogs() });
   }
   if (pathname.startsWith("/api/content/blogs/")) {
     const slug = decodeURIComponent(pathname.replace("/api/content/blogs/", ""));
     const { getContentBlog, listContentBlogs } = await loadModule<typeof import("./src/server/content.server")>(
       "/src/server/content.server.ts",
     );
-    return json({ post: getContentBlog(slug), related: listContentBlogs() });
+    return json({ post: await getContentBlog(slug), related: await listContentBlogs() });
   }
   if (pathname === "/api/content/faqs") {
     const { listContentFaqs } = await loadModule<typeof import("./src/server/content.server")>(

@@ -10,6 +10,7 @@ import { executeSql, mysqlTransaction, queryRows } from "./mysql.server";
 import { ordersPayload as mysqlOrdersPayload, updateOrderStatus as updateMysqlOrderStatus } from "../../api/_admin-orders.mjs";
 import { reviewsPayload as mysqlReviewsPayload, moderateReview } from "../../api/_reviews.mjs";
 import { popupLeadsPayload as mysqlPopupLeadsPayload } from "../../api/_popup-leads.mjs";
+import { blogsPayload as mysqlBlogsPayload } from "../../api/_blogs.mjs";
 import { reviewStatus } from "./reviews.server";
 import {
   deleteContentBlog,
@@ -169,9 +170,9 @@ export async function handleAdminRequest(_request: Request, module: string): Pro
     }
     if (_request.method === "POST" && module === "blogs") {
       const body = await readBody(_request);
-      if (body["adminAction"] === "delete") deleteContentBlog(body);
-      else upsertContentBlog(body);
-      return json(blogsPayload(), 201);
+      if (body["adminAction"] === "delete") await deleteContentBlog(body);
+      else await upsertContentBlog(body);
+      return json(await blogsPayload(), 201);
     }
     if (_request.method === "POST" && module === "faqs") {
       const body = await readBody(_request);
@@ -191,7 +192,7 @@ export async function handleAdminRequest(_request: Request, module: string): Pro
     if (module === "banners") return json(await bannersPayload());
     if (module === "popup-leads") return json(hasMysqlOrders() ? await mysqlPopupLeadsPayload(queryRows) : popupLeadsPayload());
     if (module === "newsletter") return json(newsletterPayload());
-    if (module === "blogs") return json(blogsPayload());
+    if (module === "blogs") return json(await blogsPayload());
     if (module === "faqs") return json(faqsPayload());
     if (module === "business-settings") return json(businessSettingsPayload());
     if (module === "shipping-settings") return json(shippingSettingsPayload());
@@ -1098,8 +1099,9 @@ function newsletterPayload(): ModulePayload {
   };
 }
 
-function blogsPayload(): ModulePayload {
-  const contentPosts = listContentBlogs({ includeInactive: true });
+async function blogsPayload(): Promise<ModulePayload> {
+  if (hasMysqlOrders()) return mysqlBlogsPayload(queryRows);
+  const contentPosts = await listContentBlogs({ includeInactive: true });
   return {
     title: "Blogs",
     action: "Add Blog",

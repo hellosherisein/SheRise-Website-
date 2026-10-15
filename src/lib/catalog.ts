@@ -227,7 +227,7 @@ export const products: Product[] = [
   },
 ];
 
-export type BlogPost = { slug:string; title:string; excerpt:string; category:string; date:string; image:string; content:string[] };
+export type BlogPost = { slug:string; title:string; excerpt:string; category:string; date:string; image:string; content:string[]; author?:string; metaTitle?:string; metaDescription?:string };
 export const posts: BlogPost[] = [
   {slug:"understanding-your-menstrual-cycle",title:"Understanding Your Menstrual Cycle",excerpt:"A calm, practical introduction to the phases of your cycle.",category:"Cycle Basics",date:"12 September 2026",image:guide,content:["Your menstrual cycle is a repeating pattern of changes in the body. Every personâ€™s experience can differ, and tracking your own patterns can help you understand what feels typical for you.","If pain, bleeding, or another symptom worries you, seek advice from a qualified healthcare professional."]},
   {slug:"how-to-choose-sanitary-pad-size",title:"Choosing the Right Pad Size",excerpt:"Use flow, coverage and routine to find a comfortable starting point.",category:"Period Guide",date:"8 September 2026",image:flatlay,content:["Start with your usual flow and the activities in your day. Longer formats can offer more coverage, while a lighter format may feel more comfortable on lower-flow days.","There is no universal perfect size. Adjust as your flow changes and always follow verified product instructions."]},

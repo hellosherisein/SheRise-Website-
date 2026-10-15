@@ -5,6 +5,7 @@ import { Button } from "./ui/button";
 import { ProductCard } from "./product-card";
 import { siteUrl } from "@/lib/seo";
 import { products, posts, type BlogPost, type Product } from "@/lib/catalog";
+import blogPlaceholder from "@/assets/sherise-guide.jpg";
 export function Action({
   to,
   children,
@@ -201,13 +202,14 @@ export function Accordion({ items }: { items: { q: string; a: string }[] }) {
   );
 }
 export function BlogGrid({ items = posts }: { items?: BlogPost[] }) {
+  if (!items.length) return <p className="text-muted-foreground">New stories are coming soon.</p>;
   return (
     <div className="grid gap-8 md:grid-cols-3">
       {items.map((p) => (
         <article key={p.slug}>
           <Link to="/blog/$slug" params={{ slug: p.slug }}>
             <img
-              src={p.image}
+              src={p.image || blogPlaceholder}
               alt={p.title}
               width="640"
               height="480"

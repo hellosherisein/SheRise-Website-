@@ -33,7 +33,7 @@ submissionSource = ts.transpileModule(submissionSource, { compilerOptions: { mod
 const { handlePopupLeadRequest } = await import(moduleUrl(submissionSource));
 let adminSource = readFileSync(new URL("../api/admin/[module].mjs", import.meta.url), "utf8")
   .replace('import { createPool } from "mysql2/promise";', "const createPool = () => globalThis.__popupLeadsTestPool;");
-for (const name of ["_admin-session", "_admin-orders", "_admin-errors", "_reviews", "_popup-leads"]) {
+for (const name of ["_admin-session", "_admin-orders", "_admin-errors", "_reviews", "_popup-leads", "_blogs"]) {
   adminSource = adminSource.replace(`"../${name}.mjs"`, JSON.stringify(new URL(`../api/${name}.mjs`, import.meta.url).href));
 }
 const { default: admin } = await import(moduleUrl(adminSource));

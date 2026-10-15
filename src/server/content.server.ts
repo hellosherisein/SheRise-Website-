@@ -4,6 +4,7 @@ import { faq as defaultFaqs } from "@/features/content-pages";
 import { posts as defaultPosts, type BlogPost } from "@/lib/catalog";
 
 import { database, transaction } from "./database.server";
+import { listBlogs, blogToPost, upsertBlog, deleteBlog } from "../../api/_blogs.mjs";
 
 export type ContentFaq = { q: string; a: string };
 
@@ -33,7 +34,11 @@ type FaqRow = {
 
 let seeded = false;
 
-export function listContentBlogs(options: { includeInactive?: boolean } = {}): BlogPost[] {
+export async function listContentBlogs(options: { includeInactive?: boolean } = {}): Promise<BlogPost[]> {
+  if (hasMysqlContent()) {
+    const { queryRows } = await import("./mysql.server");
+    return (await listBlogs(queryRows, options)).map(blogToPost);
+  }
   seedContentDefaults();
   const rows = database()
     .prepare(
@@ -46,7 +51,12 @@ export function listContentBlogs(options: { includeInactive?: boolean } = {}): B
   return rows.map(blogRowToPost);
 }
 
-export function getContentBlog(slug: string): BlogPost | undefined {
+export async function getContentBlog(slug: string): Promise<BlogPost | undefined> {
+  if (hasMysqlContent()) {
+    const { queryRows } = await import("./mysql.server");
+    const row = (await listBlogs(queryRows, { slug }))[0];
+    return row ? blogToPost(row) : undefined;
+  }
   seedContentDefaults();
   const row = database()
     .prepare(
@@ -69,7 +79,11 @@ export function listContentFaqs(options: { includeInactive?: boolean } = {}): Co
   return rows.map((row) => ({ q: row.question, a: row.answer }));
 }
 
-export function upsertContentBlog(input: Record<string, unknown>) {
+export async function upsertContentBlog(input: Record<string, unknown>) {
+  if (hasMysqlContent()) {
+    const { mysqlTransaction } = await import("./mysql.server");
+    return upsertBlog(mysqlTransaction, input);
+  }
   seedContentDefaults();
   const now = new Date().toISOString();
   const title = cleanText(input["title"], 220);
@@ -141,7 +155,11 @@ export function upsertContentBlog(input: Record<string, unknown>) {
     );
 }
 
-export function deleteContentBlog(input: Record<string, unknown>) {
+export async function deleteContentBlog(input: Record<string, unknown>) {
+  if (hasMysqlContent()) {
+    const { executeSql } = await import("./mysql.server");
+    return deleteBlog(executeSql, input);
+  }
   seedContentDefaults();
   const key = cleanText(input["originalKey"], 260) || cleanText(input["slug"], 260) || cleanText(input["code"], 260);
   if (!key) throw new Error("Blog slug is required.");
@@ -254,5 +272,10 @@ function slugify(value: string) {
 
 function contentStatus(value: unknown) {
   const status = cleanText(value, 20).toUpperCase();
+  if (status === "PUBLISHED") return "ACTIVE";
   return ["ACTIVE", "DRAFT", "INACTIVE", "PENDING"].includes(status) ? status : "ACTIVE";
+}
+
+function hasMysqlContent() {
+  return Boolean(process.env["MYSQL_HOST"] && process.env["MYSQL_USER"] && process.env["MYSQL_DATABASE"]);
 }

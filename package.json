@@ -17,6 +17,7 @@
     "test:admin-orders": "node scripts/verify-admin-orders.mjs",
     "test:reviews": "node scripts/verify-reviews.mjs",
     "test:popup-leads": "node scripts/verify-popup-leads.mjs",
+    "test:blogs": "node scripts/verify-blogs.mjs",
     "start": "node app.js",
     "test:accounts": "playwright test"
   },

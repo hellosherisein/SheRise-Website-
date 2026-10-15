@@ -1715,7 +1715,10 @@ function localRowToFormData(section: string, row: string[]): ActionFormData {
       imageUrl: row[5] || "",
       notes: row[6] || "",
       shortDescription: row[6] || "",
-      description: row[7] && !isStatus(row[7]) ? row[7] : "",
+      description: row.length > 8 ? row[7] || "" : "",
+      metaTitle: row.length > 8 ? row[8] || "" : "",
+      metaDescription: row.length > 9 ? row[9] || "" : "",
+      metaKeywords: row.length > 10 ? row[10] || "" : "",
       status: row.at(-1) || "ACTIVE",
       originalKey: row[1] || row[0] || "",
     };
@@ -2456,7 +2459,7 @@ function BlogFormFields({ initialData }: { initialData?: ActionFormData | null }
             className="admin-input"
           />
         </label>
-        <StatusField defaultValue={initialData?.status} />
+        <StatusField defaultValue={initialData?.status === "ACTIVE" ? "PUBLISHED" : initialData?.status || "DRAFT"} options={["DRAFT", "PUBLISHED"]} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-[260px_1fr]">
@@ -3446,6 +3449,8 @@ function titleFromSlug(slug: string) {
 function isStatus(value: string) {
   return [
     "ACTIVE",
+    "DRAFT",
+    "PUBLISHED",
     "NEW",
     "LOW STOCK",
     "OUT OF STOCK",
@@ -3465,7 +3470,7 @@ function isStatus(value: string) {
 
 function statusTone(value: string): Tone {
   if (["OUT OF STOCK", "REJECTED"].includes(value)) return "danger";
-  if (["NEW", "LOW STOCK", "PENDING", "PROCESSING", "INACTIVE"].includes(value)) return "warn";
+  if (["NEW", "LOW STOCK", "PENDING", "PROCESSING", "INACTIVE", "DRAFT"].includes(value)) return "warn";
   return "ok";
 }
 
