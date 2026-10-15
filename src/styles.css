@@ -415,12 +415,12 @@ footer a[aria-label="SheRise home"] span {
   }
   .category-grid {
     display: flex;
-    overflow: auto;
-    scroll-snap-type: x mandatory;
+    gap: 0;
+    touch-action: pan-y pinch-zoom;
   }
   .category-tile {
-    flex: 0 0 82%;
-    scroll-snap-align: start;
+    flex: 0 0 100%;
+    min-width: 0;
   }
   .community-strip {
     display: flex;
@@ -1087,7 +1087,7 @@ footer a[aria-label="SheRise home"] span {
   }
 
   .category-tile {
-    flex-basis: 88%;
+    flex-basis: 100%;
   }
 
   .flow-tile {

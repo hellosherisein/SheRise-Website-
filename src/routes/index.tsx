@@ -15,6 +15,7 @@ import hero from "@/assets/sherise-hero.jpg";
 import story from "@/assets/sherise-story.jpg";
 import guide from "@/assets/sherise-guide.jpg";
 import flatlay from "@/assets/sherise-flatlay.jpg";
+import { CategoryCarousel } from "@/components/category-carousel";
 
 type PublicReview = {
   orderId: string;
@@ -117,28 +118,7 @@ function Home() {
       </div>
       <section className="container-shell section-space">
         <SectionHeading eyebrow="YOUR CARE, YOUR WAY" title="A little comfort for every day." />
-        <div className="category-grid">
-          {[
-            ["Sanitary Pads", "Your everyday essentials", flatlay, "/category/sanitary-pads"],
-            ["Day + Night Combos", "A routine that goes with your flow", story, "/shop?q=combo"],
-          ].map(([title, copy, img, to]) => (
-            <Link key={title} to={to!} className="category-tile group">
-              <img
-                src={img}
-                alt={title + " collection inspiration"}
-                loading="lazy"
-                width="600"
-                height="500"
-                className="transition-transform duration-300 group-hover:scale-105"
-              />
-              <div>
-                <p className="text-xs">{copy}</p>
-                <h3 className="mt-1 text-2xl">{title}</h3>
-                <ArrowUpRight className="absolute right-5 bottom-6" />
-              </div>
-            </Link>
-          ))}
-        </div>
+        <CategoryCarousel />
       </section>
       <section className="bg-brand-cream">
         <div className="container-shell py-12 md:py-16">
