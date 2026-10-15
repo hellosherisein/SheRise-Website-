@@ -1,9 +1,14 @@
 ﻿import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { useAuth } from "./auth";
-import { cartKey, cartStock, validCart, readLocal, saveLocal, type CartItem } from "./cart";
+import { cartKey, validCart, readLocal, saveLocal, type CartItem } from "./cart";
+import type { Product } from "./catalog";
+import { resolveCartSelection } from "./cart-selection";
 export { cartKey, cartStock, validCart, readLocal, saveLocal, type CartItem } from "./cart";
 interface Store {
+  catalogProducts: Product[] | null;
+  catalogError: string;
+  revise: (key: string, changes: Partial<Pick<CartItem, "size" | "flow" | "pack">>) => void;
   ready: boolean;
   cart: CartItem[];
   wishlist: string[];
@@ -32,15 +37,32 @@ function CustomerStore({ children }: { children: ReactNode }) {
     [searchOpen, setSearchOpen] = useState(false);
   const namespace = auth.user?.id || "guest";
   const signedIn = !!auth.user;
+  const [catalogProducts, setCatalogProducts] = useState<Product[] | null>(null);
+  const [catalogError, setCatalogError] = useState("");
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/catalog/products?t=${Date.now()}`, { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Could not check current products. Please refresh and try again.");
+        const payload = await response.json() as { products?: Product[] };
+        if (!Array.isArray(payload.products)) throw new Error("Could not check current products. Please refresh and try again.");
+        if (!cancelled) {
+          setCatalogProducts(payload.products);
+        }
+      })
+      .catch((error) => { if (!cancelled) setCatalogError(error instanceof Error ? error.message : "Could not load products."); });
+    return () => { cancelled = true; };
+  }, []);
   useEffect(() => {
     if (auth.loading) return;
-    setCart(validCart(readLocal("sherise-cart-v2:" + namespace, [])));
+    const saved = validCart(readLocal("sherise-cart-v2:" + namespace, []), []);
+    setCart(catalogProducts ? saved.map((item) => resolveCartSelection(item, catalogProducts.find((p) => p.slug === item.slug)).item) : saved);
     if (!signedIn) {
       const raw = readLocal<unknown>("sherise-guest-wishlist", []);
       setGuestWishlist(Array.isArray(raw) ? raw.filter((s) => typeof s === "string") : []);
     }
     setReady(true);
-  }, [namespace, auth.loading, signedIn]);
+  }, [namespace, auth.loading, signedIn, catalogProducts]);
   useEffect(() => {
     if (signedIn) setAccountWishlist(auth.wishlist);
   }, [auth.wishlist, signedIn]);
@@ -54,7 +76,13 @@ function CustomerStore({ children }: { children: ReactNode }) {
   return (
     <Context.Provider
       value={{
-        ready: ready && !auth.loading,
+        catalogProducts,
+        catalogError,
+        revise: (key, changes) => setCart((current) => current.map((item) => {
+          if (cartKey(item) !== key) return item;
+          return resolveCartSelection({ ...item, ...changes }, catalogProducts?.find((p) => p.slug === item.slug)).item;
+        })),
+        ready: ready && !auth.loading && catalogProducts !== null,
         cart,
         wishlist,
         cartOpen,
@@ -63,9 +91,11 @@ function CustomerStore({ children }: { children: ReactNode }) {
         setSearchOpen,
         add: (item) => {
           if (!ready || auth.loading) return;
-          const valid = validCart([item])[0];
-          if (!valid) {
-            toast.error("This selection is unavailable");
+          const product = catalogProducts?.find((product) => product.slug === item.slug);
+          const selection = resolveCartSelection(item, product);
+          const valid = selection.item;
+          if (selection.issues.length) {
+            toast.error(`${product?.name || item.name || "Product"}: ${selection.issues.join(". ")}. Please choose options on the product page.`);
             return;
           }
           setCart((c) => {
@@ -74,7 +104,7 @@ function CustomerStore({ children }: { children: ReactNode }) {
             return old
               ? c.map((x) =>
                   cartKey(x) === key
-                    ? { ...x, quantity: Math.min(cartStock(x), x.quantity + valid.quantity) }
+                    ? { ...x, quantity: Math.min(product?.stock ?? 99, x.quantity + valid.quantity) }
                     : x,
                 )
               : [...c, valid];
@@ -86,7 +116,7 @@ function CustomerStore({ children }: { children: ReactNode }) {
         update: (key, q) =>
           setCart((c) =>
             c.map((x) =>
-              cartKey(x) === key ? { ...x, quantity: Math.min(cartStock(x), Math.max(1, q)) } : x,
+              cartKey(x) === key ? { ...x, quantity: Math.min(catalogProducts?.find((p) => p.slug === x.slug)?.stock ?? 99, Math.max(1, q)) } : x,
             ),
           ),
         toggleWish: (slug) => {

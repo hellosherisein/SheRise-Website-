@@ -1,4 +1,5 @@
 ﻿import { getProduct } from "./catalog";
+import { products, type Product } from "./catalog";
 export type CartItem = {
   slug: string;
   quantity: number;
@@ -53,11 +54,11 @@ function customCartItem(i: Record<string, unknown>): CartItem[] {
   ];
 }
 
-export function validCart(raw: unknown): CartItem[] {
+export function validCart(raw: unknown, catalog: Product[] = products): CartItem[] {
   if (!Array.isArray(raw)) return [];
   return raw.flatMap((i) => {
     if (!i || typeof i !== "object") return [];
-    const p = getProduct(i.slug),
+    const p = catalog.find((product) => product.slug === i.slug),
       v = p?.packOptions.find((v) => v.label === i.pack);
     if (!Number.isFinite(i.quantity)) return [];
     if (!p) return customCartItem(i as Record<string, unknown>);

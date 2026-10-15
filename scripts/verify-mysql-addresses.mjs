@@ -170,10 +170,11 @@ const replacements = {
   "./database.server": moduleUrl(`export function database() { throw new Error("Unexpected SQLite access"); } export const transaction = database;`),
   "../lib/catalog": moduleUrl(`export const getProduct = () => undefined;`),
   "../lib/pricing": moduleUrl(transpile(readFileSync("src/lib/pricing.ts", "utf8"))),
+  "../lib/cart-selection": moduleUrl(transpile(readFileSync("src/lib/cart-selection.ts", "utf8"))),
   zod: import.meta.resolve("zod"),
 };
 const source = transpile(readFileSync("src/server/customer.server.ts", "utf8"))
-  .replace(/(["'])(\.\/mysql\.server|\.\/catalog\.server|\.\/database\.server|\.\.\/lib\/catalog|\.\.\/lib\/pricing|zod)\1/g,
+  .replace(/(["'])(\.\/mysql\.server|\.\/catalog\.server|\.\/database\.server|\.\.\/lib\/catalog|\.\.\/lib\/pricing|\.\.\/lib\/cart-selection|zod)\1/g,
     (_, quote, specifier) => JSON.stringify(replacements[specifier]));
 const { handleCustomerRequest, hashPassword, verifyPassword } = await import(moduleUrl(source));
 const { loadCatalogProducts } = await import(realCatalogModule);
@@ -263,7 +264,7 @@ assert.deepEqual((await call("session")).wishlist, ["test-pad"]);
 assert.deepEqual((await call("session", undefined, "session-2")).wishlist, []);
 assert.deepEqual((await call("wishlist", { slug: "test-pad", saved: false })).wishlist, []);
 const orderInput = { requestId: crypto.randomUUID(), address: { ...input, id: "123" },
-  items: [{ slug: "test-pad", size: "XL", flow: "Medium", pack: "Pack of 8", quantity: 2, price: 1, name: "Tampered" }],
+  items: [{ slug: "test-pad", size: " xl ", flow: "MEDIUM", pack: " Pack   of 8 ", quantity: 2, price: 1, name: "Tampered" }],
   coupon: "SAVE10", donationAmount: 50, payment: "UPI" };
 result = await call("order-create", orderInput);
 assert.equal(result.status, 201, JSON.stringify(result));
@@ -273,6 +274,10 @@ assert.equal(order.discount, 20);
 assert.equal(order.donationAmount, 50);
 assert.equal(order.total, 270);
 assert.equal(order.items[0].name, "Test pads");
+assert.equal(order.items[0].size, "XL");
+assert.equal(order.items[0].flow, "Medium");
+assert.equal(order.items[0].pack, "Pack of 8", "Formatting differences use canonical catalog options");
+assert.equal((await call("order-create", { ...orderInput, requestId: crypto.randomUUID(), items: [{ ...orderInput.items[0], pack: "Old discontinued pack" }] })).status, 400, "Different packs are never silently substituted");
 assert.equal((await call("session")).orders[0].id, order.id);
 assert.equal((await call("order-create", orderInput)).order.id, order.id, "Retry does not duplicate order");
 assert.equal(orders.length, 1);

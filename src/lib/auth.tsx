@@ -8,7 +8,7 @@
   type ReactNode,
 } from "react";
 import { emptyCustomerData, type CustomerData } from "./customer-types";
-import { cartKey, cartStock, readLocal, saveLocal, validCart } from "./cart";
+import { cartKey, readLocal, saveLocal, validCart } from "./cart";
 export class CustomerApiError extends Error {
   constructor(
     message: string,
@@ -89,16 +89,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ++generation.current;
     let next = await customerRequest<CustomerData>(action, body);
     if (next.user) {
-      const guestCart = validCart(readLocal("sherise-cart-v2:guest", []));
+      const guestCart = validCart(readLocal("sherise-cart-v2:guest", []), []);
       const guestWishlist = readLocal<unknown>("sherise-guest-wishlist", []);
       const wishlistSlugs = Array.isArray(guestWishlist)
         ? guestWishlist.filter((slug): slug is string => typeof slug === "string")
         : [];
-      const merged = validCart(readLocal("sherise-cart-v2:" + next.user.id, []));
+      const merged = validCart(readLocal("sherise-cart-v2:" + next.user.id, []), []);
       for (const item of guestCart) {
         const current = merged.find((other) => cartKey(other) === cartKey(item));
         if (current)
-          current.quantity = Math.min(cartStock(current), current.quantity + item.quantity);
+          current.quantity = Math.min(99, current.quantity + item.quantity);
         else merged.push(item);
       }
       if (saveLocal("sherise-cart-v2:" + next.user.id, merged))

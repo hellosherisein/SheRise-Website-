@@ -17,6 +17,7 @@ import { AccountGate } from "./account-pages";
 import type { CustomerOrder, Address } from "@/lib/customer-types";
 import { Button } from "@/components/ui/button";
 import fallbackProductImage from "@/assets/sherise-flatlay.jpg";
+import { resolveCartSelection } from "@/lib/cart-selection";
 export type DemoOrder = {
   id: string;
   date: string;
@@ -199,7 +200,7 @@ function Summary({ subtotal, discount, donationAmount = 0 }: { subtotal: number;
   );
 }
 export function Cart() {
-  const { cart, update, remove } = useStore();
+  const { cart, update, remove, catalogProducts } = useStore();
   const [discount, setDiscount] = useState<PublicCoupon | null>(null);
   const total = cart.reduce((a, i) => a + i.quantity * i.price, 0);
   return (
@@ -241,7 +242,7 @@ export function Cart() {
                     </p>
                     <QuantitySelector
                       value={i.quantity}
-                      max={cartStock(i)}
+                      max={catalogProducts?.find((p) => p.slug === i.slug)?.stock ?? cartStock(i)}
                       onChange={(q) => update(cartKey(i), q)}
                     />
                     <button onClick={() => remove(cartKey(i))} className="ml-4 text-xs underline">
@@ -287,7 +288,10 @@ function CustomerCheckout() {
   const [addressId, setAddressId] = useState(auth.addresses.find((a) => a.isDefault)?.id || "");
   const selectedAddress = auth.addresses.find((a) => a.id === addressId);
   const requestId = useRef(crypto.randomUUID());
-  const { cart, clear } = useStore();
+  const { cart, clear, catalogProducts, catalogError, revise, remove, update, ready } = useStore();
+  const invalidSelections = catalogProducts
+    ? cart.filter((item) => resolveCartSelection(item, catalogProducts.find((p) => p.slug === item.slug)).issues.length)
+    : [];
   const navigate = useNavigate();
   const coupons = useActiveCoupons();
   const [discount, setDiscount] = useState<PublicCoupon | null>(null),
@@ -310,6 +314,10 @@ function CustomerCheckout() {
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy) return;
+    if (!ready || invalidSelections.length) {
+      setError("Please review your bag options before placing the order.");
+      return;
+    }
     const f = new FormData(e.currentTarget);
     setBusy(true);
     setError("");
@@ -367,6 +375,45 @@ function CustomerCheckout() {
           onSubmit={submit}
           className="grid items-start gap-10 lg:grid-cols-[1.5fr_1fr]"
         >
+          {(catalogError || !catalogProducts || invalidSelections.length > 0) && (
+            <section className="space-y-4 border border-brand-coral bg-brand-cream p-5 lg:col-span-2" aria-label="Review bag options">
+              <h2 className="text-xl">Review your bag</h2>
+              <p role="status" className="text-sm">
+                {catalogError || (!catalogProducts ? "Checking current products…" : "Some saved options are no longer available. Choose the current options below to continue.")}
+              </p>
+              {invalidSelections.map((item) => {
+                const product = catalogProducts?.find((p) => p.slug === item.slug);
+                const key = cartKey(item);
+                return (
+                  <div key={key} className="space-y-3 border-t pt-4">
+                    <p className="font-semibold">{product?.name || item.name || titleFromSlug(item.slug)}</p>
+                    {product ? (
+                      <>
+                        <div className="grid gap-3 sm:grid-cols-3">
+                          {([
+                            ["size", product.sizes], ["flow", product.flow], ["pack", product.packOptions.map((pack) => pack.label)],
+                          ] as const).map(([field, options]) => (
+                            <label key={field} className="field capitalize">
+                              {field}
+                              <select value={item[field]} onChange={(event) => revise(key, { [field]: event.target.value })} aria-label={`${product.name} ${field}`}>
+                                {!options.includes(item[field]) && <option value={item[field]} disabled>{item[field]} (choose current option)</option>}
+                                {options.map((option) => <option key={option} value={option}>{option}</option>)}
+                              </select>
+                            </label>
+                          ))}
+                        </div>
+                        {item.quantity > product.stock && product.stock > 0 && (
+                          <Button type="button" variant="outline" onClick={() => update(key, product.stock)}>Update quantity to {product.stock}</Button>
+                        )}
+                        {product.stock <= 0 && <p className="text-sm">Currently out of stock.</p>}
+                      </>
+                    ) : <p className="text-sm">This product is no longer available.</p>}
+                    <button type="button" onClick={() => remove(key)} className="text-sm underline">Remove from bag</button>
+                  </div>
+                );
+              })}
+            </section>
+          )}
           <div className="space-y-8">
             <section>
               <h2 className="mb-5 text-2xl">01 · Contact & delivery</h2>
@@ -544,7 +591,7 @@ function CustomerCheckout() {
                 </Link>
               </span>
             </label>
-            <Button type="submit" size="lg" className="w-full" disabled={busy}>
+            <Button type="submit" size="lg" className="w-full" disabled={busy || !ready || invalidSelections.length > 0}>
               {busy ? "Placing..." : "PLACE ORDER"}
             </Button>
             <p role="alert" className="mt-3 text-sm">

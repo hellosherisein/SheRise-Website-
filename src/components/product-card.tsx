@@ -13,8 +13,11 @@ import { type Product, money } from "@/lib/catalog";
 import { useStore } from "@/lib/store";
 import fallbackProductImage from "@/assets/sherise-flatlay.jpg";
 
-export function ProductCard({ product: p }: { product: Product }) {
-  const { wishlist, toggleWish, add, ready } = useStore();
+export function ProductCard({ product }: { product: Product }) {
+  const { wishlist, toggleWish, add, ready, catalogProducts } = useStore();
+  const liveProduct = catalogProducts?.find((item) => item.slug === product.slug);
+  const p = liveProduct || product;
+  const available = ready && !!liveProduct && p.stock > 0;
   const [quick, setQuick] = useState(false);
   const [imageSrc, setImageSrc] = useState(p.images[0] || fallbackProductImage);
   const wished = wishlist.includes(p.slug);
@@ -100,7 +103,7 @@ export function ProductCard({ product: p }: { product: Product }) {
           <Button
             variant="navy"
             size="icon"
-            disabled={!ready}
+            disabled={!available}
             aria-label={`Add ${p.name} to cart`}
             onClick={addDefault}
           >
@@ -130,7 +133,7 @@ export function ProductCard({ product: p }: { product: Product }) {
             {p.sizes[0]} - {p.flow[0]} - {p.packOptions[0]?.label}
           </p>
           <Button
-            disabled={!ready}
+            disabled={!available}
             onClick={() => {
               setQuick(false);
               addDefault();

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { database, transaction } from "./database.server";
 import { getProduct } from "../lib/catalog";
 import { calculateOrderTotals, type CouponDiscount } from "../lib/pricing";
+import { resolveCartSelection } from "../lib/cart-selection";
 import type { Address, Customer, CustomerOrder, OrderItem } from "../lib/customer-types";
 const cookieName = "sherise_session";
 const COD_MINIMUM_TOTAL = 1000;
@@ -260,13 +261,13 @@ async function mysqlCreateOrder(user: MysqlCustomerRow, input: unknown) {
     const quantities = new Map<string, number>();
     const items = data.items.map((item) => {
       const product = catalog.find((product) => product.slug === item.slug);
-      const pack = product?.packOptions.find((pack) => pack.label === item.pack);
-      if (!product || !pack || !product.sizes.includes(item.size) || !product.flow.includes(item.flow))
-        throw new ApiError(400, "This product selection has changed. Please update your bag.");
+      const selection = resolveCartSelection({ ...item, price: 0 }, product);
+      if (!product || !selection.optionsMatch)
+        throw new ApiError(400, `${product?.name || item.slug}: ${selection.issues.join(". ")}. Please review the options in your bag.`);
       const quantity = (quantities.get(item.slug) || 0) + item.quantity;
       quantities.set(item.slug, quantity);
       if (quantity > product.stock) throw new ApiError(409, `${product.name} does not have enough stock.`);
-      return { ...item, product, price: pack.price, name: product.name };
+      return { ...selection.item, product, name: product.name };
     });
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const couponDiscount = await activeCouponDiscount(data.coupon, subtotal);
