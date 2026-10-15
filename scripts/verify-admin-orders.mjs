@@ -12,6 +12,7 @@ let history = [];
 let failHistory = false;
 let queries = 0;
 let released = 0;
+const updates = [];
 const pool = {
   async query(sql, params = []) {
     queries++;
@@ -29,7 +30,14 @@ const pool = {
       release() { released++; },
       async execute(sql, params) {
         if (sql.startsWith("UPDATE orders")) {
-          orders.find((order) => order.id === params[4]).order_status = params[0];
+          // Reproduce the production failure when a prepared string parameter
+          // is compared with a literal under different connection collations.
+          if (/\?\s*=\s*'(SHIPPED|DELIVERED|CANCELLED)'/.test(sql)) {
+            throw Object.assign(new Error("Illegal mix of collations for operation '='"), { code: "ER_CANT_AGGREGATE_2COLLATIONS" });
+          }
+          assert.equal(params.length, 2);
+          updates.push({ sql, status: params[0] });
+          orders.find((order) => order.id === params[1]).order_status = params[0];
           return [{ affectedRows: 1 }];
         }
         if (sql.includes("INSERT INTO order_status_history")) {
@@ -99,6 +107,18 @@ failHistory = true;
 assert.equal((await request("POST", { orderId: "SR-ONE", status: "shipped" })).statusCode, 500);
 assert.equal(orders[0].order_status, "PACKED", "Failed history must roll back the status");
 assert.equal(released, 5, "Connections must be released after success and failure");
+failHistory = false;
+for (const [status, expected] of [["shipped", "SHIPPED"], ["delivered", "DELIVERED"], ["cancelled", "CANCELLED"], ["preview", "NEW"]]) {
+  response = await request("POST", { orderId: "SR-ONE", status });
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.payload.rows[1][5], expected);
+}
+for (const { sql, status } of updates) {
+  assert.equal(sql.includes("dispatched_at = COALESCE(dispatched_at, NOW())"), status === "SHIPPED");
+  assert.ok(sql.includes(status === "DELIVERED" ? "delivered_at = COALESCE(delivered_at, NOW())" : "delivered_at = NULL"));
+  assert.ok(sql.includes(status === "CANCELLED" ? "cancelled_at = COALESCE(cancelled_at, NOW())" : "cancelled_at = NULL"));
+}
+assert.equal(history.length, 5);
 
 for (const [code, status, description] of [
   ["ECONNREFUSED", 503, "Database is unavailable"],
@@ -107,6 +127,7 @@ for (const [code, status, description] of [
   ["ER_BAD_FIELD_ERROR", 500, "schema does not match"],
   ["ER_NO_SUCH_TABLE", 500, "schema does not match"],
   ["WARN_DATA_TRUNCATED", 500, "database rejected"],
+  ["ER_CANT_AGGREGATE_2COLLATIONS", 500, "collations conflict"],
   ["ER_DUP_ENTRY", 409, "already exists"],
 ]) {
   const result = adminErrorResponse(Object.assign(new Error("private SQL and credentials"), { code }));

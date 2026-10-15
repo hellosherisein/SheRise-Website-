@@ -49,12 +49,15 @@ export async function updateOrderStatus(transaction, input) {
     const order = orders[0];
     if (!order) throw orderError(404, "Order not found.");
     if (order.order_status === status) return;
+    // Select fixed SQL fragments from the validated status rather than comparing
+    // bound strings to SQL literals, which can have different server collations.
+    const timestamps = [
+      ...(status === "SHIPPED" ? ["dispatched_at = COALESCE(dispatched_at, NOW())"] : []),
+      status === "DELIVERED" ? "delivered_at = COALESCE(delivered_at, NOW())" : "delivered_at = NULL",
+      status === "CANCELLED" ? "cancelled_at = COALESCE(cancelled_at, NOW())" : "cancelled_at = NULL",
+    ];
     await connection.execute(
-      `UPDATE orders SET order_status = ?,
-       dispatched_at = CASE WHEN ? = 'SHIPPED' THEN COALESCE(dispatched_at, NOW()) ELSE dispatched_at END,
-       delivered_at = CASE WHEN ? = 'DELIVERED' THEN COALESCE(delivered_at, NOW()) ELSE NULL END,
-       cancelled_at = CASE WHEN ? = 'CANCELLED' THEN COALESCE(cancelled_at, NOW()) ELSE NULL END
-       WHERE id = ?`, [status, status, status, status, order.id],
+      `UPDATE orders SET order_status = ?, ${timestamps.join(", ")} WHERE id = ?`, [status, order.id],
     );
     await connection.execute(
       "INSERT INTO order_status_history (order_id, previous_status, new_status, note) VALUES (?, ?, ?, ?)",
