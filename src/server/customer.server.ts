@@ -142,7 +142,14 @@ function json(body: unknown, status = 200, cookie?: string) {
 function hasMysqlCustomerStore() {
   return Boolean(process.env["MYSQL_HOST"] && process.env["MYSQL_USER"] && process.env["MYSQL_DATABASE"]);
 }
-function mysqlCustomerData(user: MysqlCustomerRow) {
+async function mysqlCustomerData(user: MysqlCustomerRow) {
+  const { queryRows } = await import("./mysql.server");
+  const addresses = await queryRows<any>(
+    `SELECT id, recipient_name, mobile, address_line1, address_line2, city, state, pincode, label, is_default
+     FROM customer_addresses WHERE customer_id = ? AND deleted_at IS NULL
+     ORDER BY is_default DESC, id ASC`,
+    [user.id],
+  );
   return {
     user: {
       id: String(user.id),
@@ -153,7 +160,18 @@ function mysqlCustomerData(user: MysqlCustomerRow) {
       createdAt:
         user.created_at instanceof Date ? user.created_at.toISOString() : String(user.created_at),
     },
-    addresses: [],
+    addresses: addresses.map((address): Address => ({
+      id: String(address.id),
+      name: address.recipient_name,
+      phone: address.mobile,
+      line1: address.address_line1,
+      line2: address.address_line2 || "",
+      city: address.city,
+      state: address.state,
+      pin: address.pincode,
+      label: address.label === "WORK" ? "Work" : address.label === "OTHER" ? "Other" : "Home",
+      isDefault: Boolean(Number(address.is_default)),
+    })),
     wishlist: [],
     orders: [],
   };
@@ -190,7 +208,7 @@ async function handleMysqlCustomerRequest(request: Request, action: string) {
   if (request.method === "GET") {
     if (action !== "session") throw new ApiError(404, "Not found.");
     const user = await mysqlSessionUser(request);
-    return json(user ? mysqlCustomerData(user) : { user: null, addresses: [], wishlist: [], orders: [] });
+    return json(user ? await mysqlCustomerData(user) : { user: null, addresses: [], wishlist: [], orders: [] });
   }
   if (request.method !== "POST") throw new ApiError(405, "Method not allowed.");
   guardOrigin(request);
@@ -214,7 +232,7 @@ async function handleMysqlCustomerRequest(request: Request, action: string) {
         [result.insertId],
       );
       const user = rows[0] as MysqlCustomerRow;
-      return json(mysqlCustomerData(user), 201, await mysqlNewSession(user.id, data.remember, request));
+      return json(await mysqlCustomerData(user), 201, await mysqlNewSession(user.id, data.remember, request));
     } catch (error) {
       if (String(error).includes("Duplicate") || String(error).includes("uq_customers"))
         throw new ApiError(
@@ -251,12 +269,73 @@ async function handleMysqlCustomerRequest(request: Request, action: string) {
     if (!user || !valid) throw new ApiError(401, "Email/mobile number or password is incorrect.");
     await executeSql("DELETE FROM customer_sessions WHERE token_hash = ?", [hash(token(request))]);
     await executeSql("UPDATE customers SET last_login_at = NOW() WHERE id = ?", [user.id]);
-    return json(mysqlCustomerData(user), 200, await mysqlNewSession(user.id, data.remember, request));
+    return json(await mysqlCustomerData(user), 200, await mysqlNewSession(user.id, data.remember, request));
   }
 
   if (action === "logout") {
     await executeSql("DELETE FROM customer_sessions WHERE token_hash = ?", [hash(token(request))]);
     return json({ ok: true }, 200, setCookie("", 0, request));
+  }
+
+  if (action === "address-save" || action === "address-delete") {
+    const user = await mysqlSessionUser(request);
+    if (!user) throw new ApiError(401, "Please sign in to continue.");
+    // MySQL uses numeric IDs; SQLite's address schema continues to require UUIDs.
+    const idSchema = z.string().regex(/^[1-9][0-9]{0,19}$/, "Invalid address ID.");
+    const data = action === "address-save"
+      ? addressSchema.extend({ id: idSchema.optional() }).parse(input)
+      : z.object({ id: idSchema }).parse(input);
+    const { mysqlTransaction } = await import("./mysql.server");
+    await mysqlTransaction(async (connection) => {
+      // Serialize changes per customer so limits and the default address stay consistent.
+      await connection.query("SELECT id FROM customers WHERE id = ? FOR UPDATE", [user.id]);
+      const [result] = await connection.query(
+        "SELECT id, is_default FROM customer_addresses WHERE customer_id = ? AND deleted_at IS NULL FOR UPDATE",
+        [user.id],
+      );
+      const current = result as { id: string | number; is_default: number }[];
+      const existing = current.find((address) => String(address.id) === data.id);
+      if (data.id && !existing) throw new ApiError(404, "Address not found.");
+      if (action === "address-save" && "name" in data) {
+        if (!existing && current.length >= 10) throw new ApiError(400, "You can save up to 10 addresses.");
+        const isDefault = data.isDefault || !current.length || Boolean(Number(existing?.is_default));
+        if (isDefault) {
+          await connection.execute(
+            "UPDATE customer_addresses SET is_default = 0 WHERE customer_id = ? AND deleted_at IS NULL",
+            [user.id],
+          );
+        }
+        const values = [data.label.toUpperCase(), data.name, data.phone, data.line1, data.line2,
+          data.city, data.state, data.pin, isDefault ? 1 : 0];
+        if (existing) {
+          await connection.execute(
+            `UPDATE customer_addresses SET label = ?, recipient_name = ?, mobile = ?, address_line1 = ?,
+             address_line2 = ?, city = ?, state = ?, pincode = ?, is_default = ?
+             WHERE id = ? AND customer_id = ? AND deleted_at IS NULL`,
+            [...values, String(existing.id), user.id],
+          );
+        } else {
+          await connection.execute(
+            `INSERT INTO customer_addresses (label, recipient_name, mobile, address_line1, address_line2,
+             city, state, pincode, is_default, customer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [...values, user.id],
+          );
+        }
+      } else {
+        await connection.execute(
+          "UPDATE customer_addresses SET deleted_at = NOW(), is_default = 0 WHERE id = ? AND customer_id = ? AND deleted_at IS NULL",
+          [data.id || "", user.id],
+        );
+        if (Number(existing?.is_default)) {
+          const replacement = current.find((address) => String(address.id) !== data.id);
+          if (replacement) await connection.execute(
+            "UPDATE customer_addresses SET is_default = 1 WHERE id = ? AND customer_id = ? AND deleted_at IS NULL",
+            [replacement.id, user.id],
+          );
+        }
+      }
+    });
+    return json(await mysqlCustomerData(user));
   }
 
   throw new ApiError(503, "Customer account action is not available yet. Please try again after launch.");
@@ -403,7 +482,7 @@ export async function handleCustomerRequest(request: Request, action: string): P
   try {
     if (
       hasMysqlCustomerStore() &&
-      ["session", "register", "login", "logout"].includes(action)
+      ["session", "register", "login", "logout", "address-save", "address-delete"].includes(action)
     ) {
       return await handleMysqlCustomerRequest(request, action);
     }

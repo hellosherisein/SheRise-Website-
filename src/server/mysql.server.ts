@@ -1,5 +1,7 @@
 ﻿import { createPool, type ResultSetHeader, type RowDataPacket } from "mysql2/promise";
 
+import type { PoolConnection } from "mysql2/promise";
+
 const pool = createPool({
   host: process.env["MYSQL_HOST"] || "127.0.0.1",
   port: Number(process.env["MYSQL_PORT"] || 3306),
@@ -19,4 +21,19 @@ export async function queryRows<T extends RowDataPacket>(sql: string, params: un
 export async function executeSql(sql: string, params: unknown[] = []) {
   const [result] = await pool.execute<ResultSetHeader>(sql, params);
   return result;
+}
+
+export async function mysqlTransaction<T>(work: (connection: PoolConnection) => Promise<T>) {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const result = await work(connection);
+    await connection.commit();
+    return result;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
