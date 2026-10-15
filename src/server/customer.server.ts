@@ -1060,10 +1060,12 @@ export async function handleCustomerRequest(request: Request, action: string): P
     if (error instanceof z.ZodError)
       return json({ error: error.issues[0]?.message || "Please check your details." }, 400);
     if (error instanceof ApiError) return json({ error: error.message }, error.status);
-    console.error(
-      "Customer service failed:",
-      error instanceof Error ? error.name : "Unknown error",
-    );
+    // Log diagnostic codes, never SQL text/parameters, account details or session tokens.
+    const diagnostic = error as { code?: string; errno?: number; sqlState?: string } | null;
+    console.error("Customer service failed:", {
+      action, name: error instanceof Error ? error.name : "Unknown error",
+      code: diagnostic?.code, errno: diagnostic?.errno, sqlState: diagnostic?.sqlState,
+    });
     return json({ error: "Something went wrong. Please try again." }, 500);
   }
 }

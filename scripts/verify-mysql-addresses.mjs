@@ -18,12 +18,14 @@ let orders = [], orderItems = [], wishlists = [], reviews = [];
 let failOrderItem = false;
 const issuedSessions = new Map();
 let revokedSessions = new Set();
+let catalogFeatures = ["Soft cover", "Comfortable fit"];
 const catalog = [{ id: "10", slug: "test-pad", name: "Test pads", sku: "TEST", sizes: ["XL"],
   flow: ["Medium"], stock: 20, images: ["/test.png"], mrp: 120,
   packOptions: [{ label: "Pack of 8", price: 100, mrp: 120, stock: 20 }] }];
 const owned = (id) => addresses.filter((a) => String(a.customer_id) === String(id) && !a.deleted_at);
 const adapter = {
   async executeSql(sql, values = []) {
+    if (sql.startsWith("ALTER TABLE products")) return { affectedRows: 0 };
     if (sql.startsWith("INSERT INTO customer_sessions")) {
       issuedSessions.set(values[0], values[1]);
       return { affectedRows: 1 };
@@ -51,6 +53,14 @@ const adapter = {
     throw new Error(`Unexpected executeSql: ${sql}`);
   },
   async queryRows(sql, values) {
+    if (sql.includes("FROM products p") && sql.includes("p.selling_price")) return catalog.map((product) => ({
+      id: product.id, slug: product.slug, name: product.name, sku: product.sku,
+      mrp: product.mrp, selling_price: product.packOptions[0].price, discount_percent: 0,
+      pack_quantity: product.packOptions[0].label, flow_type: "Medium", stock: product.stock,
+      image_urls: "/test.png", is_featured: 1,
+      features: catalogFeatures, usage_instructions: ["Change regularly"],
+      disposal_instructions: ["Do not flush"],
+    }));
     if (sql.includes("FROM customers") && sql.includes("email = ? OR mobile = ?")) return users.filter((u) => u.email === values[0] || u.phone === values[1]);
     if (sql.includes("auth_rate_limits")) return [{ attempt_count: 1 }];
     if (sql.includes("FROM customer_wishlists")) return wishlists.filter((w) => w.customer_id === values[0]).map(() => ({ slug: "test-pad" }));
@@ -151,10 +161,12 @@ const adapter = {
   },
 };
 globalThis.__addressTestAdapter = adapter;
-globalThis.__accountTestCatalog = catalog;
+const mysqlModule = moduleUrl(`export const { queryRows, executeSql, mysqlTransaction } = globalThis.__addressTestAdapter;`);
+const realCatalogModule = moduleUrl(transpile(readFileSync("src/server/catalog.server.ts", "utf8"))
+  .replace(/(["'])\.\/mysql\.server\1/g, JSON.stringify(mysqlModule)));
 const replacements = {
-  "./mysql.server": moduleUrl(`export const { queryRows, executeSql, mysqlTransaction } = globalThis.__addressTestAdapter;`),
-  "./catalog.server": moduleUrl(`export const loadCatalogProducts = async () => globalThis.__accountTestCatalog;`),
+  "./mysql.server": mysqlModule,
+  "./catalog.server": realCatalogModule,
   "./database.server": moduleUrl(`export function database() { throw new Error("Unexpected SQLite access"); } export const transaction = database;`),
   "../lib/catalog": moduleUrl(`export const getProduct = () => undefined;`),
   "../lib/pricing": moduleUrl(transpile(readFileSync("src/lib/pricing.ts", "utf8"))),
@@ -164,6 +176,23 @@ const source = transpile(readFileSync("src/server/customer.server.ts", "utf8"))
   .replace(/(["'])(\.\/mysql\.server|\.\/catalog\.server|\.\/database\.server|\.\.\/lib\/catalog|\.\.\/lib\/pricing|zod)\1/g,
     (_, quote, specifier) => JSON.stringify(replacements[specifier]));
 const { handleCustomerRequest, hashPassword, verifyPassword } = await import(moduleUrl(source));
+const { loadCatalogProducts } = await import(realCatalogModule);
+for (const [value, expected] of [
+  [["Soft cover", "Comfortable fit"], ["Soft cover", "Comfortable fit"]],
+  ['["Soft cover","Comfortable fit"]', ["Soft cover", "Comfortable fit"]],
+  ["Soft cover\nComfortable fit", ["Soft cover", "Comfortable fit"]],
+  [[], ["Connected from SheRise MySQL catalog"]],
+  [null, ["Connected from SheRise MySQL catalog"]],
+  [{ legacy: true }, ["Connected from SheRise MySQL catalog"]],
+]) {
+  catalogFeatures = value;
+  const [product] = await loadCatalogProducts();
+  assert.deepEqual(product.features, expected);
+  assert.deepEqual(product.usageInstructions, ["Change regularly"]);
+  assert.deepEqual(product.disposalInstructions, ["Do not flush"]);
+}
+catalogFeatures = ["Soft cover", "Comfortable fit"];
+console.log("PASS: real catalog reader handles MySQL JSON arrays, JSON strings, legacy text and empty/malformed fields.");
 Object.assign(process.env, {
   MYSQL_HOST: "isolated-test", MYSQL_USER: "test", MYSQL_DATABASE: "test", VERCEL: "1",
   NODE_ENV: "production", APP_ORIGIN: "https://example.test",
@@ -292,4 +321,3 @@ assert.equal((await call("order-create", orderInput)).status, 401);
 assert.equal((await call("logout", {})).status, 200);
 console.log("PASS: login cookie, password verification/change, session revocation and logout.");
 delete globalThis.__addressTestAdapter;
-delete globalThis.__accountTestCatalog;

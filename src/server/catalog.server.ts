@@ -24,9 +24,9 @@ type ProductRow = RowDataPacket & {
   brand_message: string | null;
   storage_instruction: string | null;
   material_composition: string | null;
-  features: string | null;
-  usage_instructions: string | null;
-  disposal_instructions: string | null;
+  features: unknown;
+  usage_instructions: unknown;
+  disposal_instructions: unknown;
   safety_information: string | null;
   manufacturer_details: string | null;
   marketer_details: string | null;
@@ -262,18 +262,23 @@ function productInfoFaq(row: ProductRow): Product["faq"] {
   return items;
 }
 
-function jsonList(value: string | null, fallback: string[]) {
-  if (!value) return fallback;
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
-  } catch {
-    // Ignore invalid JSON from older product records.
+function jsonList(value: unknown, fallback: string[]): string[] {
+  // mysql2 decodes JSON columns into arrays; older databases return JSON/text strings.
+  if (Array.isArray(value)) {
+    const items = value.map(String).map((item) => item.trim()).filter(Boolean);
+    return items.length ? items : fallback;
   }
-  return value
-    .split(/\r?\n|,/)
-    .map((item) => item.trim())
-    .filter(Boolean) || fallback;
+  if (typeof value !== "string" || !value.trim()) return fallback;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (Array.isArray(parsed)) return jsonList(parsed, fallback);
+    if (typeof parsed !== "string") return fallback;
+    value = parsed;
+  } catch {
+    // Older records may contain comma or newline separated text.
+  }
+  const items = String(value).split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean);
+  return items.length ? items : fallback;
 }
 
 function normalizeImagePath(value: string) {
