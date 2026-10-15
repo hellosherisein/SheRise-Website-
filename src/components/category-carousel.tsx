@@ -74,15 +74,15 @@ export function CategoryCarousel() {
           ))}
         </div>
       </div>
-      <div className="mt-5 flex items-center justify-center gap-4 md:hidden">
-        <button type="button" className="grid size-11 place-items-center rounded-full border border-brand-navy/20 bg-white text-brand-navy"
-          aria-label="Previous collection" onClick={() => api?.scrollPrev()}><ArrowLeft size={19} aria-hidden="true" /></button>
-        <span className="text-sm font-semibold text-brand-navy" aria-live="off">{selected + 1} / {collections.length}</span>
-        <button type="button" className="grid size-11 place-items-center rounded-full border border-brand-navy/20 bg-white text-brand-navy"
-          aria-label="Next collection" onClick={() => api?.scrollNext()}><ArrowRight size={19} aria-hidden="true" /></button>
-        {!reducedMotion && <button type="button" className="grid size-11 place-items-center rounded-full border border-brand-navy/20 bg-white text-brand-navy"
+      <div className="mt-2 flex items-center justify-center gap-1 md:hidden">
+        <button type="button" className="grid size-11 place-items-center text-muted-foreground transition-colors hover:text-brand-navy"
+          aria-label="Previous collection" onClick={() => api?.scrollPrev()}><ArrowLeft size={16} strokeWidth={1.5} aria-hidden="true" /></button>
+        <span className="text-xs font-normal text-muted-foreground" aria-live="off">{selected + 1} / {collections.length}</span>
+        <button type="button" className="grid size-11 place-items-center text-muted-foreground transition-colors hover:text-brand-navy"
+          aria-label="Next collection" onClick={() => api?.scrollNext()}><ArrowRight size={16} strokeWidth={1.5} aria-hidden="true" /></button>
+        {!reducedMotion && <button type="button" className="grid size-11 place-items-center text-muted-foreground transition-colors hover:text-brand-navy"
           aria-label={paused ? "Start automatic sliding" : "Pause automatic sliding"} onClick={() => setPaused((value) => !value)}>
-          {paused ? <Play size={17} aria-hidden="true" /> : <Pause size={17} aria-hidden="true" />}
+          {paused ? <Play size={14} strokeWidth={1.5} aria-hidden="true" /> : <Pause size={14} strokeWidth={1.5} aria-hidden="true" />}
         </button>}
       </div>
     </div>
