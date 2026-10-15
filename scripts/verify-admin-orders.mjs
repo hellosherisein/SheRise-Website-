@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createAdminCookie } from "../api/_admin-session.mjs";
+import { adminErrorResponse } from "../api/_admin-errors.mjs";
 
 // Test the production handler with an isolated adapter, without accessing a real database.
 process.env.ADMIN_SESSION_SECRET = "admin-orders-test-secret-at-least-32-characters";
@@ -45,7 +46,7 @@ const pool = {
 globalThis.__adminOrdersTestPool = pool;
 let source = readFileSync(new URL("../api/admin/[module].mjs", import.meta.url), "utf8")
   .replace('import { createPool } from "mysql2/promise";', "const createPool = () => globalThis.__adminOrdersTestPool;");
-for (const name of ["_admin-session", "_admin-orders"]) {
+for (const name of ["_admin-session", "_admin-orders", "_admin-errors"]) {
   source = source.replace(`"../${name}.mjs"`, JSON.stringify(new URL(`../api/${name}.mjs`, import.meta.url).href));
 }
 const { default: handler } = await import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`);
@@ -98,5 +99,22 @@ failHistory = true;
 assert.equal((await request("POST", { orderId: "SR-ONE", status: "shipped" })).statusCode, 500);
 assert.equal(orders[0].order_status, "PACKED", "Failed history must roll back the status");
 assert.equal(released, 5, "Connections must be released after success and failure");
+
+for (const [code, status, description] of [
+  ["ECONNREFUSED", 503, "Database is unavailable"],
+  ["ER_ACCESS_DENIED_ERROR", 503, "Database login or access was denied"],
+  ["ER_TABLEACCESS_DENIED_ERROR", 500, "does not have permission"],
+  ["ER_BAD_FIELD_ERROR", 500, "schema does not match"],
+  ["ER_NO_SUCH_TABLE", 500, "schema does not match"],
+  ["WARN_DATA_TRUNCATED", 500, "database rejected"],
+  ["ER_DUP_ENTRY", 409, "already exists"],
+]) {
+  const result = adminErrorResponse(Object.assign(new Error("private SQL and credentials"), { code }));
+  assert.equal(result.status, status);
+  assert.equal(result.body.errorCode, code);
+  assert.ok(result.body.error.includes(description));
+  assert.ok(!result.body.error.includes("private SQL"));
+}
+assert.equal(adminErrorResponse(new Error("private SQL")).body.errorCode, "ADMIN_REQUEST_FAILED");
 delete globalThis.__adminOrdersTestPool;
 console.log("Admin orders: authenticated listing, item grouping, status updates, validation, and rollback passed.");

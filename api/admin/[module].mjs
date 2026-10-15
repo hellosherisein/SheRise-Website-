@@ -2,6 +2,7 @@ import { createPool } from "mysql2/promise";
 
 import { assertAdminRequest } from "../_admin-session.mjs";
 import { ordersPayload, updateOrderStatus } from "../_admin-orders.mjs";
+import { adminErrorResponse } from "../_admin-errors.mjs";
 
 let pool;
 
@@ -107,16 +108,9 @@ export default async function handler(req, res) {
 
     res.status(200).json(emptyPayload(moduleName || "admin"));
   } catch (error) {
-    const statusCode = error?.statusCode || 500;
-    console.error("Admin MySQL API failed:", error instanceof Error ? error.message : error);
-    res.status(statusCode).json({
-      error:
-        statusCode === 401
-          ? "Admin login required."
-          : [400, 404].includes(statusCode)
-          ? error.message
-          : "MySQL connection failed. Check production environment variables and database access.",
-    });
+    console.error("Admin MySQL API failed:", req.method, req.query?.module, error?.code || "", error instanceof Error ? error.message : "Unknown error");
+    const failure = adminErrorResponse(error);
+    res.status(failure.status).json(failure.body);
   }
 }
 
