@@ -6,7 +6,8 @@ import type { CustomerOrder } from "@/lib/customer-types";
 import { siteConfig } from "@/lib/site-config";
 
 import { database } from "./database.server";
-import { executeSql, queryRows } from "./mysql.server";
+import { executeSql, mysqlTransaction, queryRows } from "./mysql.server";
+import { ordersPayload as mysqlOrdersPayload, updateOrderStatus as updateMysqlOrderStatus } from "../../api/_admin-orders.mjs";
 import { reviewStatus } from "./reviews.server";
 import {
   deleteContentBlog,
@@ -145,6 +146,10 @@ export async function handleAdminRequest(_request: Request, module: string): Pro
       return json(await bannersPayload(), 201);
     }
     if (_request.method === "POST" && module === "orders") {
+      if (hasMysqlOrders()) {
+        await updateMysqlOrderStatus(mysqlTransaction, await readBody(_request));
+        return json(await mysqlOrdersPayload(queryRows));
+      }
       await updateOrderStatus(await readBody(_request));
       return json(ordersPayload(), 200);
     }
@@ -172,7 +177,7 @@ export async function handleAdminRequest(_request: Request, module: string): Pro
     if (module === "products") return json(await productsPayload());
     if (module === "categories") return json(await categoriesPayload());
     if (module === "inventory") return json(await inventoryPayload());
-    if (module === "orders") return json(ordersPayload());
+    if (module === "orders") return json(hasMysqlOrders() ? await mysqlOrdersPayload(queryRows) : ordersPayload());
     if (module === "customers") return json(customersPayload());
     if (module === "coupons") return json(couponsPayload());
     if (module === "reviews") return json(reviewsPayload());
@@ -195,6 +200,10 @@ export async function handleAdminRequest(_request: Request, module: string): Pro
       500,
     );
   }
+}
+
+function hasMysqlOrders() {
+  return Boolean(process.env["MYSQL_HOST"] && process.env["MYSQL_USER"] && process.env["MYSQL_DATABASE"]);
 }
 
 function updateOrderStatus(input: Record<string, unknown>) {

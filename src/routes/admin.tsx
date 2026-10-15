@@ -964,9 +964,12 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
 
     setLoadingLiveData(true);
     setConnectionError("");
-    fetchAdminPayload<ModuleConfig>(section)
+    const refresh = () => fetchAdminPayload<ModuleConfig>(section)
       .then((payload) => {
-        if (!cancelled) setLiveConfig(payload);
+        if (!cancelled) {
+          setLiveConfig(payload);
+          setConnectionError("");
+        }
       })
       .catch((error: unknown) => {
         if (!cancelled) {
@@ -977,9 +980,15 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
       .finally(() => {
         if (!cancelled) setLoadingLiveData(false);
       });
+    void refresh();
+    const refreshOrders = () => { void refresh(); };
+    const interval = section === "orders" ? window.setInterval(refreshOrders, 20000) : undefined;
+    if (section === "orders") window.addEventListener("focus", refreshOrders);
 
     return () => {
       cancelled = true;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshOrders);
     };
   }, [hasApiData, reloadKey, section]);
 
@@ -3296,10 +3305,10 @@ function OrderPreviewDialog({
       <DialogContent className="border-[#eadbd2] bg-white sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl text-brand-navy">
-            Order Preview
+            Order Details
           </DialogTitle>
           <DialogDescription>
-            Update this frontend account order status. Customer tracking will reflect this change.
+            Update this order's status. Customer tracking will reflect this change.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 border border-[#eadbd2] bg-[#fffaf6] p-4 text-sm sm:grid-cols-2">

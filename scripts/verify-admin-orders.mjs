@@ -1,0 +1,102 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { createAdminCookie } from "../api/_admin-session.mjs";
+
+// Test the production handler with an isolated adapter, without accessing a real database.
+process.env.ADMIN_SESSION_SECRET = "admin-orders-test-secret-at-least-32-characters";
+for (const name of ["MYSQL_HOST", "MYSQL_USER", "MYSQL_PASSWORD", "MYSQL_DATABASE"]) process.env[name] = "test";
+let orders = [];
+let items = [];
+let history = [];
+let failHistory = false;
+let queries = 0;
+let released = 0;
+const pool = {
+  async query(sql, params = []) {
+    queries++;
+    if (sql.includes("FROM order_items")) return [items.filter((item) => orders.some((order) => order.id === item.order_id && !order.deleted_at))];
+    if (sql.includes("FROM orders")) return [structuredClone(orders.filter((order) => !order.deleted_at && (!params.length || order.order_number === params[0])).toReversed())];
+    throw new Error(`Unexpected SQL: ${sql}`);
+  },
+  async getConnection() {
+    let snapshot;
+    return {
+      query: pool.query,
+      async beginTransaction() { snapshot = structuredClone({ orders, history }); },
+      async commit() {},
+      async rollback() { ({ orders, history } = snapshot); },
+      release() { released++; },
+      async execute(sql, params) {
+        if (sql.startsWith("UPDATE orders")) {
+          orders.find((order) => order.id === params[4]).order_status = params[0];
+          return [{ affectedRows: 1 }];
+        }
+        if (sql.includes("INSERT INTO order_status_history")) {
+          assert.match(sql, /previous_status/);
+          if (failHistory) throw new Error("Simulated history failure");
+          history.push(params);
+          return [{ affectedRows: 1 }];
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      },
+    };
+  },
+};
+globalThis.__adminOrdersTestPool = pool;
+let source = readFileSync(new URL("../api/admin/[module].mjs", import.meta.url), "utf8")
+  .replace('import { createPool } from "mysql2/promise";', "const createPool = () => globalThis.__adminOrdersTestPool;");
+for (const name of ["_admin-session", "_admin-orders"]) {
+  source = source.replace(`"../${name}.mjs"`, JSON.stringify(new URL(`../api/${name}.mjs`, import.meta.url).href));
+}
+const { default: handler } = await import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`);
+const cookie = createAdminCookie().split(";")[0];
+async function request(method = "GET", body, authenticated = true) {
+  const req = {
+    method, query: { module: "orders" }, headers: { cookie: authenticated ? cookie : "" },
+    async *[Symbol.asyncIterator]() { yield Buffer.from(JSON.stringify(body || {})); },
+  };
+  const res = {
+    statusCode: 200, payload: undefined,
+    setHeader() {}, status(value) { this.statusCode = value; return this; },
+    json(value) { this.payload = value; return this; }, end() {},
+  };
+  await handler(req, res);
+  return res;
+}
+
+assert.equal((await request("GET", undefined, false)).statusCode, 401);
+assert.equal(queries, 0, "Unauthorized requests must not access orders");
+let response = await request();
+assert.equal(response.statusCode, 200);
+assert.deepEqual(response.payload.rows, []);
+assert.equal(response.payload.metrics[0].value, "0");
+orders = [
+  { id: 1, order_number: "SR-ONE", customer_name: "Customer One", grand_total: "1200.50", payment_method: "COD", order_status: "NEW" },
+  { id: 2, order_number: "SR-TWO", customer_name: "Customer Two", grand_total: "499.00", payment_method: "UPI", order_status: "DELIVERED" },
+  { id: 3, order_number: "SR-DELETED", deleted_at: "2026-01-01", order_status: "NEW" },
+];
+items = [
+  { order_id: 1, product_name: "Day pads", quantity: 2 },
+  { order_id: 1, product_name: "Night pads", quantity: 1 },
+  { order_id: 2, product_name: "Day pads", quantity: 1 },
+];
+response = await request();
+assert.equal(response.payload.source, "mysql");
+assert.equal(response.payload.rows.length, 2);
+assert.deepEqual(response.payload.rows[1], ["SR-ONE", "Customer One", "Day pads x2, Night pads x1", "Rs.1,200.5", "Cash on Delivery", "NEW"]);
+assert.equal(response.payload.metrics[1].value, "1");
+response = await request("POST", { orderId: "SR-ONE", status: "packed" });
+assert.equal(response.statusCode, 200);
+assert.equal(response.payload.rows[1][5], "PACKED");
+assert.deepEqual(history[0], [1, "NEW", "PACKED", "Status updated from admin orders."]);
+await request("POST", { orderId: "SR-ONE", status: "packed" });
+assert.equal(history.length, 1, "Repeating a status must not duplicate history");
+assert.equal((await request("POST", { orderId: "SR-ONE", status: "invalid" })).statusCode, 400);
+assert.equal((await request("POST", { orderId: "SR-MISSING", status: "shipped" })).statusCode, 404);
+assert.equal((await request("POST", { orderId: "SR-DELETED", status: "packed" })).statusCode, 404);
+failHistory = true;
+assert.equal((await request("POST", { orderId: "SR-ONE", status: "shipped" })).statusCode, 500);
+assert.equal(orders[0].order_status, "PACKED", "Failed history must roll back the status");
+assert.equal(released, 5, "Connections must be released after success and failure");
+delete globalThis.__adminOrdersTestPool;
+console.log("Admin orders: authenticated listing, item grouping, status updates, validation, and rollback passed.");

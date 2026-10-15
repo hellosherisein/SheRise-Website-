@@ -1,6 +1,7 @@
 import { createPool } from "mysql2/promise";
 
 import { assertAdminRequest } from "../_admin-session.mjs";
+import { ordersPayload, updateOrderStatus } from "../_admin-orders.mjs";
 
 let pool;
 
@@ -36,6 +37,11 @@ export default async function handler(req, res) {
     assertAdminRequest(req);
 
     const moduleName = Array.isArray(req.query.module) ? req.query.module[0] : req.query.module;
+    if (req.method === "POST" && moduleName === "orders") {
+      await updateOrderStatus(orderTransaction, await readJsonBody(req));
+      res.status(200).json(await ordersPayload(queryRows));
+      return;
+    }
     if (req.method === "POST" && moduleName === "products") {
       await ensureProductSchema();
       const body = await readJsonBody(req);
@@ -90,6 +96,10 @@ export default async function handler(req, res) {
       res.status(200).json(await customersPayload());
       return;
     }
+    if (moduleName === "orders") {
+      res.status(200).json(await ordersPayload(queryRows));
+      return;
+    }
     if (moduleName === "coupons") {
       res.status(200).json(await couponsPayload());
       return;
@@ -103,8 +113,25 @@ export default async function handler(req, res) {
       error:
         statusCode === 401
           ? "Admin login required."
+          : [400, 404].includes(statusCode)
+          ? error.message
           : "MySQL connection failed. Check production environment variables and database access.",
     });
+  }
+}
+
+async function orderTransaction(work) {
+  const connection = await getPool().getConnection();
+  try {
+    await connection.beginTransaction();
+    const result = await work(connection);
+    await connection.commit();
+    return result;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
   }
 }
 
