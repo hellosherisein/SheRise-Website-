@@ -18,12 +18,21 @@ export async function handleNewsletterRequest(request: Request): Promise<Respons
     }
 
     const body = (await request.json()) as Record<string, unknown>;
-    const email = cleanText(body["email"], 254).toLowerCase();
+    if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "Use a valid signup." }, 400);
+    const email = typeof body["email"] === "string" ? body["email"].trim().toLowerCase() : "";
     const source = cleanText(body["source"], 80) || "Footer newsletter";
-    if (!isValidEmail(email)) return json({ error: "Enter a valid email address." }, 400);
+    if (email.length > 254 || !isValidEmail(email)) return json({ error: "Enter a valid email address." }, 400);
 
     const now = new Date().toISOString();
-    database()
+    if (process.env["MYSQL_HOST"] && process.env["MYSQL_USER"] && process.env["MYSQL_DATABASE"]) {
+      const { executeSql } = await import("./mysql.server");
+      await executeSql(
+        `INSERT INTO newsletter_subscribers (email, status) VALUES (?, 'ACTIVE')
+         ON DUPLICATE KEY UPDATE status = 'ACTIVE', unsubscribed_at = NULL, updated_at = CURRENT_TIMESTAMP`,
+        [email],
+      );
+    } else {
+      database()
       .prepare(
         `
           INSERT INTO newsletter_subscribers (id, email, source, status, created_at, updated_at)
@@ -35,6 +44,7 @@ export async function handleNewsletterRequest(request: Request): Promise<Respons
         `,
       )
       .run(randomUUID(), email, source, now, now);
+    }
 
     const subscriber: NewsletterSubscriber = {
       email,
@@ -45,6 +55,7 @@ export async function handleNewsletterRequest(request: Request): Promise<Respons
     };
     return json({ ok: true, subscriber }, 201);
   } catch (error) {
+    if (error instanceof SyntaxError) return json({ error: "Use valid JSON." }, 400);
     console.error("Newsletter API failed:", error instanceof Error ? error.message : error);
     return json({ error: "Could not save newsletter signup." }, 500);
   }

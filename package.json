@@ -18,6 +18,7 @@
     "test:reviews": "node scripts/verify-reviews.mjs",
     "test:popup-leads": "node scripts/verify-popup-leads.mjs",
     "test:blogs": "node scripts/verify-blogs.mjs",
+    "test:newsletter": "node scripts/verify-newsletter.mjs",
     "start": "node app.js",
     "test:accounts": "playwright test"
   },

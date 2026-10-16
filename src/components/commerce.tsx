@@ -247,6 +247,7 @@ export function Newsletter() {
         <form
           onSubmit={async (e) => {
             e.preventDefault();
+            if (saving) return;
             const form = e.currentTarget;
             const formData = new FormData(form);
             setSaving(true);
@@ -281,6 +282,7 @@ export function Newsletter() {
                 name="email"
                 required
                 type="email"
+                maxLength={254}
                 placeholder="Your email address"
                 className="min-w-0 flex-1 bg-transparent py-4 outline-none"
               />

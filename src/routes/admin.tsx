@@ -982,8 +982,8 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
       });
     void refresh();
     const refreshOrders = () => { void refresh(); };
-    const interval = ["orders", "reviews", "popup-leads"].includes(section) ? window.setInterval(refreshOrders, 20000) : undefined;
-    if (["orders", "reviews", "popup-leads"].includes(section)) window.addEventListener("focus", refreshOrders);
+    const interval = ["orders", "reviews", "popup-leads", "newsletter"].includes(section) ? window.setInterval(refreshOrders, 20000) : undefined;
+    if (["orders", "reviews", "popup-leads", "newsletter"].includes(section)) window.addEventListener("focus", refreshOrders);
 
     return () => {
       cancelled = true;

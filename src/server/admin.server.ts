@@ -11,6 +11,7 @@ import { ordersPayload as mysqlOrdersPayload, updateOrderStatus as updateMysqlOr
 import { reviewsPayload as mysqlReviewsPayload, moderateReview } from "../../api/_reviews.mjs";
 import { popupLeadsPayload as mysqlPopupLeadsPayload } from "../../api/_popup-leads.mjs";
 import { blogsPayload as mysqlBlogsPayload } from "../../api/_blogs.mjs";
+import { newsletterPayload as mysqlNewsletterPayload } from "../../api/_newsletter.mjs";
 import { reviewStatus } from "./reviews.server";
 import {
   deleteContentBlog,
@@ -191,7 +192,7 @@ export async function handleAdminRequest(_request: Request, module: string): Pro
     if (module === "homepage") return json(homepagePayload());
     if (module === "banners") return json(await bannersPayload());
     if (module === "popup-leads") return json(hasMysqlOrders() ? await mysqlPopupLeadsPayload(queryRows) : popupLeadsPayload());
-    if (module === "newsletter") return json(newsletterPayload());
+    if (module === "newsletter") return json(hasMysqlOrders() ? await mysqlNewsletterPayload(queryRows) : newsletterPayload());
     if (module === "blogs") return json(await blogsPayload());
     if (module === "faqs") return json(faqsPayload());
     if (module === "business-settings") return json(businessSettingsPayload());

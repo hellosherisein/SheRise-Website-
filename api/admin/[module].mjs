@@ -6,6 +6,7 @@ import { adminErrorResponse } from "../_admin-errors.mjs";
 import { reviewsPayload, moderateReview } from "../_reviews.mjs";
 import { popupLeadsPayload } from "../_popup-leads.mjs";
 import { blogsPayload, upsertBlog, deleteBlog } from "../_blogs.mjs";
+import { newsletterPayload } from "../_newsletter.mjs";
 
 let pool;
 
@@ -126,6 +127,10 @@ export default async function handler(req, res) {
     }
     if (moduleName === "blogs") {
       res.status(200).json(await blogsPayload(queryRows));
+      return;
+    }
+    if (moduleName === "newsletter") {
+      res.status(200).json(await newsletterPayload(queryRows));
       return;
     }
     if (moduleName === "coupons") {
