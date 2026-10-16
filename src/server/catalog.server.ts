@@ -193,7 +193,9 @@ async function prepareCatalogPackagingColumns() {
     ["product_website", "VARCHAR(200) NULL"],
     ["shelf_life", "VARCHAR(120) NULL"],
   ];
+  const existingColumns = new Set((await queryRows<RowDataPacket>("SHOW COLUMNS FROM products")).map((row) => row["Field"]));
   for (const [column, definition] of columns) {
+    if (existingColumns.has(column)) continue;
     try {
       await executeSql(`ALTER TABLE products ADD COLUMN ${column} ${definition}`);
     } catch (error) {

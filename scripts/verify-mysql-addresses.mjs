@@ -57,6 +57,7 @@ const adapter = {
     throw new Error(`Unexpected executeSql: ${sql}`);
   },
   async queryRows(sql, values) {
+    if (sql === "SHOW COLUMNS FROM products") return ["product_dimensions", "pad_length", "front_pack_content", "anion_strip_notes", "brand_message", "storage_instruction", "material_composition", "manufacturer_details", "marketer_details", "product_contact", "product_email", "product_website", "shelf_life"].map((Field) => ({ Field }));
     if (sql.includes("FROM product_images") && !sql.includes("FROM products p")) return [{ product_id: 10, image_url: "/test.png" }];
     if (sql.includes("FROM products p") && sql.includes("p.selling_price")) return catalog
       .filter((product) => !sql.includes("AND p.slug = ?") || product.slug === values?.[0])
@@ -224,6 +225,7 @@ const productionCall = async (slug) => {
 };
 assert.equal((await productionCall("test-pad")).body.products[0].slug, "test-pad");
 const afterFirstProductionRead = schemaStatements;
+assert.equal(afterFirstProductionRead, 0, "Existing catalog schemas are read without ALTER TABLE privileges or table locks");
 assert.deepEqual((await productionCall("missing")).body.products, []);
 assert.equal(schemaStatements, afterFirstProductionRead, "Production requests share schema initialization");
 assert.equal((await productionCall("x".repeat(221))).statusCode, 400);

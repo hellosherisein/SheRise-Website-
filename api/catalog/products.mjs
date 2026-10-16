@@ -128,7 +128,9 @@ async function prepareCatalogSchema() {
     ["shelf_life", "VARCHAR(120) NULL"],
   ];
 
+  const existingColumns = new Set((await queryRows("SHOW COLUMNS FROM products")).map((row) => row.Field));
   for (const [column, definition] of columns) {
+    if (existingColumns.has(column)) continue;
     try {
       await executeSql(`ALTER TABLE products ADD COLUMN ${column} ${definition}`);
     } catch (error) {
@@ -136,11 +138,7 @@ async function prepareCatalogSchema() {
     }
   }
 
-  try {
-    await executeSql("ALTER TABLE product_images MODIFY image_url LONGTEXT NOT NULL");
-  } catch (error) {
-    if (!/data too long|doesn't exist|unknown table/i.test(String(error?.message || error))) throw error;
-  }
+  // Reading images needs no column alteration; uploads are managed by the admin API.
 }
 
 async function productImagesById(productIds) {

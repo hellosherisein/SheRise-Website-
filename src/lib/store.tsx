@@ -43,18 +43,35 @@ function CustomerStore({ children }: { children: ReactNode }) {
   const [catalogAttempt, setCatalogAttempt] = useState(0);
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
     setCatalogError("");
-    fetch(`/api/catalog/products?t=${Date.now()}`, { cache: "no-store", signal: AbortSignal.timeout(15000) })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Could not check current products. Please refresh and try again.");
-        const payload = await response.json() as { products?: Product[] };
-        if (!Array.isArray(payload.products)) throw new Error("Could not check current products. Please refresh and try again.");
-        if (!cancelled) {
-          setCatalogProducts(payload.products);
+    void (async () => {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        let status: number | undefined;
+        try {
+          const response = await fetch(`/api/catalog/products?t=${Date.now()}`, {
+            cache: "no-store", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
+          });
+          status = response.status;
+          if (!response.ok) throw new Error("Catalog request failed");
+          const payload = await response.json() as { products?: Product[] };
+          if (!Array.isArray(payload.products)) throw new Error("Invalid catalog response");
+          if (!cancelled) { setCatalogProducts(payload.products); setCatalogError(""); }
+          return;
+        } catch {
+          if (cancelled) return;
+          const retryable = !status || status >= 500 || status === 429 || status === 200;
+          if (retryable && attempt < 2) {
+            await new Promise((resolve) => setTimeout(resolve, 700 * (attempt + 1)));
+            if (cancelled) return;
+            continue;
+          }
+          setCatalogError(`Could not check current products. Please refresh and try again.${status ? ` (HTTP ${status})` : " (Connection timed out or unavailable)"}`);
+          return;
         }
-      })
-      .catch((error) => { if (!cancelled) setCatalogError(error instanceof Error ? error.message : "Could not load products."); });
-    return () => { cancelled = true; };
+      }
+    })();
+    return () => { cancelled = true; controller.abort(); };
   }, [catalogAttempt]);
   useEffect(() => {
     if (auth.loading) return;

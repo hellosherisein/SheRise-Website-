@@ -24,7 +24,7 @@ test("failed catalog can retry; quick view adds the live product to the bag", as
   let requests = 0;
   await page.route("**/api/catalog/products?*", async (route) => {
     requests++;
-    return requests === 1 ? route.fulfill({ status: 503, json: { error: "Unavailable" } })
+    return requests <= 3 ? route.fulfill({ status: 503, json: { error: "Unavailable" } })
       : route.fulfill({ json: { products: [product] } });
   });
   await page.goto("/category/sanitary-pads");
@@ -34,11 +34,23 @@ test("failed catalog can retry; quick view adds the live product to the bag", as
   await page.getByRole("button", { name: "Quick view", exact: true }).click();
   const add = page.getByRole("button", { name: "Add to cart", exact: true });
   await expect(add).toBeEnabled();
-  expect(requests).toBe(2);
+  expect(requests).toBe(4);
   await add.click();
   await expect(page.getByRole("heading", { name: "Your bag", exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("sherise-cart-v2:guest") || "[]")))
     .toMatchObject([{ slug: product.slug, quantity: 1, size: "XL", pack: "Pack of 8", price: 200 }]);
+});
+
+test("temporary catalog failure recovers automatically", async ({ page }) => {
+  await setup(page);
+  let attempts = 0;
+  await page.route("**/api/catalog/products?*", (route) => ++attempts === 1
+    ? route.fulfill({ status: 503, body: "Temporarily unavailable" })
+    : route.fulfill({ json: { products: [product] } }));
+  await page.goto("/shop");
+  await expect(page.getByRole("button", { name: "Quick view", exact: true })).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  expect(attempts).toBe(2);
 });
 
 test("out of stock quick view explains why adding is disabled", async ({ page }) => {
