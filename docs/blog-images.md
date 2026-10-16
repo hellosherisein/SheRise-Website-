@@ -2,6 +2,8 @@
 
 Admin → Blogs → Choose image accepts JPG, PNG or WebP up to 5 MB. A local preview appears immediately. Wait for upload completion, then Save/Update the blog. Failed uploads display an error and prevent the blog saving an absent image; select the image again or use a valid image URL to retry.
 
+Blog Save/Update waits at most 20 seconds for confirmation. If the connection fails, the server returns an error, or confirmation times out, the dialog keeps its fields/image, displays an error, and restores the Save button. A timed-out request might already have committed; check the Blogs list before retrying. Save requests are never retried automatically.
+
 New uploads use authenticated, same-origin `POST /api/admin/upload-blog-image`, save binary bytes in MySQL `blog_media`, and return a short `/api/content/blog-image?id=...` URL stored in the existing blog image column. No upload directory or local filesystem persistence is needed. Existing image URLs are preserved; files already lost from previous deployments must be selected and uploaded again.
 
 On first upload, the app checks `blog_media` and creates it if absent. For a restricted application DB user, a database administrator can run this additive SQL before using the feature:

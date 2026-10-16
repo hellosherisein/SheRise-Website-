@@ -463,7 +463,7 @@ async function fetchAdminPayload<T>(
   fallbackMessage = "Admin data could not be loaded.",
 ): Promise<ApiPayload<T>> {
   const response = await fetch(`/api/admin/${module}`, init);
-  const payload = await parseApiJson<T>(response);
+  const payload = await parseApiJson<T>(response, fallbackMessage);
   if (!response.ok) throw new Error(payload.error || fallbackMessage);
   return payload;
 }
@@ -1085,20 +1085,16 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
     }
 
     if (isContentSection) {
-      const response = await fetch(`/api/admin/${section}`, {
+      const payload = await fetchAdminPayload<ModuleConfig>(section, {
         method: "POST",
         headers: { "content-type": "application/json" },
+        signal: AbortSignal.timeout(20000),
         body: JSON.stringify({
           ...formData,
           adminAction: editingRow ? "update" : "create",
           originalKey: editingRow?.data.originalKey,
         }),
-      });
-      const payload = (await response.json()) as ModuleConfig & { error?: string };
-      if (!response.ok) {
-        toast.error(payload.error || `Could not save ${displayConfig.title.toLowerCase()}.`);
-        return;
-      }
+      }, `Could not confirm the ${displayConfig.title.toLowerCase()} save. Check the list before retrying.`);
       setLiveConfig(payload);
       setReloadKey((value) => value + 1);
       setDialogOpen(false);
@@ -1983,11 +1979,13 @@ function ActionDialog({
 }) {
   const [imagePreview, setImagePreview] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const isProduct = section === "products";
   const isBlog = section === "blogs";
 
   useEffect(() => {
     if (!open) return;
+    setSaveError("");
     setImagePreview(initialData?.imageUrl || "");
   }, [initialData, open]);
 
@@ -2016,6 +2014,7 @@ function ActionDialog({
             event.preventDefault();
             if (saving) return;
             const formData = new FormData(event.currentTarget);
+            setSaveError("");
             if (isBlog && ["uploading", "error"].includes(String(formData.get("imageUploadState")))) {
               toast.error(formData.get("imageUploadState") === "uploading" ? "Wait for the blog image upload to finish." : "Retry the image upload or enter an image URL before saving.");
               return;
@@ -2076,7 +2075,14 @@ function ActionDialog({
                 usageLimitPerCustomer: String(formData.get("usageLimitPerCustomer") ?? ""),
                 firstOrderOnly: String(formData.get("firstOrderOnly") ?? ""),
               }),
-            ).finally(() => setSaving(false));
+            ).catch((error) => {
+              const timedOut = error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name);
+              const message = timedOut || error instanceof TypeError
+                ? "Save confirmation timed out or the connection was lost. Check the list before retrying; your changes may already be saved."
+                : error instanceof Error ? error.message : "Could not confirm the save. Check the list before retrying.";
+              setSaveError(message);
+              toast.error(message);
+            }).finally(() => setSaving(false));
           }}
         >
           {isProduct ? (
@@ -2084,6 +2090,7 @@ function ActionDialog({
           ) : (
             <BasicFormFields moduleTitle={moduleTitle} section={section} initialData={initialData} />
           )}
+          {saveError && <p role="alert" className="text-sm text-red-700">{saveError}</p>}
           <DialogFooter>
             <Button type="button" variant="outline" className="bg-white" disabled={saving} onClick={() => onOpenChange(false)}>
               Cancel
