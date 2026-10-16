@@ -2016,6 +2016,10 @@ function ActionDialog({
             event.preventDefault();
             if (saving) return;
             const formData = new FormData(event.currentTarget);
+            if (isBlog && ["uploading", "error"].includes(String(formData.get("imageUploadState")))) {
+              toast.error(formData.get("imageUploadState") === "uploading" ? "Wait for the blog image upload to finish." : "Retry the image upload or enter an image URL before saving.");
+              return;
+            }
             setSaving(true);
             void Promise.resolve(
               onSave({
@@ -2391,35 +2395,52 @@ function BlogFormFields({ initialData }: { initialData?: ActionFormData | null }
   const [imageUrl, setImageUrl] = useState(initialData?.imageUrl || "");
   const [imagePreview, setImagePreview] = useState(initialData?.imageUrl || "");
   const [uploadedFileName, setUploadedFileName] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
 
   useEffect(() => {
     setImageUrl(initialData?.imageUrl || "");
     setImagePreview(initialData?.imageUrl || "");
     setUploadedFileName("");
+    setUploadError("");
   }, [initialData]);
+  useEffect(() => () => { if (imagePreview.startsWith("blob:")) URL.revokeObjectURL(imagePreview); }, [imagePreview]);
 
   const uploadBlogImage = async (files: FileList | null) => {
     const file = files?.[0];
     if (!file) return;
-    const localPreview = URL.createObjectURL(file);
-    const uploadData = new FormData();
-    uploadData.append("images", file);
-    const response = await fetch("/api/admin/upload-product-image", {
-      method: "POST",
-      body: uploadData,
-    });
-    const payload = (await response.json()) as { urls?: string[]; error?: string };
-    if (!response.ok || !payload.urls?.[0]) {
-      toast.error(payload.error || "Could not upload blog image.");
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
+      setUploadError("Choose a JPG, PNG or WebP image under 5 MB.");
       return;
     }
-    setImageUrl(payload.urls[0]);
+    const localPreview = URL.createObjectURL(file);
     setImagePreview(localPreview);
     setUploadedFileName(file.name);
+    setUploadError("");
+    setUploading(true);
+    const uploadData = new FormData();
+    uploadData.append("images", file);
+    try {
+      const response = await fetch("/api/admin/upload-blog-image", {
+        method: "POST", body: uploadData, credentials: "same-origin", signal: AbortSignal.timeout(30000),
+      });
+      let payload: { urls?: string[]; error?: string };
+      try { payload = await response.json(); } catch { throw new Error("Image upload service is unavailable. Choose the image again to retry."); }
+      if (!response.ok || !payload.urls?.[0]) throw new Error(payload.error || "Could not upload blog image.");
+      setImageUrl(payload.urls[0]);
+      toast.success("Blog image uploaded. Save the blog to use it.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not upload blog image. Please retry.";
+      setUploadError(message);
+      toast.error(message);
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
     <div className="grid gap-4">
+      <input type="hidden" name="imageUploadState" value={uploading ? "uploading" : uploadError ? "error" : "ready"} />
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-1 text-sm font-medium sm:col-span-2">
           Blog Title
@@ -2488,11 +2509,13 @@ function BlogFormFields({ initialData }: { initialData?: ActionFormData | null }
             <input
               name="imageUrl"
               value={imageUrl}
+              disabled={uploading}
               className="admin-input"
               placeholder="/uploads/products/blog-image.jpg"
               onChange={(event) => {
                 setImageUrl(event.target.value);
                 setImagePreview(event.target.value);
+                setUploadError("");
               }}
             />
           </label>
@@ -2504,16 +2527,20 @@ function BlogFormFields({ initialData }: { initialData?: ActionFormData | null }
             </span>
             <input
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
+              disabled={uploading}
               className="sr-only"
               onChange={(event) => {
                 void uploadBlogImage(event.target.files);
+                event.currentTarget.value = "";
               }}
             />
             <span className="text-xs font-normal text-muted-foreground">
               {uploadedFileName || "No file chosen"}
             </span>
           </label>
+          {uploading && <p role="status" className="mt-2 text-xs">Uploading blog image…</p>}
+          {uploadError && <p role="alert" className="mt-2 text-xs text-red-700">{uploadError}</p>}
         </div>
 
         <div className="grid content-start gap-4">

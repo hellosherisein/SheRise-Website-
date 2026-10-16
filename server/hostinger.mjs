@@ -63,7 +63,7 @@ async function handleNodeApiRequest(req, res, pathname) {
     await handleAdminLogout(req, responseAdapter(res));
     return true;
   }
-  if (adminModuleMatch && pathname !== "/api/admin/upload-product-image") {
+  if (adminModuleMatch && !["/api/admin/upload-product-image", "/api/admin/upload-blog-image"].includes(pathname)) {
     const { default: handleAdminModule } = await import("../api/admin/[module].mjs");
     req.query = { module: decodeURIComponent(adminModuleMatch[1]) };
     await handleAdminModule(req, responseAdapter(res));

@@ -36,6 +36,10 @@ for (const [enabled, webhookSecret] of [["false", ""], ["true", ""], ["true", "t
     assert.equal(invalidImage.status, 400, "Production image route reaches the guarded handler");
     const invalidReviewImage = await fetch(`${origin}/api/reviews/image?review=invalid&index=0`);
     assert.equal(invalidReviewImage.status, 400, "Production review image route reaches the guarded handler");
+    const blogUpload = await fetch(`${origin}/api/admin/upload-blog-image`, { method: "POST" });
+    assert.equal(blogUpload.status, 401, "Blog image upload is routed and requires an admin session");
+    const invalidBlogImage = await fetch(`${origin}/api/content/blog-image?id=invalid`);
+    assert.equal(invalidBlogImage.status, 400);
     if (enabled === "true") assert.match(stderr, /Online payments disabled:/);
     assert.doesNotMatch(stderr, /fake-secret/);
   } finally {

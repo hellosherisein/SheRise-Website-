@@ -7,10 +7,13 @@ import { getContentBlog, listContentBlogs, listContentFaqs } from "./content.ser
 import { handlePaymentsRequest } from "./payments.server";
 import { handleCatalogImageRequest } from "./catalog-image.server";
 import { handleReviewImageRequest } from "./review-image.server";
+import { handleBlogImageUpload, handleBlogImageRequest } from "./blog-images.server";
 export { validatePaymentEnvironment } from "./payments.server";
 
 export async function handleProductionApiRequest(request: Request): Promise<Response> {
   const pathname = new URL(request.url).pathname;
+  if (pathname === "/api/admin/upload-blog-image") return handleBlogImageUpload(request);
+  if (pathname === "/api/content/blog-image") return handleBlogImageRequest(request);
   if (pathname === "/api/reviews/image") return handleReviewImageRequest(request);
   if (pathname === "/api/catalog/product-image") return handleCatalogImageRequest(request);
   if (pathname.startsWith("/api/payments/")) return handlePaymentsRequest(request);
