@@ -21,6 +21,37 @@ async function mockPayments(page: Page, account: { orders: unknown[] }) {
   });
 }
 
+test("coupon requires a ₹600 subtotal and is removed when quantity drops below the minimum", async ({ page }) => {
+  const cart = { slug: "minimum-test-pad", name: "Minimum test pads", quantity: 1, size: "XL", flow: "Medium", pack: "Pack of 8", price: 200 };
+  await page.addInitScript(({ cart }) => {
+    localStorage.setItem("sherise-cart-v2:guest", JSON.stringify([cart]));
+    sessionStorage.setItem("sherise-welcome-popup-seen", "true");
+  }, { cart });
+  await page.route("**/api/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/api/customer/session") return route.fulfill({ json: { user: null, orders: [], addresses: [], wishlist: [] } });
+    if (path === "/api/catalog/products") return route.fulfill({ json: { products: [{ id: "1", ...cart, images: [], sizes: ["XL"], flow: ["Medium"], stock: 20, packOptions: [{ label: cart.pack, price: 200, mrp: 220, stock: 20 }] }] } });
+    if (path === "/api/catalog/coupons") return route.fulfill({ json: { coupons: [{ code: "SHERISE11", discountType: "PERCENTAGE", discountValue: 10, minimumOrderAmount: 600 }] } });
+    return route.fulfill({ json: { products: [], reviews: [] } });
+  });
+  await page.goto("/cart");
+  const coupon = page.getByRole("button", { name: /SHERISE11/ });
+  const discount = page.getByText("Discount", { exact: true }).locator("..");
+  await coupon.click();
+  await expect(page.getByRole("alert")).toHaveText("Minimum order ₹600 required.");
+  await expect(page.getByRole("alert")).toHaveClass(/text-red-700/);
+  await expect(discount).toContainText("-₹0");
+  await page.getByRole("button", { name: "Increase quantity", exact: true }).click();
+  await page.getByRole("button", { name: "Increase quantity", exact: true }).click();
+  await expect(coupon).toContainText("Eligible");
+  await coupon.click();
+  await expect(coupon).toContainText("Applied");
+  await expect(discount).toContainText("-₹60");
+  await page.getByRole("button", { name: "Decrease quantity", exact: true }).click();
+  await expect(page.getByRole("alert")).toHaveText("Minimum order ₹600 required.");
+  await expect(discount).toContainText("-₹0");
+});
+
 test("signed-in checkout applies coupons without submitting and preserves the account after a server error", async ({ page }) => {
   const user = { id: "42", name: "Checkout Customer", email: "checkout@example.test", phone: "9876543210", whatsappNumber: "9876543210", createdAt: new Date().toISOString() };
   const address = { id: "123", name: user.name, phone: user.phone, line1: "12 Test Street", line2: "", city: "Pune", state: "Maharashtra", pin: "411001", label: "Home", isDefault: true };
@@ -40,7 +71,7 @@ test("signed-in checkout applies coupons without submitting and preserves the ac
       await route.fulfill({ json: { products: [{ id: "1", slug: cart.slug, name: cart.name, images: [], sizes: ["XL"], flow: ["Medium"],
         stock: 20, packOptions: [{ label: "Pack of 8", price: 200, mrp: 220, stock: 20 }] }] } });
     } else if (path === "/api/catalog/coupons") {
-      await route.fulfill({ json: { coupons: [{ code: "SAVE10", discountType: "PERCENTAGE", discountValue: 10 }] } });
+      await route.fulfill({ json: { coupons: [{ code: "SAVE10", discountType: "PERCENTAGE", discountValue: 10 }, { code: "SHERISE11", discountType: "PERCENTAGE", discountValue: 10, minimumOrderAmount: 600 }] } });
     } else if (path === "/api/payments/create-order") {
       orderRequests++;
       lastOrder = route.request().postDataJSON();
@@ -55,6 +86,14 @@ test("signed-in checkout applies coupons without submitting and preserves the ac
   await expect(page.getByLabel("Address", { exact: true })).toHaveValue(address.line1);
   await expect(page.getByLabel("Choose a saved address")).toHaveValue("123");
   await page.getByRole("checkbox").check();
+  const minimumCoupon = page.getByRole("button", { name: /SHERISE11/ });
+  await expect(minimumCoupon).toContainText("Minimum ₹600");
+  await expect(minimumCoupon).not.toContainText("Active now");
+  await minimumCoupon.click();
+  const minimumError = page.getByRole("alert").filter({ hasText: "Minimum order ₹600 required." });
+  await expect(minimumError).toHaveText("Minimum order ₹600 required.");
+  await expect(minimumError).toHaveClass(/text-red-700/);
+  expect(orderRequests).toBe(0);
   const coupon = page.getByPlaceholder("Enter coupon manually");
   await coupon.fill("SAVE10");
   await page.getByRole("button", { name: "Apply", exact: true }).click();

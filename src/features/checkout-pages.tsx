@@ -73,7 +73,7 @@ function couponLabel(coupon: PublicCoupon) {
       ? `${money(coupon.discountValue)} off`
       : `${coupon.discountValue}% off`;
   const minimum = Number(coupon.minimumOrderAmount || 0);
-  return `${discount}${minimum > 0 ? ` above ${money(minimum)}` : ""}`;
+  return `${discount}${minimum > 0 ? ` on orders of ${money(minimum)}+` : ""}`;
 }
 
 function couponAppliedMessage(coupon: PublicCoupon) {
@@ -92,6 +92,22 @@ export function Coupon({
   const coupons = useActiveCoupons();
   const [code, setCode] = useState(appliedCoupon?.code || ""),
     [message, setMessage] = useState(appliedCoupon ? couponAppliedMessage(appliedCoupon) : "");
+  const enteredCoupon = coupons.find((coupon) => coupon.code === code.trim().toUpperCase());
+  const minimumNotMet = enteredCoupon && subtotal < Number(enteredCoupon.minimumOrderAmount || 0);
+  const feedback = minimumNotMet ? `Minimum order ${money(Number(enteredCoupon.minimumOrderAmount))} required.`
+    : !appliedCoupon && message.startsWith("Minimum order") ? "Minimum reached. Click Apply to use this coupon." : message;
+  const feedbackError = Boolean(minimumNotMet) || message.startsWith("Coupon not active");
+  useEffect(() => {
+    if (!appliedCoupon) return;
+    if (subtotal < Number(appliedCoupon.minimumOrderAmount || 0)) {
+      setCode(appliedCoupon.code);
+      setMessage(`Minimum order ${money(Number(appliedCoupon.minimumOrderAmount))} required.`);
+      onApply(null);
+    } else {
+      setCode(appliedCoupon.code);
+      setMessage(couponAppliedMessage(appliedCoupon));
+    }
+  }, [appliedCoupon, subtotal, onApply]);
 
   function applyCoupon(nextCode = code) {
     const normalized = nextCode.trim().toUpperCase();
@@ -117,7 +133,7 @@ export function Coupon({
             key={coupon.code}
             type="button"
             className={`flex w-full items-center justify-between gap-3 border px-3 py-2 text-left text-sm ${
-              code === coupon.code ? "border-brand-navy bg-brand-blush" : "border-[#eadbd2] bg-white"
+              appliedCoupon?.code === coupon.code && subtotal >= Number(coupon.minimumOrderAmount || 0) ? "border-brand-navy bg-brand-blush" : "border-[#eadbd2] bg-white"
             }`}
             onClick={() => applyCoupon(coupon.code)}
           >
@@ -125,9 +141,8 @@ export function Coupon({
               <span className="font-bold text-brand-navy">{coupon.code}</span>
               <span className="block text-xs text-muted-foreground">{couponLabel(coupon)}</span>
             </span>
-            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700">
-              <CheckCircle2 className="size-4" />
-              Active now
+            <span className={`inline-flex items-center gap-1 text-xs font-bold ${subtotal < Number(coupon.minimumOrderAmount || 0) ? "text-red-700" : "text-emerald-700"}`}>
+              {subtotal < Number(coupon.minimumOrderAmount || 0) ? `Minimum ${money(Number(coupon.minimumOrderAmount))}` : <><CheckCircle2 className="size-4" />{appliedCoupon?.code === coupon.code ? "Applied" : "Eligible"}</>}
             </span>
           </button>
         ))}
@@ -162,8 +177,8 @@ export function Coupon({
           </Button>
         </div>
       </label>
-      <p role="status" className={`mt-2 text-xs ${appliedCoupon ? "text-emerald-700" : "text-muted-foreground"}`}>
-        {message}
+      <p role={feedbackError ? "alert" : "status"} className={`mt-2 text-xs ${feedbackError ? "font-medium text-red-700" : appliedCoupon ? "text-emerald-700" : "text-muted-foreground"}`}>
+        {feedback}
       </p>
     </div>
   );
@@ -310,12 +325,12 @@ function CustomerCheckout() {
     [donationAmount, setDonationAmount] = useState(0),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const total = cart.reduce((a, i) => a + i.price * i.quantity, 0);
   useEffect(() => {
     const couponCode = new URLSearchParams(location.search).get("coupon")?.toUpperCase() || "";
     if (!couponCode || !coupons.length) return;
-    setDiscount(coupons.find((coupon) => coupon.code === couponCode) || null);
-  }, [coupons]);
-  const total = cart.reduce((a, i) => a + i.price * i.quantity, 0);
+    setDiscount(coupons.find((coupon) => coupon.code === couponCode && total >= Number(coupon.minimumOrderAmount || 0)) || null);
+  }, [coupons, total]);
   const orderTotals = calculateOrderTotals(total, discount, donationAmount);
   const codAvailable = orderTotals.total >= COD_MINIMUM_TOTAL;
   useEffect(() => {
