@@ -26,6 +26,8 @@ Test keys were not supplied. Before accepting real customer payments, use your R
 
 Use Node.js 24.13+ with the existing commands:
 
+Hostinger's LiteSpeed launcher loads `app.js` using `require()`. The entry dynamically imports the asynchronous server so top-level await does not produce `ERR_REQUIRE_ASYNC_MODULE`. Keep the entry file set to `app.js`.
+
 ```sh
 npm ci
 npm run migrate:payments
@@ -58,6 +60,7 @@ Automated, isolated checks executed with fake gateway responses, not a Razorpay 
 
 ```sh
 npm run test:payments
+node scripts/verify-server-startup.mjs
 npm run test:mysql-accounts
 npm run test:admin-orders
 npx playwright test tests/checkout-session.spec.ts tests/payments.spec.ts

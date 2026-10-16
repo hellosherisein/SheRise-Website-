@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 
 // Uses the built server with fake configuration; no gateway or database calls.
-for (const webhookSecret of ["", "too-short"]) {
-  const child = spawn(process.execPath, ["server/hostinger.mjs"], {
-    env: { ...process.env, PORT: "0", NODE_ENV: "production", RAZORPAY_ENABLED: "true",
+for (const [enabled, webhookSecret] of [["false", ""], ["true", ""], ["true", "too-short"]]) {
+  // Hostinger's LiteSpeed launcher uses require(), not `node app.js`.
+  const child = spawn(process.execPath, ["-e", "require('./app.js')"], {
+    env: { ...process.env, PORT: "0", NODE_ENV: "production", RAZORPAY_ENABLED: enabled,
       RAZORPAY_KEY_ID: "rzp_test_FAKE", RAZORPAY_KEY_SECRET: "fake-secret",
       RAZORPAY_WEBHOOK_SECRET: webhookSecret, MYSQL_HOST: "127.0.0.1",
       MYSQL_USER: "fake", MYSQL_DATABASE: "fake", APP_ORIGIN: "https://example.test" },
@@ -31,11 +32,11 @@ for (const webhookSecret of ["", "too-short"]) {
     const config = await fetch(`${origin}/api/payments/config`);
     assert.equal(config.status, 200);
     assert.deepEqual(await config.json(), { enabled: false });
-    assert.match(stderr, /Online payments disabled:/);
+    if (enabled === "true") assert.match(stderr, /Online payments disabled:/);
     assert.doesNotMatch(stderr, /fake-secret/);
   } finally {
     const exited = new Promise((resolve) => child.once("exit", resolve));
     if (child.exitCode === null) { child.kill(); await exited; }
   }
 }
-console.log("Server startup checks passed: invalid payments stay disabled; storefront remains available.");
+console.log("Hostinger require() startup checks passed: disabled/invalid payments stay disabled; storefront remains available.");
