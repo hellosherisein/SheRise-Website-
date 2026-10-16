@@ -1041,7 +1041,7 @@ function ProductReviewForm({
   existingReview?: NonNullable<CustomerOrder["reviews"]>[number];
 }) {
   const auth = useAuth();
-  const [rating, setRating] = useState(existingReview?.rating ?? 5);
+  const [rating, setRating] = useState(existingReview?.rating ?? 0);
   const [reviewText, setReviewText] = useState(existingReview?.reviewText ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -1054,12 +1054,16 @@ function ProductReviewForm({
   };
 
   useEffect(() => {
-    setRating(existingReview?.rating ?? 5);
+    setRating(existingReview?.rating ?? 0);
     setReviewText(existingReview?.reviewText ?? "");
     setSaved(Boolean(existingReview));
   }, [existingReview?.rating, existingReview?.reviewText]);
 
   async function submitReview() {
+    if (rating < 1) {
+      setError("Please select a star rating.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -1105,10 +1109,10 @@ function ProductReviewForm({
               setSaved(false);
             }}
           >
-            <Star size={28} fill="currentColor" strokeWidth={1.5} aria-hidden="true" />
+            <Star size={28} fill={value <= rating ? "currentColor" : "none"} strokeWidth={1.5} aria-hidden="true" />
           </button>
         ))}
-        <span className="ml-2 text-sm font-semibold text-brand-navy">{rating}/5</span>
+        <span className="ml-2 text-sm font-semibold text-brand-navy">{rating ? `${rating}/5` : "Select a rating"}</span>
       </div>
       <label className="field mt-4">
         Review
@@ -1125,7 +1129,7 @@ function ProductReviewForm({
         />
       </label>
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <Button disabled={busy || reviewText.trim().length < 8} onClick={submitReview}>
+        <Button disabled={busy || rating < 1 || reviewText.trim().length < 8} onClick={submitReview}>
           {busy ? "Saving..." : saved ? "Update review" : "Submit review"}
         </Button>
         {saved ? <p className="text-sm text-emerald-700">Review saved.</p> : null}
