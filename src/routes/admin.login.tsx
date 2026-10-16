@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  adminDemoCredentials,
   isAdminAuthenticated,
   loginAdmin,
 } from "@/lib/admin-auth";
@@ -20,7 +19,7 @@ export const Route = createFileRoute("/admin/login")({
 
 function AdminLoginPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState(adminDemoCredentials.email);
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -86,6 +85,8 @@ function AdminLoginPage() {
                   onChange={(event) => setEmail(event.target.value)}
                   className="h-11 rounded-none border-[#e4d5cc] bg-[#fffaf6] pl-10"
                   autoComplete="username"
+                  autoCapitalize="none"
+                  spellCheck={false}
                   required
                 />
               </div>
