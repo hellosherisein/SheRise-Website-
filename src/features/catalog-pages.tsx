@@ -47,14 +47,15 @@ export function Collection({
   useEffect(() => {
     const s = new URLSearchParams(location.search);
     setQ(s.get("q") || "");
-    setFlow(s.get("flow") || "");
+    const requestedFlow = (s.get("flow") || "").trim().toLowerCase();
+    setFlow(["Light", "Medium", "Heavy", "Overnight"].find((value) => value.toLowerCase() === requestedFlow) || "");
     setCat(category);
   }, [category]);
   const items = (catalogProducts ?? [])
     .filter(
       (p) =>
         (!cat || p.category === cat) &&
-        (!flow || p.flow.includes(flow)) &&
+        (!flow || p.flow.some((value) => value.trim().toLowerCase() === flow.toLowerCase())) &&
         (!size || p.sizes.includes(size)) &&
         p.salePrice <= price &&
         (!stock || p.stock > 0) &&

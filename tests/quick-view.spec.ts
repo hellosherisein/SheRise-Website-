@@ -57,3 +57,34 @@ test("empty live catalog never shows demo products", async ({ page }) => {
   await expect(page.getByText("No matches just yet", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Quick view", exact: true })).toHaveCount(0);
 });
+
+for (const flow of ["Light", "Medium", "Heavy", "Overnight"]) {
+  test(`${flow} homepage card finds products with admin uppercase flow values`, async ({ page }) => {
+    await setup(page);
+    const matching = { ...product, flow: [" " + flow.toUpperCase() + " "] };
+    const other = { ...product, id: "902", slug: "other-flow-pads", name: "Other flow pads", flow: ["UNSELECTED"] };
+    await page.route("**/api/catalog/products?*", (route) => route.fulfill({ json: { products: [matching, other] } }));
+    await page.goto("/");
+    await page.getByRole("link", { name: `Shop ${flow} flow products`, exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/shop\\?flow=${flow}$`));
+    await expect(page.getByRole("combobox", { name: "Flow", exact: true })).toHaveValue(flow);
+    const cards = page.getByRole("article").filter({ has: page.getByRole("button", { name: "Quick view", exact: true }) });
+    await expect(cards).toHaveCount(1);
+    await expect(cards).toContainText(product.name);
+    await expect(cards).not.toContainText(other.name);
+  });
+}
+
+test("shop reflects changed admin multi-flow assignments on reload", async ({ page }) => {
+  await setup(page);
+  let assignedFlows = ["HEAVY", "OVERNIGHT"];
+  await page.route("**/api/catalog/products?*", (route) => route.fulfill({ json: { products: [{ ...product, flow: assignedFlows }] } }));
+  await page.goto("/shop?flow=overnight");
+  await expect(page.getByRole("combobox", { name: "Flow", exact: true })).toHaveValue("Overnight");
+  await expect(page.getByRole("button", { name: "Quick view", exact: true })).toHaveCount(1);
+  assignedFlows = ["LIGHT"];
+  await page.reload();
+  await expect(page.getByText("No matches just yet", { exact: true })).toBeVisible();
+  await page.getByRole("combobox", { name: "Flow", exact: true }).selectOption("Light");
+  await expect(page.getByRole("button", { name: "Quick view", exact: true })).toHaveCount(1);
+});
