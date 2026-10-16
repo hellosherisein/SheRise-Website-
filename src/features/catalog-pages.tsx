@@ -34,7 +34,7 @@ export function Collection({
   category?: string;
   searchMode?: boolean;
 }) {
-  const [catalogProducts, setCatalogProducts] = useState(products);
+  const { catalogProducts, catalogError, retryCatalog } = useStore();
   const [q, setQ] = useState(""),
     [flow, setFlow] = useState(""),
     [size, setSize] = useState(""),
@@ -50,32 +50,7 @@ export function Collection({
     setFlow(s.get("flow") || "");
     setCat(category);
   }, [category]);
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`/api/catalog/products?t=${Date.now()}`, { cache: "no-store" })
-      .then(async (response) => {
-        if (!response.ok) return;
-        const payload = (await response.json()) as { products?: Product[] };
-        const liveProducts = Array.isArray(payload.products) ? payload.products : [];
-        if (!cancelled && liveProducts.length > 0) {
-          const fallbackImages = products[0]?.images ?? [];
-          setCatalogProducts(
-            liveProducts.map((product) => ({
-              ...product,
-              category: product.category === "Period Care" ? "Period Care" : "Sanitary Pads",
-              images: product.images.length ? product.images : fallbackImages,
-            })),
-          );
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setCatalogProducts(products);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-  const items = catalogProducts
+  const items = (catalogProducts ?? [])
     .filter(
       (p) =>
         (!cat || p.category === cat) &&
@@ -212,7 +187,14 @@ export function Collection({
               ) : null,
             )}
           </div>
-          {items.length ? (
+          {catalogError ? (
+            <div role="alert" className="space-y-3 py-8">
+              <p>{catalogError}</p>
+              <Button variant="outline" onClick={retryCatalog}>Retry loading products</Button>
+            </div>
+          ) : catalogProducts === null ? (
+            <p role="status" className="py-8">Loading products…</p>
+          ) : items.length ? (
             <ProductGrid items={items.slice(0, limit)} />
           ) : (
             <EmptyState

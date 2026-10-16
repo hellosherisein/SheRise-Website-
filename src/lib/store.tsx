@@ -8,6 +8,7 @@ export { cartKey, cartStock, validCart, readLocal, saveLocal, type CartItem } fr
 interface Store {
   catalogProducts: Product[] | null;
   catalogError: string;
+  retryCatalog: () => void;
   revise: (key: string, changes: Partial<Pick<CartItem, "size" | "flow" | "pack">>) => void;
   ready: boolean;
   cart: CartItem[];
@@ -39,8 +40,10 @@ function CustomerStore({ children }: { children: ReactNode }) {
   const signedIn = !!auth.user;
   const [catalogProducts, setCatalogProducts] = useState<Product[] | null>(null);
   const [catalogError, setCatalogError] = useState("");
+  const [catalogAttempt, setCatalogAttempt] = useState(0);
   useEffect(() => {
     let cancelled = false;
+    setCatalogError("");
     fetch(`/api/catalog/products?t=${Date.now()}`, { cache: "no-store", signal: AbortSignal.timeout(15000) })
       .then(async (response) => {
         if (!response.ok) throw new Error("Could not check current products. Please refresh and try again.");
@@ -52,7 +55,7 @@ function CustomerStore({ children }: { children: ReactNode }) {
       })
       .catch((error) => { if (!cancelled) setCatalogError(error instanceof Error ? error.message : "Could not load products."); });
     return () => { cancelled = true; };
-  }, []);
+  }, [catalogAttempt]);
   useEffect(() => {
     if (auth.loading) return;
     const saved = validCart(readLocal("sherise-cart-v2:" + namespace, []), []);
@@ -78,6 +81,7 @@ function CustomerStore({ children }: { children: ReactNode }) {
       value={{
         catalogProducts,
         catalogError,
+        retryCatalog: () => setCatalogAttempt((attempt) => attempt + 1),
         revise: (key, changes) => setCart((current) => current.map((item) => {
           if (cartKey(item) !== key) return item;
           return resolveCartSelection({ ...item, ...changes }, catalogProducts?.find((p) => p.slug === item.slug)).item;

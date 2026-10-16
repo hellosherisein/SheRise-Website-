@@ -14,10 +14,15 @@ import { useStore } from "@/lib/store";
 import fallbackProductImage from "@/assets/sherise-flatlay.jpg";
 
 export function ProductCard({ product }: { product: Product }) {
-  const { wishlist, toggleWish, add, ready, catalogProducts } = useStore();
+  const { wishlist, toggleWish, add, ready, catalogProducts, catalogError, retryCatalog } = useStore();
   const liveProduct = catalogProducts?.find((item) => item.slug === product.slug);
   const p = liveProduct || product;
   const available = ready && !!liveProduct && p.stock > 0;
+  const availabilityMessage = catalogError ? catalogError
+    : catalogProducts === null ? "Checking availability…"
+    : !liveProduct ? "This product is no longer available."
+    : p.stock <= 0 ? "This product is out of stock."
+    : !ready ? "Preparing your bag…" : "";
   const [quick, setQuick] = useState(false);
   const [imageSrc, setImageSrc] = useState(p.images[0] || fallbackProductImage);
   const wished = wishlist.includes(p.slug);
@@ -104,6 +109,7 @@ export function ProductCard({ product }: { product: Product }) {
             variant="navy"
             size="icon"
             disabled={!available}
+            title={availabilityMessage || undefined}
             aria-label={`Add ${p.name} to cart`}
             onClick={addDefault}
           >
@@ -125,7 +131,6 @@ export function ProductCard({ product }: { product: Product }) {
             onError={() => setImageSrc(fallbackProductImage)}
             className="mx-auto max-h-[35vh] object-contain"
           />
-          <p className="text-xs text-muted-foreground">Replace with actual SheRise product image</p>
           <p className="text-xl font-bold">
             {money(p.salePrice)} <del className="text-sm font-normal">{money(p.mrp)}</del>
           </p>
@@ -139,8 +144,10 @@ export function ProductCard({ product }: { product: Product }) {
               addDefault();
             }}
           >
-            Add to cart
+            {available ? "Add to cart" : liveProduct && p.stock <= 0 ? "Out of stock" : "Add to cart"}
           </Button>
+          {availabilityMessage && <p role="status" className="text-sm text-muted-foreground">{availabilityMessage}</p>}
+          {catalogError && <Button variant="outline" onClick={retryCatalog}>Retry loading products</Button>}
           <Button asChild variant="outline">
             <Link to="/products/$slug" params={{ slug: p.slug }} onClick={() => setQuick(false)}>
               Choose options & view details
