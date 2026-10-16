@@ -20,7 +20,7 @@ Keep the existing MySQL and admin session variables. Never use a `VITE_` prefix 
 
 Because the live API secret was pasted into chat, regenerate it in Razorpay before enabling live mode. Update the server environment with the replacement credentials.
 
-Test keys were not supplied. Before accepting real customer payments, use your Razorpay Test Mode API keys and a Test Mode webhook with `RAZORPAY_ENABLED=true`. Complete the checks below. Then configure the corresponding Live Mode keys/webhook and enable the production deployment. The application fails startup if enabled payments have incomplete keys, webhook secret, MySQL configuration, or production HTTPS origin.
+Test keys were not supplied. Before accepting real customer payments, use your Razorpay Test Mode API keys and a Test Mode webhook with `RAZORPAY_ENABLED=true`. Complete the checks below. Then configure the corresponding Live Mode keys/webhook and enable the production deployment. If enabled payments have invalid configuration, startup logs `Online payments disabled:` with the configuration issue and disables online payments for that process. The website and admin can still start. Correct the Hostinger environment and restart the app to enable payments; never bypass payment verification.
 
 ## Database and Hostinger deployment
 

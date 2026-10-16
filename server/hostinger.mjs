@@ -10,8 +10,19 @@ const distDir = path.join(root, "dist");
 const publicDir = path.join(root, "public");
 const port = Number(process.env.PORT || 3000);
 if (process.env.RAZORPAY_ENABLED === "true") {
-  const { validatePaymentEnvironment } = await loadProductionApi();
-  validatePaymentEnvironment();
+  try {
+    const { validatePaymentEnvironment } = await loadProductionApi();
+    try {
+      validatePaymentEnvironment();
+    } catch (error) {
+      // Validation messages contain variable names/rules only, never their values.
+      console.error("Online payments disabled:", error.message);
+      process.env.RAZORPAY_ENABLED = "false";
+    }
+  } catch {
+    console.error("Online payments disabled: payment API could not load. Check the server build and Node.js version.");
+    process.env.RAZORPAY_ENABLED = "false";
+  }
 }
 
 const server = createHttpServer(async (req, res) => {
@@ -37,7 +48,7 @@ const server = createHttpServer(async (req, res) => {
 });
 
 server.listen(port, "0.0.0.0", () => {
-  console.log(`SheRise server listening on port ${port}`);
+  console.log(`SheRise server listening on port ${server.address().port}`);
 });
 
 async function handleNodeApiRequest(req, res, pathname) {
