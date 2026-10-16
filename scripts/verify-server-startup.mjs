@@ -1,11 +1,20 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { createServer } from "node:net";
+
+async function availablePort() {
+  const probe = createServer();
+  await new Promise((resolve, reject) => { probe.once("error", reject); probe.listen(0, "127.0.0.1", resolve); });
+  const port = probe.address().port;
+  await new Promise((resolve, reject) => probe.close((error) => error ? reject(error) : resolve()));
+  return String(port);
+}
 
 // Uses the built server with fake configuration; no gateway or database calls.
 for (const [enabled, webhookSecret] of [["false", ""], ["true", ""], ["true", "too-short"]]) {
   // Hostinger's LiteSpeed launcher uses require(), not `node app.js`.
   const child = spawn(process.execPath, ["-e", "require('./app.js')"], {
-    env: { ...process.env, PORT: "0", NODE_ENV: "production", RAZORPAY_ENABLED: enabled,
+    env: { ...process.env, PORT: await availablePort(), NODE_ENV: "production", RAZORPAY_ENABLED: enabled,
       RAZORPAY_KEY_ID: "rzp_test_FAKE", RAZORPAY_KEY_SECRET: "fake-secret",
       RAZORPAY_WEBHOOK_SECRET: webhookSecret, MYSQL_HOST: "127.0.0.1",
       MYSQL_USER: "fake", MYSQL_DATABASE: "fake", APP_ORIGIN: "https://example.test" },

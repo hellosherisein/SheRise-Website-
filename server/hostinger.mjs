@@ -8,7 +8,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const distDir = path.join(root, "dist");
 const publicDir = path.join(root, "public");
-const port = Number(process.env.PORT || 3000);
+const PORT = Number(process.env.PORT) || 3000;
 if (process.env.RAZORPAY_ENABLED === "true") {
   try {
     const { validatePaymentEnvironment } = await loadProductionApi();
@@ -47,8 +47,8 @@ const server = createHttpServer(async (req, res) => {
   }
 });
 
-server.listen(port, "0.0.0.0", () => {
-  console.log(`SheRise server listening on port ${server.address().port}`);
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`SheRise server listening on port ${PORT}`);
 });
 
 async function handleNodeApiRequest(req, res, pathname) {
