@@ -202,7 +202,7 @@ async function mysqlOrders(customerId: string | number): Promise<CustomerOrder[]
      WHERE r.customer_id = ? AND r.deleted_at IS NULL`, [customerId],
   );
   return orders.map((order): CustomerOrder => {
-    let metadata: { donationAmount?: number; cancellationReason?: string } = {};
+    let metadata: { donationAmount?: number; cancellationReason?: string; gatewayPaymentId?: string; gatewayOrderId?: string; paidAt?: string; paymentState?: string } = {};
     try { metadata = JSON.parse(order.customer_note || "{}"); } catch { /* Older orders contain plain notes. */ }
     const statuses: Record<string, CustomerOrder["status"]> = {
       PACKED: "packed", SHIPPED: "shipped", OUT_FOR_DELIVERY: "shipped", DELIVERED: "delivered",
@@ -223,6 +223,11 @@ async function mysqlOrders(customerId: string | number): Promise<CustomerOrder[]
       shippingAmount: Number(order.shipping_amount), gstAmount: Number(order.tax_amount),
       donationAmount: Number(metadata?.donationAmount || 0), total: Number(order.grand_total),
       payment: payments[order.payment_method] || order.payment_method,
+      paymentStatus: order.payment_status,
+      gatewayPaymentId: metadata.gatewayPaymentId || "",
+      gatewayOrderId: metadata.gatewayOrderId || "",
+      paymentState: metadata.paymentState || "",
+      paidAt: metadata.paidAt || "",
       status: statuses[order.order_status] || "preview",
       ...(metadata?.cancellationReason ? { cancellationReason: metadata.cancellationReason } : {}),
       ...(order.cancelled_at ? { cancelledAt: isoDate(order.cancelled_at) } : {}),
@@ -235,7 +240,7 @@ async function mysqlOrders(customerId: string | number): Promise<CustomerOrder[]
   });
 }
 
-async function mysqlCreateOrder(user: MysqlCustomerRow, input: unknown) {
+export async function mysqlCreateOrder(user: MysqlCustomerRow, input: unknown, mode: "preview" | "payment" | "cod" = "preview") {
   const data = z.object({
     requestId: z.string().uuid(),
     address: addressSchema.extend({ id: z.string().max(64).optional() }),
@@ -255,9 +260,18 @@ async function mysqlCreateOrder(user: MysqlCustomerRow, input: unknown) {
   const created = await mysqlTransaction(async (connection) => {
     await connection.query("SELECT id FROM customers WHERE id = ? FOR UPDATE", [user.id]);
     const [existing] = await connection.query<any[]>(
-      "SELECT id FROM orders WHERE order_number = ? AND customer_id = ?", [orderNumber, user.id],
+      "SELECT id, customer_note, payment_method, order_status FROM orders WHERE order_number = ? AND customer_id = ?", [orderNumber, user.id],
     );
-    if (existing.length) return false;
+    if (existing.length) {
+      if (mode !== "preview") {
+        let metadata: { checkoutFingerprint?: string; checkoutMode?: string } = {};
+        try { metadata = JSON.parse(existing[0].customer_note || "{}"); } catch { /* Old preview order. */ }
+        if (metadata.checkoutMode !== mode || metadata.checkoutFingerprint !== hash(JSON.stringify(data)))
+          throw new ApiError(409, "Your checkout changed. Refresh and place the order again.");
+        if (existing[0].order_status === "CANCELLED") throw new ApiError(409, "This order was cancelled. Start a new checkout.");
+      }
+      return false;
+    }
     const quantities = new Map<string, number>();
     const items = data.items.map((item) => {
       const product = catalog.find((product) => product.slug === item.slug);
@@ -277,7 +291,9 @@ async function mysqlCreateOrder(user: MysqlCustomerRow, input: unknown) {
       throw new ApiError(400, "Orders of ₹1,000 and above are Cash on Delivery only.");
     if (totals.total < COD_MINIMUM_TOTAL && data.payment === "Cash on Delivery")
       throw new ApiError(400, "Cash on Delivery is available only on orders of ₹1,000 and above.");
-    const payment = { UPI: "UPI", Cards: "CARD", "Net Banking": "NET_BANKING", Wallet: "WALLET", "Cash on Delivery": "COD" }[data.payment];
+    if (mode === "payment" && data.payment === "Cash on Delivery") throw new ApiError(400, "Choose an online payment method.");
+    if (mode === "cod" && data.payment !== "Cash on Delivery") throw new ApiError(400, "Use the secure online checkout to pay.");
+    const payment = mode === "payment" ? "RAZORPAY" : { UPI: "UPI", Cards: "CARD", "Net Banking": "NET_BANKING", Wallet: "WALLET", "Cash on Delivery": "COD" }[data.payment];
     const a = data.address;
     const [result] = await connection.execute<import("mysql2/promise").ResultSetHeader>(
       `INSERT INTO orders (order_number, customer_id, customer_name, customer_email, customer_mobile,
@@ -288,7 +304,7 @@ async function mysqlCreateOrder(user: MysqlCustomerRow, input: unknown) {
       [orderNumber, user.id, user.name, user.email, user.phone || a.phone, a.name, a.phone, a.line1, a.line2,
         a.city, a.state, a.pin, totals.subtotal, totals.discountAmount, totals.discountAmount,
         totals.shippingAmount, totals.gstAmount, totals.total, payment,
-        JSON.stringify({ requestId: data.requestId, donationAmount: data.donationAmount, coupon: data.coupon, preview: true })],
+        JSON.stringify({ requestId: data.requestId, donationAmount: data.donationAmount, coupon: data.coupon, preview: mode === "preview", checkoutMode: mode, checkoutFingerprint: hash(JSON.stringify(data)) })],
     );
     for (const item of items) {
       await connection.execute(
@@ -301,7 +317,7 @@ async function mysqlCreateOrder(user: MysqlCustomerRow, input: unknown) {
     }
     await connection.execute(
       "INSERT INTO order_status_history (order_id, new_status, note) VALUES (?, 'NEW', ?)",
-      [result.insertId, "Preview order saved by customer. No payment or shipment processed."],
+      [result.insertId, mode === "preview" ? "Preview order saved by customer. No payment or shipment processed." : mode === "payment" ? "Online order created. Awaiting verified payment." : "Cash on Delivery order placed."],
     );
     return true;
   });
@@ -309,7 +325,7 @@ async function mysqlCreateOrder(user: MysqlCustomerRow, input: unknown) {
   if (!order) throw new ApiError(500, "Could not load your order. Please retry.");
   return json({ order }, created ? 201 : 200);
 }
-async function mysqlSessionUser(request: Request) {
+export async function mysqlSessionUser(request: Request) {
   const { queryRows } = await import("./mysql.server");
   const rows = await queryRows<any>(
     `SELECT c.id, c.name, c.email, c.mobile AS phone, c.whatsapp_number, c.password_hash, c.created_at
@@ -454,7 +470,10 @@ async function handleMysqlCustomerRequest(request: Request, action: string) {
     return json(await mysqlCustomerData(user));
   }
 
-  if (action === "order-create") return await mysqlCreateOrder(user, input);
+  if (action === "order-create") {
+    if (input.payment !== "Cash on Delivery" && process.env["NODE_ENV"] === "production") throw new ApiError(400, "Use the secure online checkout to pay.");
+    return await mysqlCreateOrder(user, input, input.payment === "Cash on Delivery" ? "cod" : "preview");
+  }
 
   if (action === "order-cancel" || action === "order-review") {
     const data = action === "order-cancel"
@@ -548,7 +567,7 @@ async function handleMysqlCustomerRequest(request: Request, action: string) {
 
   throw new ApiError(404, "Not found.");
 }
-async function mysqlLimit(key: string, max: number, window = 15 * 60 * 1000) {
+export async function mysqlLimit(key: string, max: number, window = 15 * 60 * 1000) {
   const { queryRows, executeSql } = await import("./mysql.server");
   const rateKey = hash(key);
   const expiresAt = mysqlDateTime(new Date(Date.now() + window));
@@ -646,7 +665,7 @@ async function activeCouponDiscount(code: string, subtotal: number): Promise<Cou
   }
 }
 
-async function readBody(request: Request) {
+export async function readBody(request: Request) {
   if (!request.headers.get("content-type")?.includes("application/json"))
     throw new ApiError(415, "Use a JSON request.");
   const reader = request.body?.getReader();
@@ -669,7 +688,7 @@ async function readBody(request: Request) {
     throw new ApiError(400, "Invalid request.");
   }
 }
-function guardOrigin(request: Request) {
+export function guardOrigin(request: Request) {
   const requestOrigin = new URL(request.url).origin;
   const expected = process.env["APP_ORIGIN"] || requestOrigin;
   const origin = request.headers.get("origin");

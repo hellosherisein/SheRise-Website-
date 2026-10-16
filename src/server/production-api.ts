@@ -4,9 +4,12 @@ import { handleNewsletterRequest } from "./newsletter.server";
 import { handlePopupLeadRequest } from "./popup-leads.server";
 import { handleReviewsRequest } from "./reviews.server";
 import { getContentBlog, listContentBlogs, listContentFaqs } from "./content.server";
+import { handlePaymentsRequest } from "./payments.server";
+export { validatePaymentEnvironment } from "./payments.server";
 
 export async function handleProductionApiRequest(request: Request): Promise<Response> {
   const pathname = new URL(request.url).pathname;
+  if (pathname.startsWith("/api/payments/")) return handlePaymentsRequest(request);
 
   if (pathname === "/api/admin/upload-product-image") {
     return handleProductImageUpload(request);

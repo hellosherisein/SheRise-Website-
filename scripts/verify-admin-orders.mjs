@@ -92,7 +92,7 @@ items = [
 response = await request();
 assert.equal(response.payload.source, "mysql");
 assert.equal(response.payload.rows.length, 2);
-assert.deepEqual(response.payload.rows[1], ["SR-ONE", "Customer One", "Day pads x2, Night pads x1", "Rs.1,200.5", "Cash on Delivery", "NEW"]);
+assert.deepEqual(response.payload.rows[1], ["SR-ONE", "Customer One", "Day pads x2, Night pads x1", "Rs.1,200.5", "Cash on Delivery", "NEW", "PENDING", "-", "-", "-"]);
 assert.equal(response.payload.metrics[1].value, "1");
 response = await request("POST", { orderId: "SR-ONE", status: "packed" });
 assert.equal(response.statusCode, 200);
@@ -119,6 +119,8 @@ for (const { sql, status } of updates) {
   assert.ok(sql.includes(status === "CANCELLED" ? "cancelled_at = COALESCE(cancelled_at, NOW())" : "cancelled_at = NULL"));
 }
 assert.equal(history.length, 5);
+orders.push({ id: 4, order_number: "SR-UNPAID", customer_name: "Online Customer", grand_total: "499.00", payment_method: "RAZORPAY", payment_status: "PENDING", order_status: "NEW" });
+assert.equal((await request("POST", { orderId: "SR-UNPAID", status: "packed" })).statusCode, 409, "An unpaid online order must not be fulfilled");
 
 for (const [code, status, description] of [
   ["ECONNREFUSED", 503, "Database is unavailable"],

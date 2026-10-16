@@ -921,6 +921,8 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
   const [selectedReview, setSelectedReview] = useState<string[] | null>(null);
   const [selectedLead, setSelectedLead] = useState<string[] | null>(null);
   const [selectedSubscriber, setSelectedSubscriber] = useState<string[] | null>(null);
+  const [paymentFilter, setPaymentFilter] = useState("");
+  const [orderSearch, setOrderSearch] = useState("");
   const displayConfig = liveConfig ?? config;
   const showSaveSuccess = (message: string) => {
     toast.dismiss();
@@ -1394,8 +1396,13 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
             <input
               className="w-full bg-transparent text-sm outline-none"
               placeholder={`Search ${displayConfig.title.toLowerCase()}`}
+              value={section === "orders" ? orderSearch : undefined}
+              onChange={(event) => { if (section === "orders") setOrderSearch(event.target.value); }}
             />
           </div>
+          {section === "orders" ? <select aria-label="Filter payment status" className="border border-[#e4d5cc] bg-white px-3 py-2 text-sm" value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value)}>
+            <option value="">All payments</option>{["PENDING", "SUCCESS", "FAILED", "REFUNDED"].map((status) => <option key={status}>{status}</option>)}
+          </select> : null}
           <Button variant="outline" className="gap-2 bg-white" onClick={handleExport}>
             <Download className="size-4" />
             Export
@@ -1403,7 +1410,7 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
         </div>
         <DataTable
           columns={displayConfig.columns}
-          rows={displayConfig.rows}
+          rows={section === "orders" ? displayConfig.rows.filter((row) => (!paymentFilter || row[6] === paymentFilter) && row.join(" ").toLowerCase().includes(orderSearch.toLowerCase())) : displayConfig.rows}
           subtleHeaders={section === "blogs"}
           onRowClick={section === "orders" ? setSelectedOrder : section === "reviews" ? setSelectedReview : undefined}
           renderActions={
@@ -3325,6 +3332,9 @@ function OrderPreviewDialog({
           <PreviewField label="Amount" value={order[3]} />
           <PreviewField label="Payment" value={order[4]} />
           <PreviewField label="Current Status" value={status} />
+          {order[6] ? <PreviewField label="Payment Status" value={order[6]} /> : null}
+          {order[7] && order[7] !== "-" ? <PreviewField label="Razorpay Payment ID" value={order[7]} /> : null}
+          {order[8] && order[8] !== "-" ? <PreviewField label="Transaction Date" value={order[8]} /> : null}
         </div>
         <div>
           <p className="mb-3 text-xs font-bold uppercase text-muted-foreground">
@@ -3454,6 +3464,9 @@ function isStatus(value: string) {
     "ACTIVE",
     "DRAFT",
     "PUBLISHED",
+    "SUCCESS",
+    "FAILED",
+    "REFUNDED",
     "NEW",
     "LOW STOCK",
     "OUT OF STOCK",
@@ -3472,7 +3485,7 @@ function isStatus(value: string) {
 }
 
 function statusTone(value: string): Tone {
-  if (["OUT OF STOCK", "REJECTED"].includes(value)) return "danger";
+  if (["OUT OF STOCK", "REJECTED", "FAILED"].includes(value)) return "danger";
   if (["NEW", "LOW STOCK", "PENDING", "PROCESSING", "INACTIVE", "DRAFT"].includes(value)) return "warn";
   return "ok";
 }

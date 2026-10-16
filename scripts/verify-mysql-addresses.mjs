@@ -183,7 +183,7 @@ const replacements = {
 const source = transpile(readFileSync("src/server/customer.server.ts", "utf8"))
   .replace(/(["'])(\.\/mysql\.server|\.\/catalog\.server|\.\/database\.server|\.\.\/lib\/catalog|\.\.\/lib\/pricing|\.\.\/lib\/cart-selection|zod)\1/g,
     (_, quote, specifier) => JSON.stringify(replacements[specifier]));
-const { handleCustomerRequest, hashPassword, verifyPassword } = await import(moduleUrl(source));
+const { handleCustomerRequest, hashPassword, verifyPassword, mysqlCreateOrder, mysqlSessionUser, guardOrigin } = await import(moduleUrl(source));
 const { loadCatalogProducts } = await import(realCatalogModule);
 for (const [value, expected] of [
   [["Soft cover", "Comfortable fit"], ["Soft cover", "Comfortable fit"]],
@@ -230,11 +230,21 @@ assert.equal((await productionCall("x".repeat(221))).statusCode, 400);
 console.log("PASS: development and production catalog APIs filter by a bound product slug and reuse schema initialization.");
 let defaultSession = "session-1";
 const call = async (action, body, session = defaultSession) => {
-  const response = await handleCustomerRequest(new Request(`https://example.test/api/customer/${action}`, {
+  const request = new Request(`https://example.test/api/customer/${action}`, {
     method: body === undefined ? "GET" : "POST",
     headers: { origin: "https://example.test", cookie: `sherise_session=${session}`, "content-type": "application/json" },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  }), action);
+  });
+  // The trusted online-order core is called by /api/payments/create-order.
+  // The legacy public order-create endpoint must continue to reject online payments.
+  let response;
+  if (action === "payment-order") {
+    try {
+      guardOrigin(request);
+      const user = await mysqlSessionUser(request);
+      response = user ? await mysqlCreateOrder(user, body, "payment") : new Response(JSON.stringify({ error: "Sign in required." }), { status: 401 });
+    } catch (error) { response = new Response(JSON.stringify({ error: error.message }), { status: error.name === "ZodError" ? 400 : error.status || 500 }); }
+  } else response = await handleCustomerRequest(request, action);
   return { status: response.status, cookie: response.headers.get("set-cookie"), ...await response.json() };
 };
 users[0].password_hash = await hashPassword("ExistingPassword!2026");
@@ -296,7 +306,8 @@ assert.deepEqual((await call("wishlist", { slug: "test-pad", saved: false })).wi
 const orderInput = { requestId: crypto.randomUUID(), address: { ...input, id: "123" },
   items: [{ slug: "test-pad", size: " xl ", flow: "MEDIUM", pack: " Pack   of 8 ", quantity: 2, price: 1, name: "Tampered" }],
   coupon: "SAVE10", donationAmount: 50, payment: "UPI" };
-result = await call("order-create", orderInput);
+assert.equal((await call("order-create", orderInput)).status, 400, "Production online checkout cannot bypass payment APIs");
+result = await call("payment-order", orderInput);
 assert.equal(result.status, 201, JSON.stringify(result));
 const order = result.order;
 assert.equal(order.subtotal, 200, "Server catalog overrides tampered price");
@@ -307,27 +318,28 @@ assert.equal(order.items[0].name, "Test pads");
 assert.equal(order.items[0].size, "XL");
 assert.equal(order.items[0].flow, "Medium");
 assert.equal(order.items[0].pack, "Pack of 8", "Formatting differences use canonical catalog options");
-assert.equal((await call("order-create", { ...orderInput, requestId: crypto.randomUUID(), items: [{ ...orderInput.items[0], pack: "Old discontinued pack" }] })).status, 400, "Different packs are never silently substituted");
+assert.equal((await call("payment-order", { ...orderInput, requestId: crypto.randomUUID(), items: [{ ...orderInput.items[0], pack: "Old discontinued pack" }] })).status, 400, "Different packs are never silently substituted");
 assert.equal((await call("session")).orders[0].id, order.id);
-assert.equal((await call("order-create", orderInput)).order.id, order.id, "Retry does not duplicate order");
+assert.equal((await call("payment-order", orderInput)).order.id, order.id, "Retry does not duplicate order");
+assert.equal((await call("payment-order", { ...orderInput, donationAmount: 20 })).status, 409, "A changed checkout cannot reuse an old payment order");
 assert.equal(orders.length, 1);
 assert.deepEqual((await call("session", undefined, "session-2")).orders, []);
 assert.equal((await call("order-cancel", { id: order.id }, "session-2")).status, 404);
 assert.equal((await call("order-review", { id: order.id, slug: "test-pad", rating: 5, reviewText: "Very comfortable" }, "session-2")).status, 404);
-assert.equal((await call("order-create", { ...orderInput, requestId: crypto.randomUUID(), donationAmount: -10 })).status, 400);
-assert.equal((await call("order-create", { ...orderInput, requestId: crypto.randomUUID(), coupon: "EXPIRED" })).status, 400);
-assert.equal((await call("order-create", { ...orderInput, requestId: crypto.randomUUID(), items: [{ ...orderInput.items[0], quantity: 21 }] })).status, 409);
-assert.equal((await call("order-create", { ...orderInput, requestId: crypto.randomUUID(), items: [{ ...orderInput.items[0], slug: "fake-product" }] })).status, 400);
+assert.equal((await call("payment-order", { ...orderInput, requestId: crypto.randomUUID(), donationAmount: -10 })).status, 400);
+assert.equal((await call("payment-order", { ...orderInput, requestId: crypto.randomUUID(), coupon: "EXPIRED" })).status, 400);
+assert.equal((await call("payment-order", { ...orderInput, requestId: crypto.randomUUID(), items: [{ ...orderInput.items[0], quantity: 21 }] })).status, 409);
+assert.equal((await call("payment-order", { ...orderInput, requestId: crypto.randomUUID(), items: [{ ...orderInput.items[0], slug: "fake-product" }] })).status, 400);
 assert.equal((await call("order-create", { ...orderInput, requestId: crypto.randomUUID(), payment: "Cash on Delivery" })).status, 400);
 const largeOrder = { ...orderInput, requestId: crypto.randomUUID(), coupon: "", donationAmount: 100,
   items: [{ ...orderInput.items[0], quantity: 9 }] };
-assert.equal((await call("order-create", largeOrder)).status, 400, "Donation counts toward COD threshold");
+assert.equal((await call("payment-order", largeOrder)).status, 400, "Donation counts toward COD threshold");
 assert.equal((await call("order-create", { ...largeOrder, payment: "Cash on Delivery" })).status, 201);
 assert.equal((await call("order-create", orderInput, "expired")).status, 401);
 failOrderItem = true;
 try {
   console.error = () => {};
-  assert.equal((await call("order-create", { ...orderInput, requestId: crypto.randomUUID() })).status, 500);
+  assert.equal((await call("payment-order", { ...orderInput, requestId: crypto.randomUUID() })).status, 500);
 } finally { console.error = originalError; failOrderItem = false; }
 assert.equal(orders.length, 2, "Failed item save rolls back the entire order");
 result = await call("order-cancel", { id: order.id, reason: "Ordered by mistake" });

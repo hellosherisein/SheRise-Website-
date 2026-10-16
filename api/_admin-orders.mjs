@@ -1,6 +1,7 @@
 export async function ordersPayload(queryRows) {
   const orders = await queryRows(
-    "SELECT id, order_number, customer_name, customer_email, grand_total, payment_method, payment_status, order_status FROM orders WHERE deleted_at IS NULL ORDER BY created_at DESC, id DESC",
+    `SELECT id, order_number, customer_name, customer_email, grand_total, payment_method, payment_status, order_status,
+      customer_note FROM orders WHERE deleted_at IS NULL ORDER BY created_at DESC, id DESC`,
   );
   const items = orders.length ? await queryRows(
     `SELECT i.order_id, i.product_name, i.quantity FROM order_items i
@@ -18,15 +19,19 @@ export async function ordersPayload(queryRows) {
   return {
     title: "Orders",
     action: "Create Order",
-    columns: ["Order", "Customer", "Products", "Amount", "Payment", "Status"],
-    rows: orders.map((order) => [
+    columns: ["Order", "Customer", "Products", "Amount", "Payment", "Status", "Payment Status", "Razorpay Payment ID", "Transaction Date", "Razorpay Order ID"],
+    rows: orders.map((order) => {
+      let payment = {};
+      try { payment = JSON.parse(order.customer_note || "{}"); } catch { /* Legacy plain notes. */ }
+      return [
       order.order_number,
       order.customer_name || order.customer_email,
       (products.get(String(order.id)) || []).join(", ") || "-",
       `Rs.${Number(order.grand_total).toLocaleString("en-IN")}`,
-      payments[order.payment_method] || order.payment_method,
+      payment.paymentMethod || payments[order.payment_method] || order.payment_method,
       order.order_status,
-    ]),
+      order.payment_status || "PENDING", payment.gatewayPaymentId || "-", payment.paidAt || "-", payment.gatewayOrderId || "-",
+    ]; }),
     metrics: [
       { label: "Orders", value: String(orders.length), trend: "From website checkout", tone: "up" },
       { label: "Pending", value: String(pending), trend: "Awaiting dispatch", tone: pending ? "warn" : "neutral" },
@@ -44,10 +49,13 @@ export async function updateOrderStatus(transaction, input) {
   if (!orderNumber || orderNumber.length > 40 || !status) throw orderError(400, "A valid order and status are required.");
   await transaction(async (connection) => {
     const [orders] = await connection.query(
-      "SELECT id, order_status FROM orders WHERE order_number = ? AND deleted_at IS NULL FOR UPDATE", [orderNumber],
+      "SELECT id, order_status, payment_method, payment_status FROM orders WHERE order_number = ? AND deleted_at IS NULL FOR UPDATE", [orderNumber],
     );
     const order = orders[0];
     if (!order) throw orderError(404, "Order not found.");
+    if (order.payment_method === "RAZORPAY" && order.payment_status !== "SUCCESS" && ["PACKED", "SHIPPED", "DELIVERED"].includes(status)) {
+      throw orderError(409, "Confirm online payment before fulfilling this order.");
+    }
     if (order.order_status === status) return;
     // Select fixed SQL fragments from the validated status rather than comparing
     // bound strings to SQL literals, which can have different server collations.

@@ -9,6 +9,10 @@ const root = path.resolve(__dirname, "..");
 const distDir = path.join(root, "dist");
 const publicDir = path.join(root, "public");
 const port = Number(process.env.PORT || 3000);
+if (process.env.RAZORPAY_ENABLED === "true") {
+  const { validatePaymentEnvironment } = await loadProductionApi();
+  validatePaymentEnvironment();
+}
 
 const server = createHttpServer(async (req, res) => {
   try {

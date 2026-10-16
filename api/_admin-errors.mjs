@@ -2,7 +2,7 @@
 export function adminErrorResponse(error) {
   const code = typeof error?.code === "string" ? error.code : "";
   const statusCode = error?.statusCode;
-  if ([400, 401, 404].includes(statusCode)) {
+  if ([400, 401, 404, 409].includes(statusCode)) {
     return { status: statusCode, body: { error: statusCode === 401 ? "Admin login required." : error.message } };
   }
   if (["ECONNREFUSED", "ETIMEDOUT", "ENOTFOUND", "EHOSTUNREACH", "ECONNRESET", "PROTOCOL_CONNECTION_LOST", "ER_CON_COUNT_ERROR"].includes(code)) {

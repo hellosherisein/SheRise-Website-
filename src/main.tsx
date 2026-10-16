@@ -28,6 +28,7 @@ import { Route as FaqRoute } from "@/routes/faq";
 import { Route as ForgotPasswordRoute } from "@/routes/forgot-password";
 import { Route as LoginRoute } from "@/routes/login";
 import { Route as OrderSuccessRoute } from "@/routes/order-success";
+import { Route as PaymentFailedRoute } from "@/routes/payment-failed";
 import { Route as PeriodGuideRoute } from "@/routes/period-guide";
 import { Route as PrivacyRoute } from "@/routes/privacy-policy";
 import { Route as ProductRoute } from "@/routes/products.$slug";
@@ -79,6 +80,7 @@ const routes: Array<{ pattern: string; route: RouteConfig }> = [
   { pattern: "/forgot-password", route: ForgotPasswordRoute },
   { pattern: "/login", route: LoginRoute },
   { pattern: "/order-success", route: OrderSuccessRoute },
+  { pattern: "/payment-failed", route: PaymentFailedRoute },
   { pattern: "/period-guide", route: PeriodGuideRoute },
   { pattern: "/privacy-policy", route: PrivacyRoute },
   { pattern: "/products/:slug", route: ProductRoute },

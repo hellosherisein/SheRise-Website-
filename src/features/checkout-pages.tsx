@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState, useRef, type FormEvent } from "react";
 import { Link, useNavigate } from "@/router-shim";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Clock } from "lucide-react";
 import { useStore, cartKey, cartStock, readLocal, saveLocal, type CartItem } from "@/lib/store";
 import { getProduct, money, products } from "@/lib/catalog";
 import {
@@ -18,6 +18,7 @@ import type { CustomerOrder, Address } from "@/lib/customer-types";
 import { Button } from "@/components/ui/button";
 import fallbackProductImage from "@/assets/sherise-flatlay.jpg";
 import { resolveCartSelection } from "@/lib/cart-selection";
+import { beginPayment, PaymentFlowError } from "@/lib/payments";
 export type DemoOrder = {
   id: string;
   date: string;
@@ -263,7 +264,7 @@ export function Cart() {
                 Continue to checkout
               </Link>
             </Button>
-            <p className="mt-4 text-xs">Preview only. No payment is collected.</p>
+            <p className="mt-4 text-xs">Choose payment securely at checkout.</p>
           </aside>
         </div>
       )}
@@ -288,6 +289,16 @@ function CustomerCheckout() {
   const [addressId, setAddressId] = useState(auth.addresses.find((a) => a.isDefault)?.id || "");
   const selectedAddress = auth.addresses.find((a) => a.id === addressId);
   const requestId = useRef(crypto.randomUUID());
+  const lastCheckout = useRef("");
+  const submitting = useRef(false);
+  const [paymentsEnabled, setPaymentsEnabled] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/payments/config").then((response) => response.ok ? response.json() : { enabled: false })
+      .then((result) => { if (!cancelled) setPaymentsEnabled(result.enabled === true); })
+      .catch(() => { if (!cancelled) setPaymentsEnabled(false); });
+    return () => { cancelled = true; };
+  }, []);
   const { cart, clear, catalogProducts, catalogError, revise, remove, update, ready } = useStore();
   const invalidSelections = catalogProducts
     ? cart.filter((item) => resolveCartSelection(item, catalogProducts.find((p) => p.slug === item.slug)).issues.length)
@@ -313,12 +324,13 @@ function CustomerCheckout() {
   }, [codAvailable, payment]);
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (busy) return;
+    if (busy || submitting.current) return;
     if (!ready || invalidSelections.length) {
       setError("Please review your bag options before placing the order.");
       return;
     }
     const f = new FormData(e.currentTarget);
+    submitting.current = true;
     setBusy(true);
     setError("");
     try {
@@ -334,7 +346,7 @@ function CustomerCheckout() {
         label: selectedAddress?.label || "Home",
         isDefault: false,
       };
-      const { order } = await customerRequest<{ order: CustomerOrder }>("order-create", {
+      const checkoutData = {
         requestId: requestId.current,
         address,
         items: cart.map(({ slug, size, flow, pack, quantity, price, name, image }) => ({
@@ -350,14 +362,39 @@ function CustomerCheckout() {
         coupon: discount?.code || "",
         donationAmount,
         payment,
-      });
+      };
+      const fingerprint = JSON.stringify({ ...checkoutData, requestId: "" });
+      if (lastCheckout.current && lastCheckout.current !== fingerprint) requestId.current = crypto.randomUUID();
+      try {
+        const saved = JSON.parse(sessionStorage.getItem(`sherise-checkout:${auth.user?.id}`) || "null");
+        if (saved?.fingerprint === fingerprint && /^[a-f0-9-]{36}$/i.test(saved.requestId)) requestId.current = saved.requestId;
+        sessionStorage.setItem(`sherise-checkout:${auth.user?.id}`, JSON.stringify({ fingerprint, requestId: requestId.current }));
+      } catch { /* Memory retry IDs still work when browser storage is disabled. */ }
+      lastCheckout.current = fingerprint;
+      checkoutData.requestId = requestId.current;
+      let orderId: string;
+      if (payment === "Cash on Delivery") {
+        const { order } = await customerRequest<{ order: CustomerOrder }>("order-create", checkoutData);
+        orderId = order.id;
+      } else {
+        if (!paymentsEnabled) throw new Error("Online payments are not available right now. Please try again later.");
+        const result = await beginPayment(checkoutData);
+        if (!result.confirmed) throw new Error("Your payment has not yet been confirmed.");
+        orderId = result.orderId;
+      }
       clear();
+      try { sessionStorage.removeItem(`sherise-checkout:${auth.user?.id}`); } catch { /* Optional browser storage. */ }
       await auth.refresh();
-      await navigate({ to: "/order-success", search: { order: order.id } });
+      await navigate({ to: "/order-success", search: { order: orderId } });
     } catch (e) {
+      if (e instanceof PaymentFlowError) {
+        await navigate({ to: "/payment-failed", search: { order: e.orderId } });
+        return;
+      }
       if (e instanceof CustomerApiError && e.status === 401) await auth.refresh();
       setError(e instanceof Error ? e.message : "Could not save your order.");
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }
@@ -365,7 +402,7 @@ function CustomerCheckout() {
     <div className="container-shell section-space">
       <PageHeading
         title="A little care, on its way"
-        copy="Your order will be saved to your customer account. The current catalog is a preview: no payment or shipment is processed."
+        copy="Confirm your delivery details and choose a secure payment method."
       />
       {!cart.length ? (
         <EmptyState title="Add something to your bag first" />
@@ -538,7 +575,7 @@ function CustomerCheckout() {
               </div>
             </section>
             <fieldset>
-              <legend className="mb-4 text-2xl font-display">03 · Payment method preview</legend>
+              <legend className="mb-4 text-2xl font-display">03 · Payment method</legend>
               <div className="grid gap-2 sm:grid-cols-2">
                 {paymentMethods.map((m) => {
                   const disabled = codAvailable ? m !== "Cash on Delivery" : m === "Cash on Delivery";
@@ -584,15 +621,15 @@ function CustomerCheckout() {
             <label className="my-5 flex gap-2 text-xs leading-5">
               <input type="checkbox" required />
               <span>
-                I understand this order will be saved to my account, without online payment or
-                shipment confirmation.{" "}
+                I agree to the order and payment{" "}
                 <Link to="/terms" className="underline">
                   Terms
                 </Link>
               </span>
             </label>
-            <Button type="submit" size="lg" className="w-full" disabled={busy || !ready || invalidSelections.length > 0}>
-              {busy ? "Placing..." : "PLACE ORDER"}
+            {!codAvailable && !paymentsEnabled ? <p className="my-3 text-sm" role="status">Online payments are temporarily unavailable. Please try again later.</p> : null}
+            <Button type="submit" size="lg" className="w-full" disabled={busy || !ready || invalidSelections.length > 0 || (!codAvailable && !paymentsEnabled)}>
+              {busy ? "Processing..." : codAvailable ? "PLACE ORDER" : "PAY NOW"}
             </Button>
             <p role="alert" className="mt-3 text-sm">
               {error}
@@ -619,14 +656,21 @@ function CustomerOrderSuccess() {
     <div className="container-shell section-space">
       {order ? (
         <div className="mx-auto max-w-xl border bg-brand-cream p-8 text-center">
-          <CheckCircle2 className="mx-auto mb-6 size-12 text-brand-navy" />
-          <h2 className="text-3xl">Thank you, {auth.user?.name.split(" ")[0]}.</h2>
+          {order.payment === "RAZORPAY" && order.paymentStatus !== "SUCCESS" ? <Clock className="mx-auto mb-6 size-12 text-brand-navy" /> : <CheckCircle2 className="mx-auto mb-6 size-12 text-brand-navy" />}
+          <h2 className="text-3xl">{order.payment === "RAZORPAY" && order.paymentStatus !== "SUCCESS" ? "Payment not confirmed" : `Thank you, ${auth.user?.name.split(" ")[0]}.`}</h2>
           <p className="my-5">
             {order.id} · {money(order.total)}
           </p>
           <p className="mb-7 text-sm leading-6">
-            Your order is saved to your account. You can track status updates from My orders.
+            {order.payment === "RAZORPAY" ? order.paymentStatus === "SUCCESS" ? "Payment confirmed. You can track your order from My orders." : "Your order is saved, but payment is not confirmed. Check or retry your payment before placing another order." : "Your order is saved to your account. You can track status updates from My orders."}
           </p>
+          <dl className="mb-6 space-y-2 text-sm">
+            <div><dt className="inline font-medium">Payment status: </dt><dd className="inline">{order.paymentStatus || "PENDING"}</dd></div>
+            {order.gatewayPaymentId ? <div><dt className="inline font-medium">Payment ID: </dt><dd className="inline break-all">{order.gatewayPaymentId}</dd></div> : null}
+            {order.paidAt ? <div><dt className="inline font-medium">Paid at: </dt><dd className="inline">{new Date(order.paidAt).toLocaleString("en-IN")}</dd></div> : null}
+          </dl>
+          <ul className="mb-6 space-y-2 text-left text-sm">{order.items.map((item, index) => <li key={`${item.slug}-${index}`} className="flex justify-between gap-3"><span>{item.name} ×{item.quantity}</span><span>{money(item.price * item.quantity)}</span></li>)}</ul>
+          {order.payment === "RAZORPAY" && !["SUCCESS", "REFUNDED"].includes(order.paymentStatus || "") ? <Action to={`/payment-failed?order=${encodeURIComponent(order.id)}`}>Check payment</Action> : null}
           <Action to="/account/orders">View my orders</Action>
         </div>
       ) : (
@@ -637,6 +681,44 @@ function CustomerOrderSuccess() {
       )}
     </div>
   );
+}
+
+export function PaymentFailed() {
+  return <AccountGate><CustomerPaymentFailed /></AccountGate>;
+}
+
+function CustomerPaymentFailed() {
+  const auth = useAuth();
+  const navigate = useNavigate();
+  const { cart, clear } = useStore();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const retrying = useRef(false);
+  const orderId = new URLSearchParams(location.search).get("order") || "";
+  async function retry() {
+    if (busy || retrying.current || !orderId) return;
+    retrying.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await beginPayment({ orderId });
+      if (!result.confirmed) throw new Error("Payment is still pending. Please check again shortly.");
+      const order = auth.orders.find((item) => item.id === result.orderId);
+      const keys = (items: Array<{ slug: string; size: string; flow: string; pack: string; quantity: number; price: number }>) => items.map((item) => `${cartKey(item)}:${item.quantity}`).sort().join("|");
+      if (order && keys(order.items) === keys(cart)) clear();
+      try { sessionStorage.removeItem(`sherise-checkout:${auth.user?.id}`); } catch { /* Optional browser storage. */ }
+      await auth.refresh();
+      await navigate({ to: "/order-success", search: { order: result.orderId } });
+    } catch (error) { setError(error instanceof Error ? error.message : "Could not confirm payment."); }
+    finally { retrying.current = false; setBusy(false); }
+  }
+  return <div className="container-shell section-space"><div className="mx-auto max-w-xl border bg-brand-cream p-8">
+    <h1 className="text-3xl">Payment not completed</h1>
+    <p className="my-5 text-sm leading-6">Your payment has not been confirmed here. If money was debited, check payment first. We verify an earlier payment before opening a new payment window.</p>
+    {orderId ? <p className="mb-4 break-all text-sm">Order: {orderId}</p> : null}
+    <div className="flex flex-wrap gap-3"><Button disabled={busy || !orderId} onClick={retry}>{busy ? "Checking payment..." : "Check / Retry Payment"}</Button><Action to="/checkout" outline>Back to checkout</Action><Action to="/account/orders" outline>My orders</Action></div>
+    {error ? <p role="alert" className="mt-4 text-sm text-red-700">{error}</p> : null}
+  </div></div>;
 }
 
 function titleFromSlug(slug: string) {

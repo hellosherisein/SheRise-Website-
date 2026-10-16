@@ -1,4 +1,5 @@
 import tailwindcss from "@tailwindcss/vite";
+import "dotenv/config";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { defineConfig, type Plugin } from "vite";
@@ -49,6 +50,10 @@ async function handleApiRequest(
 ): Promise<Response> {
   const request = nodeRequestToWebRequest(req);
   const pathname = new URL(request.url).pathname;
+  if (pathname.startsWith("/api/payments/")) {
+    const { handlePaymentsRequest } = await loadModule<typeof import("./src/server/payments.server")>("/src/server/payments.server.ts");
+    return handlePaymentsRequest(request);
+  }
 
   if (pathname === "/api/admin/upload-product-image") {
     const { handleProductImageUpload } = await loadModule<typeof import("./src/server/uploads.server")>(

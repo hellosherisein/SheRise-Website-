@@ -50,6 +50,11 @@ export type CustomerOrder = {
   total: number;
   status: "preview" | "packed" | "shipped" | "delivered" | "cancelled";
   payment: string;
+  paymentStatus?: string;
+  gatewayPaymentId?: string;
+  gatewayOrderId?: string;
+  paymentState?: string;
+  paidAt?: string;
   cancellationReason?: string;
   cancelledAt?: string;
   reviews?: OrderReview[];

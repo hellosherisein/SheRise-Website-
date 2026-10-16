@@ -728,6 +728,8 @@ function AccountDashboard({ section }: { section: string }) {
                               <div className="ml-auto text-right">
                                 <p className="text-xs text-muted-foreground">{o.id}</p>
                                 <p className="mt-1 font-semibold text-brand-navy">{money(orderTotal)}</p>
+                                {o.payment === "RAZORPAY" ? <p className="mt-1 text-xs">Payment: {o.paymentStatus || "PENDING"}</p> : null}
+                                {o.payment === "RAZORPAY" && !["SUCCESS", "REFUNDED"].includes(o.paymentStatus || "") && o.status !== "cancelled" ? <Link to={`/payment-failed?order=${encodeURIComponent(o.id)}`} className="mt-2 inline-block text-xs font-semibold underline">Check / Retry Payment</Link> : null}
                               </div>
                             </header>
 
