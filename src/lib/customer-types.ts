@@ -32,6 +32,7 @@ export type OrderReview = {
   slug: string;
   rating: number;
   reviewText: string;
+  photos?: string[];
   reviewedAt: string;
   status?: "PENDING" | "APPROVED" | "REJECTED";
   moderatedAt?: string;

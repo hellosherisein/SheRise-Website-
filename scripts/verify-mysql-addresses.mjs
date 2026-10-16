@@ -57,6 +57,7 @@ const adapter = {
     throw new Error(`Unexpected executeSql: ${sql}`);
   },
   async queryRows(sql, values) {
+    if (sql === "SELECT review_images FROM reviews LIMIT 0") return [];
     if (sql === "SHOW COLUMNS FROM products") return ["product_dimensions", "pad_length", "front_pack_content", "anion_strip_notes", "brand_message", "storage_instruction", "material_composition", "manufacturer_details", "marketer_details", "product_contact", "product_email", "product_website", "shelf_life"].map((Field) => ({ Field }));
     if (sql.includes("FROM product_images") && !sql.includes("FROM products p")) return [{ product_id: 10, image_url: "/test.png" }];
     if (sql.includes("FROM products p") && sql.includes("p.selling_price")) return catalog
@@ -140,6 +141,11 @@ const adapter = {
             return [{ affectedRows: 1 }];
           }
           if (sql.startsWith("UPDATE reviews")) {
+            if (sql.startsWith("UPDATE reviews SET review_images")) {
+              const review = reviews.find((r) => r.customer_id === values[1] && r.order_id === values[2] && r.product_id === values[3]);
+              review.review_images = values[0];
+              return [{ affectedRows: 1 }];
+            }
             Object.assign(reviews.find((r) => r.id === values[2]), { rating: values[0], review_text: values[1], status: "PENDING", moderated_at: null });
             return [{ affectedRows: 1 }];
           }
@@ -182,6 +188,7 @@ const replacements = {
   zod: import.meta.resolve("zod"),
 };
 const source = transpile(readFileSync("src/server/customer.server.ts", "utf8"))
+  .replace('"../../api/_review-photos.mjs"', JSON.stringify(new URL("../api/_review-photos.mjs", import.meta.url).href))
   .replace(/(["'])(\.\/mysql\.server|\.\/catalog\.server|\.\/database\.server|\.\.\/lib\/catalog|\.\.\/lib\/pricing|\.\.\/lib\/cart-selection|zod)\1/g,
     (_, quote, specifier) => JSON.stringify(replacements[specifier]));
 const { handleCustomerRequest, hashPassword, verifyPassword, mysqlCreateOrder, mysqlSessionUser, guardOrigin } = await import(moduleUrl(source));
@@ -358,6 +365,22 @@ assert.equal(result.orders[1].reviews[0].status, "PENDING");
 await call("order-review", { ...reviewInput, rating: 4 });
 assert.equal(reviews.length, 1);
 assert.equal(reviews[0].rating, 4);
+const reviewPhoto = "data:image/png;base64," + Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 1]).toString("base64");
+result = await call("order-review", { ...reviewInput, photos: [reviewPhoto] });
+assert.equal(result.status, 200);
+assert.deepEqual(JSON.parse(reviews[0].review_images), [reviewPhoto]);
+const photoUrl = result.orders[1].reviews[0].photos[0];
+assert.equal(photoUrl, "/api/reviews/image?review=1&index=0");
+result = await call("order-review", { ...reviewInput, photos: [photoUrl] });
+assert.equal(result.status, 200);
+assert.deepEqual(JSON.parse(reviews[0].review_images), [reviewPhoto]);
+assert.equal((await call("order-review", { ...reviewInput, photos: ["/api/reviews/image?review=99&index=0"] })).status, 400);
+assert.equal((await call("order-review", { ...reviewInput, photos: ["data:image/png;base64,SGVsbG8="] })).status, 400);
+assert.equal((await call("order-review", { ...reviewInput, photos: [reviewPhoto, reviewPhoto, reviewPhoto, reviewPhoto] })).status, 400);
+assert.deepEqual(JSON.parse(reviews[0].review_images), [reviewPhoto], "Invalid edits roll back photos and review updates");
+result = await call("order-review", { ...reviewInput, photos: [] });
+assert.equal(result.status, 200);
+assert.deepEqual(JSON.parse(reviews[0].review_images), []);
 assert.equal((await call("order-review", { ...reviewInput, id: order.id })).status, 409);
 console.log("PASS: shared MySQL session, profile/wishlist persistence, checkout, trusted prices, coupon/donation/COD totals, retries, order isolation, cancellation, reviews and rollback.");
 assert.equal((await call("password", { currentPassword: "Incorrect", password: "UpdatedPassword!2026" })).status, 400);

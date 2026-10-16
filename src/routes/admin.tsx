@@ -3127,6 +3127,7 @@ function TableCellContent({
   isFirst: boolean;
   onRowClick: boolean;
 }) {
+  if (column === "Photos") return <span>{reviewPhotoList(cell).length} photos</span>;
   if (column === "Image") {
     const imageSrc = productImagePath(cell);
     if (!imageSrc || cell === "No Image") {
@@ -3163,6 +3164,11 @@ function TableCellContent({
   return <span className="block max-w-[240px] truncate">{cell}</span>;
 }
 
+function reviewPhotoList(value: string | undefined): string[] {
+  try { const photos = JSON.parse(value || "[]"); return Array.isArray(photos) ? photos.filter((photo) => typeof photo === "string" && photo.startsWith("/api/reviews/image?")).slice(0, 3) : []; }
+  catch { return []; }
+}
+
 function ReviewModerationDialog({
   review,
   open,
@@ -3183,7 +3189,7 @@ function ReviewModerationDialog({
         <DialogHeader>
           <DialogTitle className="font-display text-2xl text-brand-navy">Moderate Review</DialogTitle>
           <DialogDescription>
-            Approve reviews to show them on the website homepage. Rejected reviews stay hidden.
+            Approve reviews and their photos to show them on the matching product page. Rejected reviews stay hidden.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -3195,6 +3201,7 @@ function ReviewModerationDialog({
             <p className="font-semibold text-brand-navy">{product}</p>
             <p className="mt-1 text-xs text-muted-foreground">Customer {customer}</p>
             <p className="mt-4 leading-6">{text}</p>
+            <div className="mt-3 flex flex-wrap gap-2">{reviewPhotoList(review[6]).map((photo, index) => <a key={photo} href={photo} target="_blank" rel="noreferrer"><img src={photo} alt={`Customer product photo ${index + 1}`} className="size-28 rounded border object-cover" /></a>)}</div>
           </div>
         </div>
         <DialogFooter className="flex-wrap gap-2 sm:justify-between">

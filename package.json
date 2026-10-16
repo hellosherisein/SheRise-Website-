@@ -16,12 +16,14 @@
     "test:mysql-accounts": "node scripts/verify-mysql-addresses.mjs",
     "test:admin-orders": "node scripts/verify-admin-orders.mjs",
     "test:reviews": "node scripts/verify-reviews.mjs",
+    "test:review-photos": "node scripts/verify-review-photos.mjs",
     "test:popup-leads": "node scripts/verify-popup-leads.mjs",
     "test:blogs": "node scripts/verify-blogs.mjs",
     "test:newsletter": "node scripts/verify-newsletter.mjs",
     "test:payments": "node scripts/verify-payments.mjs",
     "start": "node app.js",
     "migrate:payments": "node scripts/migrate-payments.mjs",
+    "migrate:review-photos": "node scripts/migrate-review-photos.mjs",
     "test:accounts": "playwright test"
   },
   "overrides": {

@@ -7,6 +7,7 @@ import { getProduct } from "../lib/catalog";
 import { calculateOrderTotals, type CouponDiscount } from "../lib/pricing";
 import { resolveCartSelection } from "../lib/cart-selection";
 import type { Address, Customer, CustomerOrder, OrderItem } from "../lib/customer-types";
+import { reviewPhotoUrls, storedReviewPhotos, validateReviewPhotos } from "../../api/_review-photos.mjs";
 const cookieName = "sherise_session";
 const COD_MINIMUM_TOTAL = 1000;
 const password = z
@@ -234,6 +235,7 @@ async function mysqlOrders(customerId: string | number): Promise<CustomerOrder[]
       reviews: reviews.filter((review) => String(review.order_id) === String(order.id)).map((review) => ({
         slug: review.slug, rating: Number(review.rating), reviewText: review.review_text,
         reviewedAt: isoDate(review.updated_at || review.created_at), status: review.status,
+        ...(reviewPhotoUrls(review).length ? { photos: reviewPhotoUrls(review) } : {}),
         ...(review.moderated_at ? { moderatedAt: isoDate(review.moderated_at) } : {}),
       })),
     };
@@ -361,7 +363,7 @@ async function handleMysqlCustomerRequest(request: Request, action: string) {
   }
   if (request.method !== "POST") throw new ApiError(405, "Method not allowed.");
   guardOrigin(request);
-  const input = await readBody(request);
+  const input = await readBody(request, action === "order-review" ? 1300000 : 32768);
   if (["register", "login", "forgot-password", "reset-password"].includes(action)) await mysqlLimit("global-auth", 200);
 
   if (action === "register") {
@@ -478,7 +480,15 @@ async function handleMysqlCustomerRequest(request: Request, action: string) {
   if (action === "order-cancel" || action === "order-review") {
     const data = action === "order-cancel"
       ? z.object({ id: z.string().max(64), reason: z.enum(["Ordered by mistake", "Need to change address", "Need to change product", "Found a better option", "Delivery is taking too long", "Other reason"]).default("Other reason") }).parse(input)
-      : z.object({ id: z.string().max(64), slug: z.string().max(220), rating: z.number().int().min(1).max(5), reviewText: z.string().trim().min(8).max(1000) }).parse(input);
+      : z.object({ id: z.string().max(64), slug: z.string().max(220), rating: z.number().int().min(1).max(5), reviewText: z.string().trim().min(8).max(1000), photos: z.array(z.string().max(410000)).max(3).optional() }).parse(input);
+    if ("photos" in data && data.photos !== undefined) {
+      try { await queryRows("SELECT review_images FROM reviews LIMIT 0"); }
+      catch (error) {
+        if ((error as { code?: string }).code !== "ER_BAD_FIELD_ERROR") throw error;
+        try { await executeSql("ALTER TABLE reviews ADD COLUMN review_images JSON NULL"); }
+        catch (schemaError) { if ((schemaError as { code?: string }).code !== "ER_DUP_FIELDNAME") throw schemaError; }
+      }
+    }
     const { mysqlTransaction } = await import("./mysql.server");
     await mysqlTransaction(async (connection) => {
       const [orders] = await connection.query<any[]>(
@@ -498,9 +508,14 @@ async function handleMysqlCustomerRequest(request: Request, action: string) {
         if (order.order_status !== "DELIVERED") throw new ApiError(409, "Reviews open after delivery.");
         const [items] = await connection.query<any[]>("SELECT product_id FROM order_items WHERE order_id = ? AND product_slug = ?", [order.id, data.slug]);
         if (!items[0]?.product_id) throw new ApiError(400, "Product not found in this order.");
-        const [reviews] = await connection.query<any[]>("SELECT id FROM reviews WHERE customer_id = ? AND order_id = ? AND product_id = ? AND deleted_at IS NULL", [user.id, order.id, items[0].product_id]);
+        const [reviews] = await connection.query<any[]>("SELECT * FROM reviews WHERE customer_id = ? AND order_id = ? AND product_id = ? AND deleted_at IS NULL", [user.id, order.id, items[0].product_id]);
         if (reviews[0]) await connection.execute("UPDATE reviews SET rating = ?, review_text = ?, status = 'PENDING', moderated_at = NULL, moderated_by_admin_id = NULL, moderation_note = NULL WHERE id = ?", [data.rating, data.reviewText, reviews[0].id]);
         else await connection.execute("INSERT INTO reviews (customer_id, order_id, product_id, rating, review_text, is_verified_purchase) VALUES (?, ?, ?, ?, ?, 1)", [user.id, order.id, items[0].product_id, data.rating, data.reviewText]);
+        if (data.photos !== undefined) {
+          const photos = validateReviewPhotos(data.photos, storedReviewPhotos(reviews[0]?.review_images), reviews[0]?.id);
+          await connection.execute("UPDATE reviews SET review_images = ? WHERE customer_id = ? AND order_id = ? AND product_id = ? AND deleted_at IS NULL",
+            [JSON.stringify(photos), user.id, order.id, items[0].product_id]);
+        }
       }
     });
     return json(await mysqlCustomerData(user));
@@ -665,7 +680,7 @@ async function activeCouponDiscount(code: string, subtotal: number): Promise<Cou
   }
 }
 
-export async function readBody(request: Request) {
+export async function readBody(request: Request, maxBytes = 32768) {
   if (!request.headers.get("content-type")?.includes("application/json"))
     throw new ApiError(415, "Use a JSON request.");
   const reader = request.body?.getReader();
@@ -676,7 +691,7 @@ export async function readBody(request: Request) {
     const { done, value } = await reader.read();
     if (done) break;
     length += value.length;
-    if (length > 32768) {
+    if (length > maxBytes) {
       await reader.cancel();
       throw new ApiError(413, "Request too large.");
     }
@@ -734,7 +749,7 @@ export async function handleCustomerRequest(request: Request, action: string): P
     }
     if (request.method !== "POST") throw new ApiError(405, "Method not allowed.");
     guardOrigin(request);
-    const input = await readBody(request);
+    const input = await readBody(request, action === "order-review" ? 1300000 : 32768);
     if (["register", "login", "forgot-password", "reset-password"].includes(action)) {
       limit("global-auth", 200);
     }
@@ -1048,12 +1063,13 @@ export async function handleCustomerRequest(request: Request, action: string): P
         user.id,
       );
     } else if (action === "order-review") {
-      const { id, slug, rating, reviewText } = z
+      const { id, slug, rating, reviewText, photos } = z
         .object({
           id: z.string().max(64),
           slug: z.string().max(120),
           rating: z.number().int().min(1).max(5),
           reviewText: z.string().trim().min(8, "Write at least 8 characters.").max(1000),
+          photos: z.array(z.string().max(410000)).max(3).optional(),
         })
         .parse(input);
       const row = db
@@ -1064,7 +1080,9 @@ export async function handleCustomerRequest(request: Request, action: string): P
       if (order.status !== "delivered") throw new ApiError(409, "Reviews open after delivery.");
       if (!order.items.some((item) => item.slug === slug)) throw new ApiError(400, "Product not found in this order.");
       const reviews = order.reviews ?? [];
-      const review = { slug, rating, reviewText, reviewedAt: new Date().toISOString(), status: "PENDING" as const };
+      const savedPhotos = photos === undefined ? reviews.find((item) => item.slug === slug)?.photos : validateReviewPhotos(photos);
+      const review = { slug, rating, reviewText, reviewedAt: new Date().toISOString(), status: "PENDING" as const,
+        ...(savedPhotos ? { photos: savedPhotos } : {}) };
       const existingIndex = reviews.findIndex((item) => item.slug === slug);
       if (existingIndex >= 0) reviews[existingIndex] = review;
       else reviews.push(review);
@@ -1080,6 +1098,7 @@ export async function handleCustomerRequest(request: Request, action: string): P
     if (error instanceof z.ZodError)
       return json({ error: error.issues[0]?.message || "Please check your details." }, 400);
     if (error instanceof ApiError) return json({ error: error.message }, error.status);
+    if (error instanceof Error && (error as { status?: number }).status === 400) return json({ error: error.message }, 400);
     // Log diagnostic codes, never SQL text/parameters, account details or session tokens.
     const diagnostic = error as { code?: string; errno?: number; sqlState?: string } | null;
     console.error("Customer service failed:", {

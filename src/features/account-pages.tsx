@@ -33,6 +33,7 @@ import type { Address, CustomerOrder, OrderReview } from "@/lib/customer-types";
 import { products, money, getProduct, type Product } from "@/lib/catalog";
 import { calculateOrderTotals } from "@/lib/pricing";
 import fallbackProductImage from "@/assets/sherise-flatlay.jpg";
+import { prepareReviewPhoto } from "@/lib/review-photo";
 const message = (e: unknown) => (e instanceof Error ? e.message : "Please try again.");
 export function PasswordField({
   label = "Password",
@@ -1043,6 +1044,9 @@ function ProductReviewForm({
   const auth = useAuth();
   const [rating, setRating] = useState(existingReview?.rating ?? 0);
   const [reviewText, setReviewText] = useState(existingReview?.reviewText ?? "");
+  const [photos, setPhotos] = useState<string[]>(existingReview?.photos ?? []);
+  const [preparingPhotos, setPreparingPhotos] = useState(false);
+  const savedPhotoKey = JSON.stringify(existingReview?.photos ?? []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(Boolean(existingReview));
@@ -1050,14 +1054,28 @@ function ProductReviewForm({
   const applyReview = (review: OrderReview) => {
     setRating(review.rating);
     setReviewText(review.reviewText);
+    setPhotos(review.photos ?? []);
     setSaved(true);
   };
 
   useEffect(() => {
     setRating(existingReview?.rating ?? 0);
     setReviewText(existingReview?.reviewText ?? "");
+    setPhotos(existingReview?.photos ?? []);
     setSaved(Boolean(existingReview));
-  }, [existingReview?.rating, existingReview?.reviewText]);
+  }, [existingReview?.rating, existingReview?.reviewText, savedPhotoKey]);
+
+  async function choosePhotos(files: File[]) {
+    setError("");
+    if (photos.length + files.length > 3) { setError("Upload up to 3 product photos."); return; }
+    setPreparingPhotos(true);
+    try {
+      const prepared = await Promise.all(files.map(prepareReviewPhoto));
+      setPhotos((current) => [...current, ...prepared].slice(0, 3));
+      setSaved(false);
+    } catch (e) { setError(message(e)); }
+    finally { setPreparingPhotos(false); }
+  }
 
   async function submitReview() {
     if (rating < 1) {
@@ -1072,6 +1090,7 @@ function ProductReviewForm({
         slug: item.slug,
         rating,
         reviewText,
+        photos,
       });
       const updatedReview = next.orders
         .find((order) => order.id === orderId)
@@ -1128,8 +1147,22 @@ function ProductReviewForm({
           placeholder="Share fit, comfort, absorbency, packaging..."
         />
       </label>
+      <label className="field mt-4">
+        Product photos (optional)
+        <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={busy || preparingPhotos || photos.length >= 3}
+          onChange={(event) => { const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ""; void choosePhotos(files); }} />
+        <span className="text-xs text-muted-foreground">Up to 3 JPG, PNG or WebP photos, 8 MB each. Photos appear on this product’s page after approval.</span>
+      </label>
+      {preparingPhotos && <p role="status" className="mt-2 text-sm">Preparing photos…</p>}
+      <div className="mt-3 flex flex-wrap gap-3">
+        {photos.map((photo, index) => <div key={`${index}-${photo.slice(-30)}`} className="space-y-1">
+          <img src={photo} alt={`Your product photo ${index + 1}`} className="size-24 rounded border object-cover" />
+          <button type="button" disabled={busy || preparingPhotos} className="text-xs underline" aria-label={`Remove photo ${index + 1}`}
+            onClick={() => { setPhotos((current) => current.filter((_, position) => position !== index)); setSaved(false); }}>Remove</button>
+        </div>)}
+      </div>
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <Button disabled={busy || rating < 1 || reviewText.trim().length < 8} onClick={submitReview}>
+        <Button disabled={busy || preparingPhotos || rating < 1 || reviewText.trim().length < 8} onClick={submitReview}>
           {busy ? "Saving..." : saved ? "Update review" : "Submit review"}
         </Button>
         {saved ? <p className="text-sm text-emerald-700">Review saved.</p> : null}

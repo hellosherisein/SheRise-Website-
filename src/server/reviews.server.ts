@@ -11,6 +11,7 @@ export type PublicReview = {
   productSlug: string;
   rating: number;
   reviewText: string;
+  photos?: string[];
   reviewedAt: string;
 };
 
@@ -53,6 +54,7 @@ export async function collectApprovedReviews(): Promise<PublicReview[]> {
           productSlug: review.slug,
           rating: review.rating,
           reviewText: review.reviewText,
+          ...(review.photos?.length ? { photos: review.photos } : {}),
           reviewedAt: review.reviewedAt,
         };
       });

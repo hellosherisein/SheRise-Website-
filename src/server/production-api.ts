@@ -6,10 +6,12 @@ import { handleReviewsRequest } from "./reviews.server";
 import { getContentBlog, listContentBlogs, listContentFaqs } from "./content.server";
 import { handlePaymentsRequest } from "./payments.server";
 import { handleCatalogImageRequest } from "./catalog-image.server";
+import { handleReviewImageRequest } from "./review-image.server";
 export { validatePaymentEnvironment } from "./payments.server";
 
 export async function handleProductionApiRequest(request: Request): Promise<Response> {
   const pathname = new URL(request.url).pathname;
+  if (pathname === "/api/reviews/image") return handleReviewImageRequest(request);
   if (pathname === "/api/catalog/product-image") return handleCatalogImageRequest(request);
   if (pathname.startsWith("/api/payments/")) return handlePaymentsRequest(request);
 

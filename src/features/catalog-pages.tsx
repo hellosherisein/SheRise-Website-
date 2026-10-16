@@ -13,6 +13,7 @@ import {
   SectionHeading,
 } from "@/components/commerce";
 import { Button } from "@/components/ui/button";
+import { ProductReviews } from "@/components/product-reviews";
 import {
   Sheet,
   SheetContent,
@@ -564,13 +565,10 @@ export function ProductDetail({ product: p }: { product: Product }) {
               a: "Shipping fees, delivery areas and return eligibility are pending final brand confirmation. This preview does not process purchases.",
             },
             ...p.faq,
-            {
-              q: "Customer reviews",
-              a: "No verified reviews yet. We will only publish ratings from genuine customer feedback.",
-            },
           ]}
         />
       </div>
+      <ProductReviews slug={p.slug} />
       <ProductGrid items={products.filter((x) => p.relatedProducts.includes(x.slug))} />
       {recent.length > 0 && (
         <section className="mt-16">

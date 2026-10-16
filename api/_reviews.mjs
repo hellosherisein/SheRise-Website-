@@ -1,6 +1,8 @@
+import { reviewPhotoUrls } from "./_review-photos.mjs";
+
 export async function reviewsPayload(queryRows) {
   const reviews = await queryRows(`
-    SELECT r.id, r.rating, r.review_text, r.status, c.name AS customer_name,
+    SELECT r.*, c.name AS customer_name,
            p.name AS product_name, o.order_number
     FROM reviews r
     LEFT JOIN customers c ON c.id = r.customer_id
@@ -12,11 +14,11 @@ export async function reviewsPayload(queryRows) {
   return {
     title: "Reviews",
     action: "Moderate",
-    columns: ["Customer", "Product", "Review", "Status", "Order", "Review ID"],
+    columns: ["Customer", "Product", "Review", "Status", "Order", "Review ID", "Photos"],
     rows: reviews.map((review) => [
       review.customer_name || "Customer", review.product_name,
       `${review.rating}/5 - ${review.review_text}`, review.status,
-      review.order_number || "-", String(review.id),
+      review.order_number || "-", String(review.id), JSON.stringify(reviewPhotoUrls(review)),
     ]),
     metrics: [
       { label: "Submitted Reviews", value: String(reviews.length), trend: "Customer reviews", tone: "neutral" },
@@ -43,7 +45,7 @@ export async function moderateReview(executeSql, input) {
 export async function approvedReviews(queryRows) {
   const reviews = await queryRows(`
     SELECT o.order_number, c.name AS customer_name, p.name AS product_name,
-           p.slug AS product_slug, r.rating, r.review_text, r.created_at
+           p.slug AS product_slug, r.*
     FROM reviews r
     LEFT JOIN customers c ON c.id = r.customer_id
     JOIN products p ON p.id = r.product_id AND p.deleted_at IS NULL
@@ -58,6 +60,7 @@ export async function approvedReviews(queryRows) {
     productSlug: review.product_slug,
     rating: Number(review.rating),
     reviewText: review.review_text,
+    ...(reviewPhotoUrls(review).length ? { photos: reviewPhotoUrls(review) } : {}),
     reviewedAt: review.created_at instanceof Date ? review.created_at.toISOString() : String(review.created_at),
   }));
 }

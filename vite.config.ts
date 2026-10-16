@@ -50,6 +50,10 @@ async function handleApiRequest(
 ): Promise<Response> {
   const request = nodeRequestToWebRequest(req);
   const pathname = new URL(request.url).pathname;
+  if (pathname === "/api/reviews/image") {
+    const { handleReviewImageRequest } = await loadModule<typeof import("./src/server/review-image.server")>("/src/server/review-image.server.ts");
+    return handleReviewImageRequest(request);
+  }
   if (pathname === "/api/catalog/product-image") {
     const { handleCatalogImageRequest } = await loadModule<typeof import("./src/server/catalog-image.server")>("/src/server/catalog-image.server.ts");
     return handleCatalogImageRequest(request);
