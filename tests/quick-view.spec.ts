@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page, type Route } from "@playwright/test";
 
 const product = {
   id: "901", slug: "live-quick-view-pads", name: "Live quick view pads",
@@ -18,6 +18,25 @@ async function setup(page: Page) {
     return route.fulfill({ json: { products: [], posts: [], faqs: [], reviews: [] } });
   });
 }
+
+test("slow image download does not block adding an available product", async ({ page }) => {
+  await setup(page);
+  const pendingImages: Route[] = [];
+  await page.route("**/api/catalog/product-image?*", (route) => { pendingImages.push(route); });
+  await page.route("**/api/catalog/products?*", (route) => route.fulfill({ json: { products: [{ ...product, images: ["/api/catalog/product-image?id=123"] }] } }));
+  try {
+    await page.goto("/shop", { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Quick view", exact: true }).click();
+    const add = page.getByRole("button", { name: "Add to cart", exact: true });
+    await expect(add).toBeEnabled();
+    await add.click();
+    await expect(page.getByRole("heading", { name: "Your bag", exact: true })).toBeVisible();
+    await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("sherise-cart-v2:guest") || "[]")))
+      .toMatchObject([{ slug: product.slug, quantity: 1 }]);
+  } finally {
+    await Promise.all(pendingImages.map((route) => route.abort().catch(() => {})));
+  }
+});
 
 test("failed catalog can retry; quick view adds the live product to the bag", async ({ page }) => {
   await setup(page);

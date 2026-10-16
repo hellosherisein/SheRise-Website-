@@ -32,6 +32,8 @@ for (const [enabled, webhookSecret] of [["false", ""], ["true", ""], ["true", "t
     const config = await fetch(`${origin}/api/payments/config`);
     assert.equal(config.status, 200);
     assert.deepEqual(await config.json(), { enabled: false });
+    const invalidImage = await fetch(`${origin}/api/catalog/product-image?id=invalid`);
+    assert.equal(invalidImage.status, 400, "Production image route reaches the guarded handler");
     if (enabled === "true") assert.match(stderr, /Online payments disabled:/);
     assert.doesNotMatch(stderr, /fake-secret/);
   } finally {

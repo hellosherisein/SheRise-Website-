@@ -149,7 +149,10 @@ async function productImagesById(productIds) {
   const placeholders = ids.map(() => "?").join(",");
   const rows = await queryRows(
     `
-      SELECT product_id, image_url
+      SELECT product_id,
+        CASE WHEN LEFT(image_url, 11) = 'data:image/'
+          THEN CONCAT('/api/catalog/product-image?id=', id)
+          ELSE image_url END AS image_url
       FROM product_images
       WHERE product_id IN (${placeholders})
       ORDER BY product_id ASC, is_featured DESC, sort_order ASC

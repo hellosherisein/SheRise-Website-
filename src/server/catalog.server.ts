@@ -94,7 +94,11 @@ export async function loadCatalogProducts(): Promise<Product[]> {
         WHERE i.product_id = p.id
       ) AS stock,
       (
-        SELECT GROUP_CONCAT(pi.image_url ORDER BY pi.is_featured DESC, pi.sort_order ASC SEPARATOR '||')
+        SELECT GROUP_CONCAT(
+          CASE WHEN LEFT(pi.image_url, 11) = 'data:image/'
+            THEN CONCAT('/api/catalog/product-image?id=', pi.id)
+            ELSE pi.image_url END
+          ORDER BY pi.is_featured DESC, pi.sort_order ASC SEPARATOR '||')
         FROM product_images pi
         WHERE pi.product_id = p.id
       ) AS image_urls
@@ -150,7 +154,11 @@ export async function loadCatalogProduct(slug: string): Promise<Product | undefi
           WHERE i.product_id = p.id
         ) AS stock,
         (
-          SELECT GROUP_CONCAT(pi.image_url ORDER BY pi.is_featured DESC, pi.sort_order ASC SEPARATOR '||')
+          SELECT GROUP_CONCAT(
+            CASE WHEN LEFT(pi.image_url, 11) = 'data:image/'
+              THEN CONCAT('/api/catalog/product-image?id=', pi.id)
+              ELSE pi.image_url END
+            ORDER BY pi.is_featured DESC, pi.sort_order ASC SEPARATOR '||')
           FROM product_images pi
           WHERE pi.product_id = p.id
         ) AS image_urls
