@@ -1082,6 +1082,10 @@ function ProductReviewForm({
       setError("Please select a star rating.");
       return;
     }
+    if (reviewText.trim().length < 8) {
+      setError("Please write at least 8 characters in your review.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -1137,16 +1141,20 @@ function ProductReviewForm({
         Review
         <textarea
           rows={3}
+          required
+          aria-describedby={`review-hint-${orderId}-${item.slug}`}
           minLength={8}
           maxLength={1000}
           value={reviewText}
           onChange={(event) => {
             setReviewText(event.target.value);
+            setError("");
             setSaved(false);
           }}
           placeholder="Share fit, comfort, absorbency, packaging..."
         />
       </label>
+      <p id={`review-hint-${orderId}-${item.slug}`} className="mt-1 text-xs text-muted-foreground">Review required: write at least 8 characters. A photo alone cannot be submitted.</p>
       <label className="field mt-4">
         Product photos (optional)
         <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={busy || preparingPhotos || photos.length >= 3}
@@ -1162,11 +1170,11 @@ function ProductReviewForm({
         </div>)}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <Button disabled={busy || preparingPhotos || rating < 1 || reviewText.trim().length < 8} onClick={submitReview}>
+        <Button disabled={busy || preparingPhotos || rating < 1} onClick={submitReview}>
           {busy ? "Saving..." : saved ? "Update review" : "Submit review"}
         </Button>
         {saved ? <p className="text-sm text-emerald-700">Review saved.</p> : null}
-        {error ? <p className="text-sm text-red-700">{error}</p> : null}
+        {error ? <p role="alert" className="text-sm text-red-700">{error}</p> : null}
       </div>
     </div>
   );

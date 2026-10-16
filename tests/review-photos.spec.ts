@@ -25,9 +25,14 @@ test("customer chooses photos, submits selected rating and retains saved photos 
   });
   await page.goto("/account/orders");
   await expect(page.getByRole("button", { name: "1 star rating", exact: true })).toHaveAttribute("aria-pressed", "false");
-  await page.getByLabel("Review", { exact: true }).fill("Very comfortable product, good fit.");
+  await page.getByRole("textbox", { name: "Review", exact: true }).fill("Very comfortable product, good fit.");
   await expect(page.getByRole("button", { name: "Submit review", exact: true })).toBeDisabled();
   await page.getByRole("button", { name: "4 star rating", exact: true }).click();
+  await page.getByRole("textbox", { name: "Review", exact: true }).fill("");
+  await page.getByRole("button", { name: "Submit review", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Please write at least 8 characters");
+  expect(submitted).toBeUndefined();
+  await page.getByRole("textbox", { name: "Review", exact: true }).fill("Very comfortable product, good fit.");
   const upload = page.locator('input[type="file"]');
   await upload.setInputFiles({ name: "product.jpg", mimeType: "image/jpeg", buffer: photo });
   await expect(page.getByAltText("Your product photo 1", { exact: true })).toBeVisible();
