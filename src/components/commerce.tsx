@@ -1,6 +1,7 @@
 ﻿import { Link, useRouterState } from "@/router-shim";
 import { useState, type ReactNode } from "react";
-import { ArrowRight, Minus, Plus, Flower2, Heart, Package, Sparkles } from "lucide-react";
+import { ArrowRight, Minus, Plus, Flower2 } from "lucide-react";
+import { CottonComfort, GrowingChoices, EverydayFlow, ThoughtfulDetails } from "./benefit-icons";
 import { Button } from "./ui/button";
 import { ProductCard } from "./product-card";
 import { siteUrl } from "@/lib/seo";
@@ -161,24 +162,24 @@ export function Benefits() {
     <div className="grid grid-cols-2 gap-8 lg:grid-cols-4">
       {[
         {
-          Icon: Heart,
+          Icon: CottonComfort,
           title: "Comfort comes first",
           copy: "Care that fits into your everyday routine.",
         },
         {
-          Icon: Flower2,
+          Icon: GrowingChoices,
           title: "Thoughtful choices",
           copy: "Space to find what works for your flow.",
         },
-        { Icon: Sparkles, title: "Move your own way", copy: "Your day, your pace, your period." },
+        { Icon: EverydayFlow, title: "Move your own way", copy: "Your day, your pace, your period." },
         {
-          Icon: Package,
+          Icon: ThoughtfulDetails,
           title: "Little details matter",
           copy: "Clear information, simple shopping.",
         },
       ].map(({ Icon, title, copy }) => (
         <div key={title}>
-          <Icon className="mb-4 size-7 text-brand-burgundy" />
+          <Icon className="mb-4 size-10 text-brand-burgundy" />
           <h3 className="mb-2 text-xl">{title}</h3>
           <p className="text-sm leading-6 text-muted-foreground">{copy}</p>
         </div>
