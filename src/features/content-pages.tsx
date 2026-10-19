@@ -2,6 +2,7 @@
 import { Link } from "@/router-shim";
 import { createEnquirySubmitter } from "@/lib/enquiries";
 import { FounderSection } from "@/components/founder-section";
+import { SheRiseInitiative } from "@/components/sherise-initiative";
 import {
   Activity,
   Bed,
@@ -9,7 +10,6 @@ import {
   Flower2,
   Heart,
   Leaf,
-  MessageCircleHeart,
   Moon,
   ShieldCheck,
   Sparkles,
@@ -840,55 +840,7 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
             </div>
             <Benefits />
             {kind === "about" && <FounderSection />}
-            {kind === "why-sherise" && (
-              <section className="mt-14 overflow-hidden border border-brand-coral/20 bg-brand-blush/60 md:mt-16">
-                <div className="grid gap-0 md:grid-cols-[0.95fr_1.05fr]">
-                  <div className="bg-brand-navy p-6 text-white md:p-8 lg:p-10">
-                    <p className="eyebrow eyebrow-on-dark">SHERISE INITIATIVE</p>
-                    <h2 className="font-display text-3xl leading-tight md:text-4xl">
-                      Your purchase can become someone else&apos;s support.
-                    </h2>
-                    <p className="mt-5 text-base leading-7 text-white/80">
-                      With every SheRise sanitary napkin purchase, we can create an opportunity to
-                      support women and girls who have limited access to menstrual hygiene products
-                      and education.
-                    </p>
-                    <p className="mt-5 border-t border-white/20 pt-5 font-display text-2xl leading-tight text-brand-blush">
-                      Buy SheRise. Support SheRise. Help another woman rise.
-                    </p>
-                  </div>
-                  <div className="p-6 md:p-8 lg:p-10">
-                    <p className="eyebrow">MENSTRUAL HEALTH & EMPOWERMENT</p>
-                    <h3 className="font-display text-3xl leading-tight text-brand-navy">
-                      Dignity, health and wellbeing should never feel out of reach.
-                    </h3>
-                    <p className="mt-4 text-justify leading-7 text-muted-foreground">
-                      SheRise believes that menstrual health is not a luxury; it is a basic part of
-                      dignity, health and wellbeing. We invite our customers, partners and supporters
-                      to join us in creating a menstrual-health initiative where contributions can
-                      help build practical support and awareness.
-                    </p>
-                    <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                      {[
-                        { icon: Droplets, label: "Menstrual hygiene products" },
-                        { icon: MessageCircleHeart, label: "Menstrual-health awareness sessions" },
-                        { icon: Sparkles, label: "Education for adolescent girls" },
-                        { icon: Heart, label: "Support for underserved communities" },
-                        { icon: Flower2, label: "Women's health programs" },
-                        { icon: ShieldCheck, label: "Women's empowerment programs" },
-                      ].map(({ icon: Icon, label }) => (
-                        <div key={label} className="flex items-start gap-3 border border-[#eadbd2] bg-white p-4">
-                          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-blush text-brand-coral">
-                            <Icon className="size-5" />
-                          </span>
-                          <p className="font-semibold leading-6 text-brand-navy">{label}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </section>
-            )}
+            {kind === "why-sherise" && <SheRiseInitiative />}
           </>
         )}
       </div>
