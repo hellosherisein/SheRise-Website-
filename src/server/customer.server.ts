@@ -256,15 +256,20 @@ export async function mysqlCreateOrder(user: MysqlCustomerRow, input: unknown, m
   }).parse(input);
   const { mysqlTransaction } = await import("./mysql.server");
   const { loadCatalogProducts } = await import("./catalog.server");
-  // A deterministic, customer-specific number makes retries safe without a schema migration.
-  const orderNumber = "SR-" + hash(`${user.id}:${data.requestId}`).slice(0, 32).toUpperCase();
+  // Keep the previous deterministic key for retries of orders placed before short numbers.
+  const legacyOrderNumber = "SR-" + hash(`${user.id}:${data.requestId}`).slice(0, 32).toUpperCase();
+  let orderNumber = legacyOrderNumber;
   const catalog = await loadCatalogProducts();
   const created = await mysqlTransaction(async (connection) => {
     await connection.query("SELECT id FROM customers WHERE id = ? FOR UPDATE", [user.id]);
     const [existing] = await connection.query<any[]>(
-      "SELECT id, customer_note, payment_method, order_status FROM orders WHERE order_number = ? AND customer_id = ?", [orderNumber, user.id],
+      `SELECT id, order_number, customer_note, payment_method, order_status FROM orders
+       WHERE customer_id = ? AND (order_number = ? OR
+         JSON_UNQUOTE(JSON_EXTRACT(IF(JSON_VALID(customer_note), customer_note, '{}'), '$.requestId')) = ?)
+       LIMIT 1`, [user.id, legacyOrderNumber, data.requestId],
     );
     if (existing.length) {
+      orderNumber = existing[0].order_number;
       if (mode !== "preview") {
         let metadata: { checkoutFingerprint?: string; checkoutMode?: string } = {};
         try { metadata = JSON.parse(existing[0].customer_note || "{}"); } catch { /* Old preview order. */ }
@@ -308,6 +313,10 @@ export async function mysqlCreateOrder(user: MysqlCustomerRow, input: unknown, m
         totals.shippingAmount, totals.gstAmount, totals.total, payment,
         JSON.stringify({ requestId: data.requestId, donationAmount: data.donationAmount, coupon: data.coupon, preview: mode === "preview", checkoutMode: mode, checkoutFingerprint: hash(JSON.stringify(data)) })],
     );
+    // The auto-increment primary key allocates unique numbers across customers and servers.
+    // Replace the temporary retry key inside this transaction, before the order is exposed.
+    orderNumber = `SR-${BigInt(result.insertId) + 1000n}`;
+    await connection.execute("UPDATE orders SET order_number = ? WHERE id = ?", [orderNumber, result.insertId]);
     for (const item of items) {
       await connection.execute(
         `INSERT INTO order_items (order_id, product_id, product_name, product_slug, sku, variant_name,
@@ -1010,28 +1019,42 @@ export async function handleCustomerRequest(request: Request, action: string): P
       if (totals.total < COD_MINIMUM_TOTAL && data.payment === "Cash on Delivery") {
         throw new ApiError(400, "Cash on Delivery is available only on orders of ₹1,000 and above.");
       }
-      const order: CustomerOrder = {
-        id: "SR-" + randomUUID().slice(0, 12).toUpperCase(),
-        createdAt: new Date().toISOString(),
-        items,
-        address: { ...data.address, id: data.address.id || randomUUID() },
-        subtotal: totals.subtotal,
-        discount: totals.discountAmount,
-        gstPercent: totals.gstPercent,
-        gstAmount: totals.gstAmount,
-        shippingAmount: totals.shippingAmount,
-        donationAmount: totals.donationAmount,
-        total: totals.total,
-        status: "preview",
-        payment: data.payment,
-      };
-      db.prepare("INSERT INTO orders VALUES(?,?,?,?)").run(
-        order.id,
-        user.id,
-        data.requestId,
-        JSON.stringify(order),
-      );
-      return json({ order }, 201);
+      return transaction(() => {
+        // Recheck after asynchronous pricing so concurrent retries return the same order.
+        const retry = db.prepare("SELECT data FROM orders WHERE user_id=? AND request_id=?")
+          .get(user.id, data.requestId) as { data: string } | undefined;
+        if (retry) return json({ order: JSON.parse(retry.data) });
+        const sequence = db.prepare(`
+          UPDATE order_number_sequence
+          SET last_number = MAX(last_number, COALESCE((
+            SELECT MAX(CAST(SUBSTR(id, 4) AS INTEGER)) FROM orders
+            WHERE id GLOB 'SR-[0-9]*' AND SUBSTR(id, 4) NOT GLOB '*[^0-9]*'
+          ), 1000)) + 1
+          WHERE id = 1 RETURNING last_number
+        `).get() as { last_number: number };
+        const order: CustomerOrder = {
+          id: `SR-${sequence.last_number}`,
+          createdAt: new Date().toISOString(),
+          items,
+          address: { ...data.address, id: data.address.id || randomUUID() },
+          subtotal: totals.subtotal,
+          discount: totals.discountAmount,
+          gstPercent: totals.gstPercent,
+          gstAmount: totals.gstAmount,
+          shippingAmount: totals.shippingAmount,
+          donationAmount: totals.donationAmount,
+          total: totals.total,
+          status: "preview",
+          payment: data.payment,
+        };
+        db.prepare("INSERT INTO orders VALUES(?,?,?,?)").run(
+          order.id,
+          user.id,
+          data.requestId,
+          JSON.stringify(order),
+        );
+        return json({ order }, 201);
+      });
     } else if (action === "order-cancel") {
       const { id, reason } = z
         .object({

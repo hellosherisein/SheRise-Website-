@@ -16,6 +16,8 @@ export function database() {
  CREATE TABLE IF NOT EXISTS wishlists(user_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,slug TEXT NOT NULL,PRIMARY KEY(user_id,slug));
  CREATE TABLE IF NOT EXISTS orders(id TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,request_id TEXT NOT NULL,data TEXT NOT NULL,UNIQUE(user_id,request_id));
  CREATE INDEX IF NOT EXISTS orders_user ON orders(user_id);
+ CREATE TABLE IF NOT EXISTS order_number_sequence(id INTEGER PRIMARY KEY CHECK(id=1),last_number INTEGER NOT NULL);
+ INSERT OR IGNORE INTO order_number_sequence(id,last_number) VALUES(1,1000);
  CREATE TABLE IF NOT EXISTS popup_leads(id TEXT PRIMARY KEY,data TEXT NOT NULL,created_at TEXT NOT NULL);
  CREATE INDEX IF NOT EXISTS popup_leads_created ON popup_leads(created_at);
  CREATE TABLE IF NOT EXISTS newsletter_subscribers(id TEXT PRIMARY KEY,email TEXT NOT NULL UNIQUE COLLATE NOCASE,source TEXT NOT NULL,status TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);

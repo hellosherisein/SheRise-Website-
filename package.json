@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node scripts/verify-store.mjs",
     "test:mysql-accounts": "node scripts/verify-mysql-addresses.mjs",
+    "test:order-numbers": "npm run build && node scripts/verify-order-numbers.mjs",
     "test:admin-orders": "node scripts/verify-admin-orders.mjs",
     "test:reviews": "node scripts/verify-reviews.mjs",
     "test:review-photos": "node scripts/verify-review-photos.mjs",

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
 
@@ -92,6 +93,8 @@ const adapter = {
     try {
       return await work({
         async query(sql, values) {
+          if (sql.includes("JSON_UNQUOTE(JSON_EXTRACT")) return [structuredClone(orders.filter((o) =>
+            o.customer_id === values[0] && (o.order_number === values[1] || JSON.parse(o.customer_note || "{}").requestId === values[2])))];
           if (sql.includes("FROM orders WHERE order_number")) return [structuredClone(orders.filter((o) => o.order_number === values[0] && o.customer_id === values[1]))];
           if (sql.includes("FROM order_items WHERE order_id")) return [structuredClone(orderItems.filter((i) => i.order_id === values[0] && i.product_slug === values[1]))];
           if (sql.includes("FROM reviews WHERE customer_id")) return [structuredClone(reviews.filter((r) => r.customer_id === values[0] && r.order_id === values[1] && r.product_id === values[2]))];
@@ -100,6 +103,11 @@ const adapter = {
           throw new Error(`Unexpected transaction query: ${sql}`);
         },
         async execute(sql, values) {
+          if (sql.startsWith("UPDATE orders SET order_number")) {
+            assert.ok(!orders.some((o) => o.order_number === values[0]), "Short order numbers must be unique");
+            orders.find((o) => o.id === values[1]).order_number = values[0];
+            return [{ affectedRows: 1 }];
+          }
           if (sql.startsWith("UPDATE customers SET password_hash")) {
             users.find((u) => u.id === values[1]).password_hash = values[0];
             return [{ affectedRows: 1 }];
@@ -319,6 +327,7 @@ assert.equal((await call("order-create", orderInput)).status, 400, "Production o
 result = await call("payment-order", orderInput);
 assert.equal(result.status, 201, JSON.stringify(result));
 const order = result.order;
+assert.equal(order.id, "SR-1001");
 assert.equal(order.subtotal, 200, "Server catalog overrides tampered price");
 assert.equal(order.discount, 20);
 assert.equal(order.donationAmount, 50);
@@ -330,6 +339,16 @@ assert.equal(order.items[0].pack, "Pack of 8", "Formatting differences use canon
 assert.equal((await call("payment-order", { ...orderInput, requestId: crypto.randomUUID(), items: [{ ...orderInput.items[0], pack: "Old discontinued pack" }] })).status, 400, "Different packs are never silently substituted");
 assert.equal((await call("session")).orders[0].id, order.id);
 assert.equal((await call("payment-order", orderInput)).order.id, order.id, "Retry does not duplicate order");
+const legacyNumber = "SR-" + createHash("sha256").update(`${users[0].id}:${orderInput.requestId}`).digest("hex").slice(0, 32).toUpperCase();
+const currentNote = orders[0].customer_note;
+const legacyNote = JSON.parse(currentNote);
+delete legacyNote.requestId;
+orders[0].order_number = legacyNumber;
+orders[0].customer_note = JSON.stringify(legacyNote);
+assert.equal((await call("payment-order", orderInput)).order.id, legacyNumber, "Legacy checkout retries preserve the existing payment reference even without saved request metadata");
+assert.equal(orders.length, 1);
+orders[0].order_number = order.id;
+orders[0].customer_note = currentNote;
 assert.equal((await call("payment-order", { ...orderInput, donationAmount: 20 })).status, 409, "A changed checkout cannot reuse an old payment order");
 assert.equal(orders.length, 1);
 assert.deepEqual((await call("session", undefined, "session-2")).orders, []);
@@ -343,7 +362,9 @@ assert.equal((await call("order-create", { ...orderInput, requestId: crypto.rand
 const largeOrder = { ...orderInput, requestId: crypto.randomUUID(), coupon: "", donationAmount: 100,
   items: [{ ...orderInput.items[0], quantity: 9 }] };
 assert.equal((await call("payment-order", largeOrder)).status, 400, "Donation counts toward COD threshold");
-assert.equal((await call("order-create", { ...largeOrder, payment: "Cash on Delivery" })).status, 201);
+const codOrder = await call("order-create", { ...largeOrder, payment: "Cash on Delivery" });
+assert.equal(codOrder.status, 201);
+assert.equal(codOrder.order.id, "SR-1002");
 assert.equal((await call("order-create", orderInput, "expired")).status, 401);
 failOrderItem = true;
 try {
