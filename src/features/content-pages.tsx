@@ -412,7 +412,7 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                 <Button type="submit" size="lg" disabled={sending}>
                   {sending ? "Sending..." : "Submit message"}
                 </Button>
-                <p className="text-sm text-muted-foreground" role="status">
+                <p className="text-sm font-medium text-green-700" role="status">
                   {sent ? "Your message has been sent. The SheRise team will get back to you soon." : ""}
                 </p>
               </div>
