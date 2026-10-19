@@ -16,10 +16,18 @@ const calls = [];
 let saveFails = false;
 let emailFails = false;
 let emailThrows = false;
+let storageResponse;
+let storageThrows = false;
 const submit = createEnquirySubmitter(async (url, options) => {
   const body = JSON.parse(options.body);
   calls.push({ url, body });
-  if (url === "/api/popup-leads") return Response.json(saveFails ? { error: "Storage unavailable" } : { ok: true }, { status: saveFails ? 500 : 201 });
+  if (url === "/api/popup-leads") {
+    assert.equal(options.headers.Accept, "application/json");
+    assert.equal(options.cache, "no-store");
+    if (storageThrows) throw new Error("Network unavailable");
+    if (storageResponse) return storageResponse.clone();
+    return Response.json(saveFails ? { error: "Storage unavailable" } : { ok: true }, { status: saveFails ? 500 : 201 });
+  }
   assert.equal(url, "https://api.web3forms.com/submit");
   assert.equal(body.access_key, "1b1c6440-1c30-4ced-85f9-e41df5e8b303");
   if (emailThrows) throw new Error("Network unavailable");
@@ -61,5 +69,25 @@ calls.length = 0;
 emailFails = false;
 await submit({ ...input, message: "An updated enquiry message" });
 assert.equal(calls.length, 2, "Changed enquiries need a new admin record");
+
+for (const response of [
+  new Response('<!DOCTYPE html><html>Service unavailable</html>', { status: 503, headers: { 'content-type': 'text/html' } }),
+  new Response('<!DOCTYPE html><html>Storefront fallback</html>', { headers: { 'content-type': 'text/html' } }),
+  new Response('', { status: 502 }),
+  Response.json(null),
+  Response.json([]),
+]) {
+  storageResponse = response;
+  calls.length = 0;
+  await assert.rejects(submit(input), /could not reach the enquiry service/);
+  assert.equal(calls.length, 1, "HTML and malformed storage responses must not trigger email or success");
+}
+storageResponse = undefined;
+storageThrows = true;
+await assert.rejects(submit(input), /could not reach the enquiry service/);
+storageThrows = false;
+calls.length = 0;
+await submit(input);
+assert.equal(calls.length, 2, "Retry must save and send after the service recovers");
 delete globalThis.window;
 console.log("PASS: both enquiry sources, email fields, admin persistence, partial failures, network errors, and duplicate-free email retries.");
