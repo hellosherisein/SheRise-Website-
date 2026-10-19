@@ -220,14 +220,16 @@ export function Header() {
               )
             ))}
           </nav>
-          <div className="mt-8 flex gap-3">
-            <Button asChild variant="outline">
+          <div className="mt-8 grid grid-cols-2 gap-3">
+            <Button asChild variant="navy" className="min-h-12 gap-2 rounded-lg px-3 shadow-sm transition-colors hover:bg-brand-burgundy">
               <Link to="/account" onClick={() => setMenu(false)}>
+                <UserRound className="size-4 shrink-0" aria-hidden="true" />
                 My account
               </Link>
             </Button>
-            <Button asChild variant="outline">
+            <Button asChild variant="outline" className="min-h-12 gap-2 rounded-lg border-brand-burgundy/25 bg-brand-blush/60 px-3 text-brand-burgundy shadow-none transition-colors hover:bg-brand-blush hover:text-brand-burgundy">
               <Link to="/wishlist" onClick={() => setMenu(false)}>
+                <Heart className="size-4 shrink-0" aria-hidden="true" />
                 Wishlist
               </Link>
             </Button>

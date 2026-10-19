@@ -8,6 +8,8 @@ import {
   ShieldCheck,
   LogOut,
   ChevronRight,
+  ChevronDown,
+  Menu,
   Eye,
   EyeOff,
   Plus,
@@ -374,6 +376,7 @@ function AccountDashboard({ section }: { section: string }) {
     [saved, setSaved] = useState(""),
     [orderSearch, setOrderSearch] = useState("");
   const [liveProducts, setLiveProducts] = useState<Product[]>([]);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const user = auth.user!;
   const tabs = [
     { label: "Overview", to: "/account", id: "overview", Icon: UserRound },
@@ -448,11 +451,26 @@ function AccountDashboard({ section }: { section: string }) {
                 <p className="mt-1 font-semibold">{user.name}</p>
               </div>
             </div>
-            <nav aria-label="Account" className="account-nav">
+            <button
+              type="button"
+              className="account-menu-toggle"
+              aria-expanded={accountMenuOpen}
+              aria-controls="account-navigation"
+              onClick={() => setAccountMenuOpen((open) => !open)}
+            >
+              <Menu size={20} aria-hidden="true" />
+              <span className="min-w-0 flex-1 text-left">
+                <span className="block text-xs font-normal opacity-75">Account menu</span>
+                <span className="block">{tabs.find((tab) => tab.id === section)?.label || "My account"}</span>
+              </span>
+              <ChevronDown size={18} aria-hidden="true" className={accountMenuOpen ? "rotate-180" : ""} />
+            </button>
+            <nav id="account-navigation" aria-label="Account" className={`account-nav ${accountMenuOpen ? "account-nav--open" : ""}`}>
               {tabs.map(({ label, to, id, Icon }) => (
                 <Link
                   key={id}
                   to={to}
+                  onClick={() => setAccountMenuOpen(false)}
                   aria-current={section === id ? "page" : undefined}
                   className={section === id ? "selected" : ""}
                 >
@@ -726,8 +744,8 @@ function AccountDashboard({ section }: { section: string }) {
                                   {orderStatusDate(o.status, o.createdAt, o.cancelledAt)}
                                 </p>
                               </div>
-                              <div className="ml-auto text-right">
-                                <p className="text-xs text-muted-foreground">{o.id}</p>
+                              <div className="order-card-modern__meta ml-auto text-right">
+                                <p className="break-all text-xs text-muted-foreground">{o.id}</p>
                                 <p className="mt-1 font-semibold text-brand-navy">{money(orderTotal)}</p>
                                 {o.payment === "RAZORPAY" ? <p className="mt-1 text-xs">Payment: {o.paymentStatus || "PENDING"}</p> : null}
                                 {o.payment === "RAZORPAY" && !["SUCCESS", "REFUNDED"].includes(o.paymentStatus || "") && o.status !== "cancelled" ? <Link to={`/payment-failed?order=${encodeURIComponent(o.id)}`} className="mt-2 inline-block text-xs font-semibold underline">Check / Retry Payment</Link> : null}
@@ -767,6 +785,7 @@ function AccountDashboard({ section }: { section: string }) {
                               </div>
                               <details className="order-detail-dropdown">
                                 <summary aria-label="View order details">
+                                  <span className="order-detail-label">View order details</span>
                                   <ChevronRight size={24} />
                                 </summary>
                                 <div className="order-detail-dropdown__body">
@@ -912,7 +931,7 @@ function OrderTracking({
           {orderStatusLabel(status)}
         </span>
       </div>
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {stages.map((stage, index) => {
           const done = status !== "cancelled" && index <= currentIndex;
           const active = status !== "cancelled" && index === currentIndex;
@@ -925,7 +944,7 @@ function OrderTracking({
             >
               <div className="flex items-center gap-2">
                 <span
-                  className={`grid size-6 place-items-center rounded-full text-xs font-bold ${
+                  className={`grid size-6 shrink-0 place-items-center rounded-full text-xs font-bold ${
                     done ? "bg-brand-navy text-white" : "bg-[#eadbd2] text-brand-navy"
                   }`}
                 >
