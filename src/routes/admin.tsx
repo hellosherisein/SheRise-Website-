@@ -59,6 +59,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { adminDemoCredentials, isAdminAuthenticated, logoutAdmin } from "@/lib/admin-auth";
+import { leadsSeenEvent, markLeadsSeen, unreadLeadCount } from "@/lib/admin-lead-notifications";
 import { seo } from "@/lib/seo";
 
 export const Route = createFileRoute("/admin")({
@@ -74,6 +75,7 @@ type NavItem = {
   badgeKey?: "orders" | "customers" | "reviews" | "popupLeads";
 };
 type ModuleConfig = {
+  notificationIds?: string[];
   title: string;
   action: string;
   columns: string[];
@@ -576,15 +578,12 @@ export function AdminConsole() {
           const pendingReviews = Number(
             reviewsPayload.metrics.find((metric) => metric.label === "Pending")?.value || 0,
           );
-          const persistedLeads = Number(
-            leadsPayload.metrics.find((metric) => metric.label === "Persisted Leads")?.value || 0,
-          );
           if (!cancelled) {
             setBadgeCounts({
               orders: orders.length,
               customers: customers.length,
               reviews: Number.isFinite(pendingReviews) ? pendingReviews : 0,
-              popupLeads: Number.isFinite(persistedLeads) ? persistedLeads : 0,
+              popupLeads: unreadLeadCount(leadsPayload.notificationIds ?? []),
             });
           }
         })
@@ -603,10 +602,18 @@ export function AdminConsole() {
     refreshBadges();
     const interval = window.setInterval(refreshBadges, 20000);
     window.addEventListener("sherise-admin-orders-updated", refreshBadges);
+    window.addEventListener(leadsSeenEvent, refreshBadges);
+    window.addEventListener("sherise-popup-leads-updated", refreshBadges);
+    window.addEventListener("storage", refreshBadges);
+    window.addEventListener("focus", refreshBadges);
     return () => {
       cancelled = true;
       window.clearInterval(interval);
       window.removeEventListener("sherise-admin-orders-updated", refreshBadges);
+      window.removeEventListener(leadsSeenEvent, refreshBadges);
+      window.removeEventListener("sherise-popup-leads-updated", refreshBadges);
+      window.removeEventListener("storage", refreshBadges);
+      window.removeEventListener("focus", refreshBadges);
     };
   }, [authenticated, isKnownSection, navigate, pathname]);
 
@@ -971,6 +978,9 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
         if (!cancelled) {
           setLiveConfig(payload);
           setConnectionError("");
+          if (section === "popup-leads" && document.visibilityState === "visible") {
+            markLeadsSeen(payload.notificationIds ?? []);
+          }
         }
       })
       .catch((error: unknown) => {

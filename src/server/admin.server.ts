@@ -23,6 +23,7 @@ import {
 } from "./content.server";
 
 type ModulePayload = {
+  notificationIds?: string[];
   title: string;
   action: string;
   columns: string[];
@@ -1049,6 +1050,7 @@ function popupLeadsPayload(): ModulePayload {
 
   return {
     title: "Pop-up Leads",
+    notificationIds: leads.map((lead) => `sqlite:${lead.id}`),
     action: "Add Lead",
     columns: ["Name", "Mobile", "Email", "Interested In", "Message", "Date", "Source", "Status"],
     rows: rows.length

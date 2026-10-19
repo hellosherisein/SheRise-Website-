@@ -19,7 +19,7 @@ const pool = {
     assert.match(sql, /INSERT INTO popup_leads \(name, mobile, email, interested_product_text, message, source\)/);
     if (failInsert) throw new Error("Simulated database write failure");
     const [name, mobile, email, interested_product_text, message, source] = params;
-    leads.push({ name, mobile, email, interested_product_text, message, source,
+    leads.push({ id: leads.length + 1, name, mobile, email, interested_product_text, message, source,
       status: "NEW", submitted_at: new Date("2026-10-15T10:00:00Z"), deleted_at: null });
     return [{ insertId: leads.length, affectedRows: 1 }];
   },
@@ -54,12 +54,14 @@ function submit(body, raw = false) {
 assert.equal((await list(false)).statusCode, 401);
 assert.equal(reads, 0, "Lead data must require admin authentication");
 assert.deepEqual((await list()).payload.rows, []);
+assert.deepEqual((await list()).payload.notificationIds, []);
 let response = await submit(input);
 assert.equal(response.status, 201);
 assert.equal((await response.json()).ok, true);
 let result = await list();
 assert.equal(result.statusCode, 200);
 assert.equal(result.payload.source, "mysql");
+assert.deepEqual(result.payload.notificationIds, ["mysql:1"]);
 assert.deepEqual(result.payload.rows, [[input.name, input.mobile, input.email, input.interestedIn, input.message, "2026-10-15", input.source, "NEW"]]);
 assert.equal(result.payload.metrics[0].value, "1");
 assert.equal(result.payload.metrics[1].value, "1");
@@ -69,6 +71,7 @@ assert.equal(leads[1].email, null);
 assert.equal(leads[1].interested_product_text, "Sanitary Pads");
 leads[0].deleted_at = new Date();
 assert.equal((await list()).payload.rows.length, 1);
+assert.deepEqual((await list()).payload.notificationIds, ["mysql:2"], "Notifications must identify surviving records after deletion");
 for (const invalid of [null, [], {}, { ...input, mobile: "invalid" }, { ...input, email: "invalid" }]) {
   assert.equal((await submit(invalid)).status, 400);
 }

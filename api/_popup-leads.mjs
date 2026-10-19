@@ -1,11 +1,12 @@
 export async function popupLeadsPayload(queryRows) {
   const leads = await queryRows(`
-    SELECT name, mobile, email, interested_product_text, message, submitted_at, source, status
+    SELECT id, name, mobile, email, interested_product_text, message, submitted_at, source, status
     FROM popup_leads WHERE deleted_at IS NULL ORDER BY submitted_at DESC, id DESC
   `);
   const newCount = leads.filter((lead) => lead.status === "NEW").length;
   return {
     title: "Pop-up Leads",
+    notificationIds: leads.map((lead) => `mysql:${lead.id}`),
     action: "Add Lead",
     columns: ["Name", "Mobile", "Email", "Interested In", "Message", "Date", "Source", "Status"],
     rows: leads.map((lead) => [
