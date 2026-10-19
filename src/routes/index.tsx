@@ -89,7 +89,7 @@ function Home() {
             For the slow mornings. The big days. And everything in between. Thoughtful period care
             that moves with you.
           </p>
-          <div className="flex flex-wrap gap-3">
+          <div className="grid w-full max-w-md grid-cols-1 gap-3 sm:grid-cols-2 [&>a]:w-full [&>a]:justify-center">
             <Action to="/shop">SHOP NOW</Action>
             <Action to="/why-sherise" outline>
               EXPLORE SHERISE
