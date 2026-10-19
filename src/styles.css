@@ -175,6 +175,13 @@
     background-repeat: repeat-y;
     opacity: 0.1;
   }
+  @media (max-width: 639px) {
+    body::before {
+      background-size: 135% auto;
+      background-position: center 110px;
+      opacity: 0.2;
+    }
+  }
   h1,
   h2,
   h3 {
