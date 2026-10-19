@@ -18,6 +18,7 @@
     "test:reviews": "node scripts/verify-reviews.mjs",
     "test:review-photos": "node scripts/verify-review-photos.mjs",
     "test:popup-leads": "node scripts/verify-popup-leads.mjs",
+    "test:enquiries": "node scripts/verify-enquiries.mjs",
     "test:blogs": "node scripts/verify-blogs.mjs",
     "test:blog-images": "node scripts/verify-blog-images.mjs",
     "test:newsletter": "node scripts/verify-newsletter.mjs",

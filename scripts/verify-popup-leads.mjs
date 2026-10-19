@@ -60,7 +60,7 @@ assert.equal((await response.json()).ok, true);
 let result = await list();
 assert.equal(result.statusCode, 200);
 assert.equal(result.payload.source, "mysql");
-assert.deepEqual(result.payload.rows, [[input.name, input.mobile, input.email, input.interestedIn, input.message, "2026-10-15", "NEW"]]);
+assert.deepEqual(result.payload.rows, [[input.name, input.mobile, input.email, input.interestedIn, input.message, "2026-10-15", input.source, "NEW"]]);
 assert.equal(result.payload.metrics[0].value, "1");
 assert.equal(result.payload.metrics[1].value, "1");
 assert.equal(leads[0].source, "Website popup");
@@ -79,11 +79,21 @@ for (const mobile of ["999999999", "99999999999", "999999999999999", "+919876543
 }
 assert.equal((await submit("{broken-json", true)).status, 400);
 assert.equal(leads.length, 2, "Invalid requests must not persist leads");
+const contact = { ...input, mobile: "", interestedIn: "Order or delivery support", source: "Contact form" };
+response = await submit(contact);
+assert.equal(response.status, 201);
+assert.equal(leads[2].source, "Contact form");
+assert.equal(leads[2].mobile, "");
+assert.deepEqual((await list()).payload.rows[0], [contact.name, "-", contact.email, contact.interestedIn, contact.message, "2026-10-15", "Contact form", "NEW"]);
+for (const invalid of [{ ...contact, email: "" }, { ...contact, message: "short" }, { ...contact, mobile: "123" }]) {
+  assert.equal((await submit(invalid)).status, 400);
+}
+assert.equal(leads.length, 3, "Invalid contact requests must not persist leads");
 failInsert = true;
 response = await submit(input);
 assert.equal(response.status, 500);
 assert.equal((await response.json()).error, "Could not save lead.");
-assert.equal(leads.length, 2, "Failed writes must not report success");
+assert.equal(leads.length, 3, "Failed writes must not report success");
 assert.equal((await handlePopupLeadRequest(new Request("http://test/api/popup-leads"))).status, 405);
 delete globalThis.__popupLeadsTestPool;
 console.log("PASS: popup persistence, authenticated admin listing, all enquiry fields, counts, validation, deleted filtering, and failure handling.");

@@ -26,11 +26,14 @@ export async function handlePopupLeadRequest(request: Request): Promise<Response
       email: cleanText(body["email"], 254),
       interestedIn: cleanText(body["interestedIn"], 120) || "Sanitary Pads",
       message: cleanText(body["message"], 1000),
-      source: cleanText(body["source"], 80) || "Website popup",
+      source: body["source"] === "Contact form" ? "Contact form" : "Website popup",
       createdAt: new Date().toISOString(),
     };
-    if (!lead.name || !lead.mobile) return json({ error: "Name and phone number are required." }, 400);
-    if (!/^[0-9]{10}$/.test(lead.mobile)) return json({ error: "Enter a valid 10-digit mobile number." }, 400);
+    if (!lead.name || (lead.source === "Website popup" && !lead.mobile)) return json({ error: "Name and phone number are required." }, 400);
+    if (lead.mobile && !/^[0-9]{10}$/.test(lead.mobile)) return json({ error: "Enter a valid 10-digit mobile number." }, 400);
+    if (lead.source === "Contact form" && (!lead.email || lead.message.length < 10)) {
+      return json({ error: "Email and a message of at least 10 characters are required." }, 400);
+    }
     if (lead.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lead.email)) return json({ error: "Enter a valid email address." }, 400);
 
     if (process.env["MYSQL_HOST"] && process.env["MYSQL_USER"] && process.env["MYSQL_DATABASE"]) {

@@ -1042,6 +1042,7 @@ function popupLeadsPayload(): ModulePayload {
       lead.interestedIn || "Sanitary Pads",
       lead.message || "-",
       (lead.createdAt || row.created_at).slice(0, 10),
+      lead.source || "Website popup",
       "NEW",
     ];
   });
@@ -1049,14 +1050,14 @@ function popupLeadsPayload(): ModulePayload {
   return {
     title: "Pop-up Leads",
     action: "Add Lead",
-    columns: ["Name", "Mobile", "Email", "Interested In", "Message", "Date", "Status"],
+    columns: ["Name", "Mobile", "Email", "Interested In", "Message", "Date", "Source", "Status"],
     rows: rows.length
       ? rows
-      : [["No popup leads yet", "Website popup", "Submit enquiry form", "Pending", "-", "-", "PENDING"]],
+      : [["No enquiries yet", "-", "-", "-", "-", "-", "Website", "PENDING"]],
     metrics: [
       { label: "Persisted Leads", value: String(rows.length), trend: rows.length ? "Stored in SQLite" : "Waiting for submissions", tone: rows.length ? "up" : "neutral" },
-      { label: "New Leads", value: String(rows.length), trend: "Popup enquiries", tone: rows.length ? "warn" : "neutral" },
-      { label: "Source", value: "Popup", trend: "Website open modal", tone: "up" },
+      { label: "New Leads", value: String(rows.length), trend: "Website enquiries", tone: rows.length ? "warn" : "neutral" },
+      { label: "Source", value: "Website", trend: "Contact and popup forms", tone: "up" },
       { label: "Storage", value: "On", trend: "Admin visible", tone: "up" },
     ],
     source: "sqlite",

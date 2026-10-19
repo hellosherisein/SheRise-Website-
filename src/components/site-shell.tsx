@@ -36,6 +36,7 @@ import { useStore, cartKey, readLocal, saveLocal } from "@/lib/store";
 import popupImage from "@/assets/sherise-flatlay.jpg";
 
 import { siteConfig } from "@/lib/site-config";
+import { createEnquirySubmitter } from "@/lib/enquiries";
 const nav = [
   { label: "Home", to: "/" },
   { label: "Shop", to: "/shop" },
@@ -462,6 +463,7 @@ export function WelcomePopup() {
   const [open, setOpen] = useState(false);
   const [leadSaving, setLeadSaving] = useState(false);
   const [leadError, setLeadError] = useState("");
+  const [submitEnquiry] = useState(() => createEnquirySubmitter());
   const seenKey = "sherise-welcome-popup-seen";
 
   const closePopup = () => {
@@ -526,25 +528,15 @@ export function WelcomePopup() {
                 email: String(formData.get("email") ?? ""),
                 interestedIn: String(formData.get("interestedIn") ?? ""),
                 message: String(formData.get("message") ?? ""),
-                source: "Website popup",
-                createdAt: new Date().toISOString(),
+                source: "Website popup" as const,
               };
               setLeadSaving(true);
               setLeadError("");
               try {
-                const response = await fetch("/api/popup-leads", {
-                  method: "POST",
-                  headers: { "content-type": "application/json" },
-                  body: JSON.stringify(lead),
-                });
-                if (!response.ok) {
-                  const payload = await response.json();
-                  throw new Error(payload.error || "Could not send your enquiry. Please try again.");
-                }
-                window.dispatchEvent(new Event("sherise-popup-leads-updated"));
+                await submitEnquiry(lead);
                 closePopup();
-              } catch {
-                setLeadError("Could not send your enquiry. Please try again.");
+              } catch (error) {
+                setLeadError(error instanceof Error ? error.message : "Could not send your enquiry. Please try again.");
               } finally {
                 setLeadSaving(false);
               }

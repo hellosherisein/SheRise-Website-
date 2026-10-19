@@ -1,5 +1,6 @@
 ﻿import { useState } from "react";
 import { Link } from "@/router-shim";
+import { createEnquirySubmitter } from "@/lib/enquiries";
 import {
   Activity,
   Bed,
@@ -275,6 +276,9 @@ function PolicyList({ items }: { items: { q: string; a: string }[] }) {
 }
 export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a: string }[] }) {
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [enquiryError, setEnquiryError] = useState("");
+  const [submitEnquiry] = useState(() => createEnquirySubmitter());
   const faqItems = items || faq;
   return (
     <>
@@ -338,9 +342,30 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
             </div>
             <form
               className="border border-[#eadbd2] bg-white p-6 shadow-sm md:p-8"
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
-                setSent(true);
+                if (sending) return;
+                const form = e.currentTarget;
+                const data = new FormData(form);
+                setSending(true);
+                setSent(false);
+                setEnquiryError("");
+                try {
+                  await submitEnquiry({
+                    name: String(data.get("name") ?? ""),
+                    email: String(data.get("email") ?? ""),
+                    mobile: String(data.get("mobile") ?? ""),
+                    interestedIn: String(data.get("interestedIn") ?? ""),
+                    message: String(data.get("message") ?? ""),
+                    source: "Contact form",
+                  });
+                  setSent(true);
+                  form.reset();
+                } catch (error) {
+                  setEnquiryError(error instanceof Error ? error.message : "Could not send your enquiry. Please try again.");
+                } finally {
+                  setSending(false);
+                }
               }}
             >
               <div className="mb-6">
@@ -353,15 +378,21 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
               <div className="grid gap-5">
                 <label className="field">
                   Name
-                  <input required autoComplete="name" placeholder="Your full name" />
+                  <input name="name" required maxLength={120} autoComplete="name" placeholder="Your full name" />
                 </label>
                 <label className="field">
                   Email
-                  <input required type="email" autoComplete="email" placeholder="you@example.com" />
+                  <input name="email" required type="email" maxLength={254} autoComplete="email" placeholder="you@example.com" />
+                </label>
+                <label className="field">
+                  Phone number (optional)
+                  <input name="mobile" type="tel" minLength={10} maxLength={10} pattern="[0-9]{10}"
+                    inputMode="numeric" autoComplete="tel-national" title="Enter exactly 10 digits, without +91 or spaces."
+                    placeholder="10-digit mobile number" />
                 </label>
                 <label className="field">
                   Topic
-                  <select>
+                  <select name="interestedIn">
                     <option>Help me choose a pad</option>
                     <option>Flow or size guidance</option>
                     <option>First-time SheRise user</option>
@@ -374,17 +405,18 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                 </label>
                 <label className="field">
                   Your message
-                  <textarea required rows={5} minLength={10} placeholder="Write your message here" />
+                  <textarea name="message" required rows={5} minLength={10} maxLength={1000} placeholder="Write your message here" />
                 </label>
               </div>
               <div className="mt-6 flex flex-wrap items-center gap-4">
-                <Button type="submit" size="lg">
-                  Submit message
+                <Button type="submit" size="lg" disabled={sending}>
+                  {sending ? "Sending..." : "Submit message"}
                 </Button>
                 <p className="text-sm text-muted-foreground" role="status">
-                  {sent ? "Your message is ready. Support email connection can be enabled for live sending." : ""}
+                  {sent ? "Your message has been sent. The SheRise team will get back to you soon." : ""}
                 </p>
               </div>
+              {enquiryError ? <p role="alert" className="mt-3 text-sm text-red-700">{enquiryError}</p> : null}
             </form>
           </section>
         ) : kind === "period-guide" ? (

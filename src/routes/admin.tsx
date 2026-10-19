@@ -3264,7 +3264,7 @@ function PopupLeadDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   if (!lead) return null;
-  const [name, mobile, email, interestedIn, message, date, status] = lead;
+  const [name, mobile, email, interestedIn, message, date, source, status] = lead;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -3274,7 +3274,7 @@ function PopupLeadDialog({
             Enquiry Details
           </DialogTitle>
           <DialogDescription>
-            Lead submitted from the website pop-up form.
+            Lead submitted from the website contact or pop-up form.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 border border-[#eadbd2] bg-[#fffaf6] p-4 text-sm sm:grid-cols-2">
@@ -3282,6 +3282,7 @@ function PopupLeadDialog({
           <PreviewField label="Mobile" value={mobile} />
           <PreviewField label="Email" value={email} />
           <PreviewField label="Interested In" value={interestedIn} />
+          <PreviewField label="Source" value={source} />
           <PreviewField label="Date" value={date} />
           <PreviewField label="Status" value={status} />
         </div>
