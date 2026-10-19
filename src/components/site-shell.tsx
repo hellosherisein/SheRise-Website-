@@ -80,32 +80,7 @@ export function Header() {
             className="hidden min-w-0 items-center justify-center gap-3 xl:flex"
           >
             {nav.map((n) => (
-              n.to === "/shop" ? (
-                <div key={n.to} className="group relative py-7">
-                  <button
-                    type="button"
-                    className={`flex cursor-pointer items-center text-sm font-semibold transition-colors hover:text-brand-coral ${
-                      path === "/shop" || path.startsWith("/category/")
-                        ? "text-brand-coral"
-                        : ""
-                    }`}
-                  >
-                    Shop <ChevronDown className="ml-1 size-3 transition-transform group-hover:rotate-180 group-focus-within:rotate-180" />
-                  </button>
-                  <div className="absolute left-0 top-[70px] hidden w-56 gap-1 border bg-background p-4 shadow-lg group-hover:grid group-focus-within:grid">
-                    <Link className="p-3 hover:bg-brand-blush" to="/shop">
-                      All essentials
-                    </Link>
-                    <Link
-                      className="p-3 hover:bg-brand-blush"
-                      to="/category/$category"
-                      params={{ category: "sanitary-pads" }}
-                    >
-                      Sanitary Pads
-                    </Link>
-                  </div>
-                </div>
-              ) : n.to === "/period-guide" ? (
+              n.to === "/period-guide" ? (
                 <div key={n.to} className="group relative py-7">
                   <button
                     type="button"
@@ -140,7 +115,7 @@ export function Header() {
                 <Link
                   key={n.to}
                   to={n.to}
-                  className={`relative py-7 text-sm font-semibold transition-colors hover:text-brand-coral ${path === n.to ? "text-brand-coral after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-brand-coral" : ""}`}
+                  className={`relative py-7 text-sm font-semibold transition-colors hover:text-brand-coral ${path === n.to || (n.to === "/shop" && path.startsWith("/category/")) ? "text-brand-coral after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-brand-coral" : ""}`}
                 >
                   {n.label}
                 </Link>
@@ -206,25 +181,7 @@ export function Header() {
           </SheetHeader>
           <nav className="mt-8 grid">
             {nav.map((n) => (
-              n.to === "/shop" ? (
-                <details key={n.to} className="border-b py-4">
-                  <summary className="flex cursor-pointer list-none items-center justify-between font-display text-2xl">
-                    Shop <ChevronDown className="size-5" />
-                  </summary>
-                  <div className="mt-4 grid gap-3 pl-4 text-base">
-                    <Link to="/shop" onClick={() => setMenu(false)}>
-                      All essentials
-                    </Link>
-                    <Link
-                      to="/category/$category"
-                      params={{ category: "sanitary-pads" }}
-                      onClick={() => setMenu(false)}
-                    >
-                      Sanitary Pads
-                    </Link>
-                  </div>
-                </details>
-              ) : n.to === "/period-guide" ? (
+              n.to === "/period-guide" ? (
                 <details key={n.to} className="border-b py-4">
                   <summary className="flex cursor-pointer list-none items-center justify-between font-display text-2xl">
                     Period Care <ChevronDown className="size-5" />
