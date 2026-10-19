@@ -623,7 +623,7 @@ export function AdminConsole() {
 
   if (!authChecked) {
     return (
-      <div className="grid min-h-screen place-items-center bg-[#f7f4f0] text-brand-navy">
+      <div className="grid min-h-screen place-items-center bg-transparent text-brand-navy">
         <p className="font-display text-2xl">Loading admin...</p>
       </div>
     );
@@ -632,7 +632,7 @@ export function AdminConsole() {
   if (!authenticated) return null;
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#f7f4f0] text-brand-navy">
+    <div className="min-h-screen overflow-x-hidden bg-transparent text-brand-navy">
       <div className="grid min-h-screen lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="hidden border-r border-[#eadbd2] bg-[#fffaf6] lg:block">
           <AdminSidebar activePath={pathname} badgeCounts={badgeCounts} />

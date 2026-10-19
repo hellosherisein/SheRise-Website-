@@ -155,12 +155,25 @@
 
   body {
     background-color: var(--color-background);
+    isolation: isolate;
     color: var(--color-foreground);
     font-family: var(--font-sans);
     font-size: 16px;
     line-height: 1.6;
     letter-spacing: 0;
     overflow-x: hidden;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: url("./assets/background.png");
+    background-position: center top;
+    background-size: 100% auto;
+    background-repeat: repeat-y;
+    opacity: 0.1;
   }
   h1,
   h2,
@@ -230,6 +243,78 @@ footer :is(p, li, a, span) {
 .eyebrow-on-dark {
   color: #ffe7e2;
 }
+
+.founder-prose {
+  color: #665c60;
+  line-height: 1.85;
+}
+
+.about-page p:not(.eyebrow) {
+  text-align: justify;
+  text-justify: inter-word;
+}
+
+.founder-prose strong {
+  color: var(--brand-burgundy);
+  font-weight: 600;
+}
+
+.founder-story blockquote {
+  margin-inline: 0;
+}
+
+.founder-vision-band {
+  box-shadow: 0 0 0 100vmax #faeee8;
+  clip-path: inset(0 -100vmax);
+}
+
+.founder-floral-start {
+  left: calc((100% - 100vw) / 2);
+}
+
+.founder-floral-end {
+  right: calc((100% - 100vw) / 2);
+}
+
+@media (min-width: 640px) {
+  .founder-vision-layout {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto repeat(3, auto);
+  }
+
+  .founder-vision-list {
+    grid-row: 2 / span 3;
+    grid-template-rows: subgrid;
+    row-gap: inherit;
+  }
+
+  .founder-vision-list-first { grid-column: 1; }
+  .founder-vision-list-last { grid-column: 2; }
+  .founder-vision-logo { grid-column: 1 / -1; grid-row: 1; }
+}
+
+@media (min-width: 1024px) {
+  .founder-vision-layout {
+    grid-template-columns: minmax(0, 1fr) 220px minmax(0, 1fr);
+    grid-template-rows: repeat(3, minmax(80px, auto));
+  }
+
+  .founder-vision-list { grid-row: 1 / span 3; }
+  .founder-vision-list-last { grid-column: 3; }
+  .founder-vision-logo {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    align-self: center;
+    max-width: none;
+  }
+}
+
+@media (min-width: 1280px) {
+  .founder-vision-layout {
+    grid-template-columns: minmax(0, 1fr) 280px minmax(0, 1fr);
+  }
+}
+
 .hero-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -462,7 +547,7 @@ footer a[aria-label="SheRise home"] span {
 }
 
 .account-background {
-  background: #f7f5f1;
+  background: transparent;
   min-height: 70vh;
 }
 .account-layout {

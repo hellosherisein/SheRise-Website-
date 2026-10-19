@@ -1,6 +1,7 @@
 ﻿import { useState } from "react";
 import { Link } from "@/router-shim";
 import { createEnquirySubmitter } from "@/lib/enquiries";
+import { FounderSection } from "@/components/founder-section";
 import {
   Activity,
   Bed,
@@ -34,6 +35,8 @@ import rollOrFoldImage from "@/assets/period guide/Roll or fold.png";
 import wrapItImage from "@/assets/period guide/Wrap it.png";
 import guideImage from "@/assets/sherise-guide.jpg";
 import story from "@/assets/sherise-story.jpg";
+import philosophyImage from "@/assets/sherise-philosophy.webp";
+import whyPhilosophyImage from "@/assets/why-sherise-philosophy.webp";
 export const faq = [
   {
     q: "How often should I change my sanitary pad?",
@@ -283,7 +286,7 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
   return (
     <>
       <div
-        className={`container-shell ${
+        className={`${kind === "about" ? "about-page " : ""}container-shell ${
           kind === "period-guide" || kind === "why-sherise" || kind === "about" ? "py-8 md:py-10" : policies[kind] ? "pt-8 pb-12 md:pt-10 md:pb-16" : "pt-8 pb-12 md:pt-10 md:pb-16"
         }`}
       >
@@ -773,10 +776,10 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
           <>
             <div className="editorial-grid mb-14">
               <img
-                src={story}
-                alt="Everyday comfort and a moment of pause"
-                width="800"
-                height="800"
+                src={kind === "about" ? philosophyImage : kind === "why-sherise" ? whyPhilosophyImage : story}
+                alt={kind === "about" ? "Women sharing a conversation about SheRise period-care essentials" : kind === "why-sherise" ? "Women gathered for a menstrual-health discussion beneath a tree beside a SheRise philosophy banner" : "Everyday comfort and a moment of pause"}
+                width={kind === "about" ? 1500 : kind === "why-sherise" ? 1400 : 800}
+                height={kind === "about" ? 1000 : kind === "why-sherise" ? 1200 : 800}
               />
               <div className="p-5 md:p-12">
                 {kind === "why-sherise" ? (
@@ -823,12 +826,20 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                         preview collection is a first look at that direction.
                       </p>
                     </div>
-                    <Action to="/shop">Explore SheRise</Action>
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
+                      <Action to="/shop">Explore SheRise</Action>
+                      {kind === "about" && (
+                        <a href="#meet-the-founder" className="inline-flex min-h-11 items-center font-semibold text-brand-burgundy underline underline-offset-8">
+                          Meet our founder
+                        </a>
+                      )}
+                    </div>
                   </>
                 )}
               </div>
             </div>
             <Benefits />
+            {kind === "about" && <FounderSection />}
             {kind === "why-sherise" && (
               <section className="mt-14 overflow-hidden border border-brand-coral/20 bg-brand-blush/60 md:mt-16">
                 <div className="grid gap-0 md:grid-cols-[0.95fr_1.05fr]">

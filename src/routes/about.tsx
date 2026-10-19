@@ -4,8 +4,8 @@ import { seo } from "@/lib/seo";
 export const Route = createFileRoute("/about")({
   head: () =>
     seo(
-      "about",
-      "about â€” explore thoughtful care and the SheRise shopping experience.",
+      "About SheRise | Meet Our Founder",
+      "Meet the founder of SheRise and discover her vision for menstrual dignity, holistic wellness, confidence and women's empowerment.",
       "/about",
       false,
     ),

@@ -40,7 +40,7 @@ function AdminLoginPage() {
   }
 
   return (
-    <div className="grid min-h-screen bg-[#f7f4f0] text-brand-navy lg:grid-cols-[minmax(0,0.9fr)_minmax(430px,0.55fr)]">
+    <div className="grid min-h-screen bg-transparent text-brand-navy lg:grid-cols-[minmax(0,0.9fr)_minmax(430px,0.55fr)]">
       <section className="hidden border-r border-[#eadbd2] bg-[#fffaf6] px-12 py-10 lg:flex lg:flex-col lg:justify-between">
         <div>
           <p className="font-display text-4xl leading-none">
