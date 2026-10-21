@@ -119,8 +119,9 @@ export function FounderVisionPanels() {
       </section>
 
       <section
+        id="vision"
         aria-labelledby="founder-vision"
-        className="founder-vision-band relative isolate bg-[#faeee8] px-6 py-10 sm:px-9 md:py-14 lg:px-12"
+        className="founder-vision-band relative isolate scroll-mt-[74px] bg-[#faeee8] px-6 py-10 sm:px-9 md:py-14 lg:px-12"
       >
         <VisionFlorals className="founder-floral-start pointer-events-none absolute top-0 -z-10 w-28 opacity-45 sm:w-44 lg:w-60" />
         <VisionFlorals className="founder-floral-end pointer-events-none absolute bottom-0 -z-10 w-28 rotate-180 opacity-35 sm:w-40 lg:w-52" />
@@ -181,8 +182,9 @@ export function FounderVisionPanels() {
       </section>
 
       <section
+        id="sherise-welfare-foundation"
         aria-labelledby="founder-impact"
-        className="grid items-start gap-9 border-y border-[#e5d8cf] py-10 md:py-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16"
+        className="grid scroll-mt-[74px] items-start gap-9 border-y border-[#e5d8cf] py-10 md:py-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16"
       >
         <div>
           <p className="eyebrow !mb-4">HER SOCIAL IMPACT</p>

@@ -25,7 +25,7 @@ export function FounderSection({
     <section
       id="meet-the-founder"
       aria-labelledby="founder-heading"
-      className="founder-story mt-14 scroll-mt-28 border-t border-[#e5d8cf] pt-10 md:mt-20 md:pt-12"
+      className="founder-story mt-14 scroll-mt-[74px] border-t border-[#e5d8cf] pt-10 md:mt-20 md:pt-12"
     >
       <div className="grid items-start gap-8 md:grid-cols-[0.85fr_1.15fr] md:gap-9 lg:items-center lg:gap-14">
         <figure className="m-0">

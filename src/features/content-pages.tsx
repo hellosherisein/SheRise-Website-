@@ -781,28 +781,35 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
               <div className="p-5 md:p-12">
                 {kind === "why-sherise" ? (
                   <>
-                    <p className="eyebrow">THE SHERISE PHILOSOPHY</p>
+                    <p className="eyebrow">WHY CHOOSE SHERISE</p>
                     <blockquote className="font-display text-3xl leading-tight text-brand-navy md:text-4xl">
-                      "With every cycle, she releases, renews and RISE."
+                      With every cycle, she releases, renews and rises.
                     </blockquote>
-                    <div className="my-6 space-y-4 text-justify leading-7">
-                      <p>
-                        Menstruation is a beautiful rhythm created by nature. Just like the moon
-                        changes its phases every month, the female body also follows a natural cycle.
-                      </p>
-                      <p>
-                        This cycle shows strength, renewal and the power of creation. It reminds us
-                        that care, rest and self-respect are part of a woman&apos;s natural rhythm.
-                      </p>
-                      <p>
-                        The feminine energy is called <strong>Shakti</strong>, the energy that
-                        creates and sustains life. Menstruation is a reminder of that inner power.
-                      </p>
-                      <p>When we honor this natural process, we honor life itself.</p>
+                    <p className="mt-4 leading-7 text-muted-foreground">
+                      Inspired by the natural rhythm of the body, SheRise celebrates strength,
+                      balance and renewal—with period care designed for everyday comfort.
+                    </p>
+                    <div className="mt-6">
+                      <h2 className="font-display text-2xl text-brand-navy">Comfort in every layer.</h2>
+                      <dl className="mt-3 grid gap-x-6 sm:grid-cols-2">
+                        {[
+                          { title: "Soft Cotton Top Layer", copy: "A soft surface for comfort against your skin." },
+                          { title: "Super Absorbent Core", copy: "Absorbs menstrual flow to help keep you dry." },
+                          { title: "Breathable Back Sheet", copy: "Breathable care for everyday wear." },
+                          { title: "Leak Guard Protection", copy: "Added protection to help guard against leaks." },
+                          { title: "Dry & Comfortable Feel", copy: "Comfort that fits into your daily routine." },
+                          { title: "Individually Wrapped for Hygiene", copy: "Easy to carry and kept wrapped until use." },
+                        ].map(({ title, copy }) => (
+                          <div key={title} className="border-t border-brand-coral/20 py-3">
+                            <dt className="text-sm font-semibold text-brand-navy">{title}</dt>
+                            <dd className="mt-1 text-sm leading-6 text-muted-foreground">{copy}</dd>
+                          </div>
+                        ))}
+                      </dl>
                     </div>
-                    <blockquote className="border-t border-brand-coral/30 pt-5 font-display text-2xl leading-tight text-brand-navy">
-                      "Let us support, respect and celebrate the strength within every woman."
-                    </blockquote>
+                    <div className="mt-6">
+                      <Action to="/shop">Shop SheRise pads</Action>
+                    </div>
                   </>
                 ) : (
                   <>

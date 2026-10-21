@@ -141,6 +141,29 @@ function App() {
     };
   }, [match]);
 
+  useEffect(() => {
+    if (loading || error || (match?.route.loader && loaderData === undefined)) return;
+    const hash = window.location.hash.slice(1);
+    if (!hash) return;
+    let targetId: string;
+    try {
+      targetId = decodeURIComponent(hash);
+    } catch {
+      return;
+    }
+
+    // Cross-page fragments can be visited before React renders their target.
+    const scrollToSection = () => {
+      document.getElementById(targetId)?.scrollIntoView({ block: "start", behavior: "instant" });
+    };
+    const frame = requestAnimationFrame(scrollToSection);
+    window.addEventListener("load", scrollToSection, { once: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("load", scrollToSection);
+    };
+  }, [locationKey, match, loading, loaderData, error]);
+
   if (!match || (error as { status?: number } | undefined)?.status === 404) return <NotFound />;
   const Page = match.route.component;
   const adminPage = window.location.pathname.startsWith("/admin");

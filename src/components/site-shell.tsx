@@ -112,6 +112,26 @@ export function Header() {
                     </Link>
                   </div>
                 </div>
+              ) : n.to === "/about" ? (
+                <div key={n.to} className="group relative py-7">
+                  <Link
+                    to="/about"
+                    className={`flex items-center text-sm font-semibold transition-colors hover:text-brand-coral ${path === "/about" ? "text-brand-coral" : ""}`}
+                  >
+                    About <ChevronDown aria-hidden="true" className="ml-1 size-3 transition-transform group-hover:rotate-180 group-focus-within:rotate-180" />
+                  </Link>
+                  <div className="absolute left-0 top-[70px] hidden w-72 gap-1 border bg-background p-4 shadow-lg group-hover:grid group-focus-within:grid">
+                    <Link className="p-3 hover:bg-brand-blush" to="/about#meet-the-founder">
+                      Meet our founder
+                    </Link>
+                    <Link className="p-3 hover:bg-brand-blush" to="/about#vision">
+                      The SheRise Vision
+                    </Link>
+                    <Link className="p-3 hover:bg-brand-blush" to="/about#sherise-welfare-foundation">
+                      SheRise Welfare Foundation
+                    </Link>
+                  </div>
+                </div>
               ) : (
                 <Link
                   key={n.to}
@@ -205,6 +225,23 @@ export function Header() {
                     </Link>
                     <Link to="/faq" onClick={() => setMenu(false)}>
                       FAQs
+                    </Link>
+                  </div>
+                </details>
+              ) : n.to === "/about" ? (
+                <details key={n.to} className="border-b py-4">
+                  <summary className="flex cursor-pointer list-none items-center justify-between font-display text-2xl">
+                    About <ChevronDown aria-hidden="true" className="size-5" />
+                  </summary>
+                  <div className="mt-4 grid gap-3 pl-4 text-base">
+                    <Link to="/about#meet-the-founder" onClick={() => setMenu(false)}>
+                      Meet our founder
+                    </Link>
+                    <Link to="/about#vision" onClick={() => setMenu(false)}>
+                      The SheRise Vision
+                    </Link>
+                    <Link to="/about#sherise-welfare-foundation" onClick={() => setMenu(false)}>
+                      SheRise Welfare Foundation
                     </Link>
                   </div>
                 </details>
