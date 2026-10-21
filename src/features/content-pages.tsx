@@ -323,19 +323,32 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                 <h2 className="font-display text-3xl leading-tight text-brand-navy">
                   We are here to help you choose with comfort.
                 </h2>
-                <p className="mt-4 text-justify leading-7 text-muted-foreground">
-                  Questions about products, sizing, flow, orders or partnerships? Send your details and the SheRise team will guide you with clear, thoughtful support.
-                </p>
-                <div className="mt-6 grid gap-3 text-sm">
-                  <div className="border border-[#eadbd2] bg-white p-4">
-                    <p className="font-bold uppercase text-brand-burgundy">Product guidance</p>
-                    <p className="mt-1 text-muted-foreground">Pads, pack sizes, comfort and flow selection.</p>
+                <address className="mt-6 text-sm not-italic">
+                  <dl className="grid gap-5">
+                  <div>
+                    <dt className="font-bold uppercase text-brand-burgundy">Address</dt>
+                    <dd className="mt-1 leading-6 text-muted-foreground">
+                      S3 Enterprises, Prabhadevi, Mumbai 400 013
+                    </dd>
                   </div>
-                  <div className="border border-[#eadbd2] bg-white p-4">
-                    <p className="font-bold uppercase text-brand-burgundy">Order support</p>
-                    <p className="mt-1 text-muted-foreground">Shipping, returns, account and checkout help.</p>
+                  <div>
+                    <dt className="font-bold uppercase text-brand-burgundy">Phone</dt>
+                    <dd className="mt-1 leading-6 text-muted-foreground">
+                      <a href="tel:+919594241666" className="underline underline-offset-4 hover:text-brand-burgundy">
+                        +91 95942 41666
+                      </a>
+                    </dd>
                   </div>
-                </div>
+                  <div>
+                    <dt className="font-bold uppercase text-brand-burgundy">Email</dt>
+                    <dd className="mt-1 break-words leading-6 text-muted-foreground">
+                      <a href="mailto:hellosherise.in@gmail.com" className="underline underline-offset-4 hover:text-brand-burgundy">
+                        hellosherise.in@gmail.com
+                      </a>
+                    </dd>
+                  </div>
+                  </dl>
+                </address>
                 <Link to="/faq" className="mt-6 inline-flex font-semibold text-brand-navy underline underline-offset-4">
                   View FAQs
                 </Link>
