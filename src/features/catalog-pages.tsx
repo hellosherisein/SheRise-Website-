@@ -245,7 +245,7 @@ export function Collection({
             </div>
           </div>
           <div
-            className="-mx-5 flex snap-x snap-mandatory gap-5 overflow-x-auto px-5 pb-5 pt-4 md:mx-0 md:px-1 lg:overflow-visible"
+            className="grid min-w-0 gap-4 py-4 sm:grid-cols-3 lg:gap-5"
             aria-label="NGO impact highlights"
           >
             {[
@@ -255,7 +255,7 @@ export function Collection({
             ].map(([title, copy], index) => (
               <article
                 key={title}
-                className={`relative min-h-64 min-w-[82%] snap-center overflow-hidden border border-brand-navy/10 bg-white p-6 shadow-[0_24px_55px_rgba(35,26,112,0.14)] transition-transform sm:min-w-[48%] lg:min-w-0 lg:flex-1 ${
+                className={`relative min-w-0 border border-brand-navy/10 bg-white p-5 shadow-[0_12px_28px_rgba(35,26,112,0.08)] sm:min-h-64 sm:p-4 xl:p-6 ${
                   index === 1 ? "lg:translate-y-8" : "lg:-translate-y-2"
                 }`}
               >
@@ -265,7 +265,7 @@ export function Collection({
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-burgundy">
                   0{index + 1}
                 </p>
-                <h3 className="mt-2 text-2xl text-brand-navy">{title}</h3>
+                <h3 className="mt-2 break-words text-2xl text-brand-navy sm:text-xl xl:text-2xl">{title}</h3>
                 <p className="mt-4 text-sm leading-6 text-muted-foreground">{copy}</p>
               </article>
             ))}
