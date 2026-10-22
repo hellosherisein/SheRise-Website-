@@ -34,6 +34,7 @@ import { Brand } from "@/components/brand";
 import { products, money, type Product } from "@/lib/catalog";
 import { useStore, cartKey, readLocal, saveLocal } from "@/lib/store";
 import popupImage from "@/assets/sherise-flatlay.jpg";
+import welcomePopupImage from "@/assets/pop-up img .png";
 
 import { siteConfig } from "@/lib/site-config";
 import { createEnquirySubmitter } from "@/lib/enquiries";
@@ -535,24 +536,11 @@ export function WelcomePopup() {
         <div className="grid max-h-[84vh] overflow-auto lg:grid-cols-[0.95fr_1fr]">
           <div className="relative min-h-[220px] overflow-hidden bg-brand-cream lg:min-h-[500px]">
             <img
-              src={popupImage}
+              src={welcomePopupImage}
               alt="SheRise period care essentials"
-              className="absolute inset-0 h-full w-full object-cover"
+              className="absolute inset-0 h-full w-full object-contain"
             />
             <div className="absolute inset-0 bg-brand-navy/10" />
-            <div className="relative flex h-full flex-col justify-between p-7 text-brand-navy">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.28em]">SheRise Care</p>
-                <h2 className="mt-2 font-display text-4xl leading-none xl:text-5xl">
-                  A little care.
-                  <br />
-                  A whole lot of you.
-                </h2>
-              </div>
-              <div className="w-fit bg-brand-coral px-5 py-2.5 text-base font-bold uppercase text-white shadow">
-                Find your flow
-              </div>
-            </div>
           </div>
 
           <form
@@ -700,7 +688,7 @@ export function Footer() {
       </div>
       <div className="container-shell border-t border-white/20 py-5 text-center text-xs opacity-70">
         <span className="block">
-          Copyright 2026 All Rights Reserved By SheRise Designed By{" "}
+          Copyright 2026 All Rights Reserved By SheRise Designed and Managed By{" "}
           <a
             href="https://webakoof.com/"
             target="_blank"

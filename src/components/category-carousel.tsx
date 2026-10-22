@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { ArrowLeft, ArrowRight, ArrowUpRight } from "lucide-react";
 import { Link } from "@/router-shim";
-import flatlay from "@/assets/sherise-flatlay.jpg";
-import story from "@/assets/sherise-story.jpg";
+import sanitaryPadsImage from "@/assets/Sanitary Pads.png";
+import comboImage from "@/assets/combo.png";
 
 const collections = [
-  { title: "Sanitary Pads", copy: "Your everyday essentials", image: flatlay, to: "/category/sanitary-pads" },
-  { title: "Day + Night Combos", copy: "A routine that goes with your flow", image: story, to: "/shop?q=combo" },
+  { title: "Sanitary Pads", copy: "Your everyday essentials", image: sanitaryPadsImage, to: "/category/sanitary-pads" },
+  { title: "Day + Night Combos", copy: "A routine that goes with your flow", image: comboImage, to: "/shop?q=combo" },
 ];
 
 export function CategoryCarousel() {

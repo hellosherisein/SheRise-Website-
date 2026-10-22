@@ -1,5 +1,6 @@
 ﻿import { createFileRoute, Link } from "@/router-shim";
 import { useEffect, useState } from "react";
+import useEmblaCarousel from "embla-carousel-react";
 import { ArrowUpRight, Flower2, Droplets, Moon, Star, Sun } from "lucide-react";
 import {
   Action,
@@ -36,6 +37,34 @@ export const Route = createFileRoute("/")({
   component: Home,
 });
 function Home() {
+  const [communityViewport, communityCarousel] = useEmblaCarousel({
+    loop: true,
+    align: "start",
+    breakpoints: { "(min-width: 768px)": { active: false } },
+  });
+  const [communityPaused, setCommunityPaused] = useState(false);
+
+  useEffect(() => {
+    if (!communityCarousel || communityPaused) return;
+    let dragging = false;
+    const startDrag = () => { dragging = true; };
+    const endDrag = () => { dragging = false; };
+    communityCarousel.on("pointerDown", startDrag);
+    communityCarousel.on("pointerUp", endDrag);
+    const timer = window.setInterval(() => {
+      if (!dragging && !document.hidden &&
+        window.matchMedia("(max-width: 767px)").matches &&
+        !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        communityCarousel.scrollNext();
+      }
+    }, 3500);
+    return () => {
+      window.clearInterval(timer);
+      communityCarousel.off("pointerDown", startDrag);
+      communityCarousel.off("pointerUp", endDrag);
+    };
+  }, [communityCarousel, communityPaused]);
+
   const [approvedReviews, setApprovedReviews] = useState<PublicReview[]>([]);
   const [publishedPosts, setPublishedPosts] = useState<BlogPost[]>([]);
   const careTiles = [
@@ -130,17 +159,23 @@ function Home() {
         <span>Release. Renew & Rise.</span>
       </div>
       <section className="container-shell section-space">
-        <SectionHeading eyebrow="YOUR CARE, YOUR WAY" title="A little comfort for every day." />
+        <div className="text-center">
+          <SectionHeading eyebrow="YOUR CARE, YOUR WAY" title="A little comfort for every day." />
+        </div>
         <CategoryCarousel />
       </section>
       <section className="bg-brand-cream">
         <div className="container-shell py-12 md:py-16">
-          <SectionHeading
-            eyebrow="THE EVERYDAY EDIT"
-            title="Made for your flow."
-            copy="Find comfort for every kind of day. Explore our preview collection."
-          />
-          <ProductGrid items={products.slice(0, 4)} />
+          <div className="text-center">
+            <SectionHeading
+              eyebrow="THE EVERYDAY EDIT"
+              title="Made for your flow."
+              copy="Find comfort for every kind of day. Explore our preview collection."
+            />
+          </div>
+          <div className="everyday-products">
+            <ProductGrid items={products.slice(0, 4)} />
+          </div>
           <div className="mt-10 text-center">
             <Action to="/shop" outline>
               SHOP ALL ESSENTIALS
@@ -278,6 +313,7 @@ function Home() {
           title="#RiseWithSheRise"
           copy="Everyday moments. Honest conversations. Care that connects us."
         />
+        <div ref={communityViewport} className="overflow-hidden" role="region" aria-label="SheRise community photos" aria-roledescription="carousel">
         <div className="community-strip">
           {[story, guide, flatlay, hero, guide, story].map((img, i) => (
             <img
@@ -290,6 +326,15 @@ function Home() {
             />
           ))}
         </div>
+        </div>
+        <button
+          type="button"
+          className="mt-2 min-h-11 px-3 text-xs text-brand-navy underline underline-offset-4 md:hidden motion-reduce:hidden"
+          aria-pressed={communityPaused}
+          onClick={() => setCommunityPaused((paused) => !paused)}
+        >
+          {communityPaused ? "Resume slideshow" : "Pause slideshow"}
+        </button>
         <p className="mt-5 text-xs text-muted-foreground">
           Community moodboard · Official social links coming at launch.
         </p>
