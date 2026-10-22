@@ -41,9 +41,9 @@ import { createEnquirySubmitter } from "@/lib/enquiries";
 const nav = [
   { label: "Home", to: "/" },
   { label: "Shop", to: "/shop" },
+  { label: "About", to: "/about" },
   { label: "Why SheRise", to: "/why-sherise" },
   { label: "Period Care", to: "/period-guide" },
-  { label: "About", to: "/about" },
   { label: "Blog", to: "/blog" },
 ] as const;
 export function AnnouncementBar() {
