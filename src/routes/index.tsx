@@ -169,7 +169,6 @@ function Home() {
         <div className="container-shell py-12 md:py-16">
           <div className="text-center">
             <SectionHeading
-              eyebrow="THE EVERYDAY EDIT"
               title="Made for your flow."
               copy="Find comfort for every kind of day. Explore our preview collection."
             />
