@@ -19,8 +19,9 @@ const focusAreas = [
 export function SheRiseInitiative() {
   return (
     <section
+      id="foundation"
       aria-labelledby="initiative-heading"
-      className="mt-14 border-t border-[#e5d8cf] py-9 md:mt-16 md:py-12"
+      className="mt-14 scroll-mt-28 py-9 md:mt-16 md:py-12"
     >
       <div className="grid gap-7 bg-brand-navy px-6 py-8 text-white md:px-9 md:py-10 lg:grid-cols-[0.95fr_1.05fr] lg:gap-16">
         <div>

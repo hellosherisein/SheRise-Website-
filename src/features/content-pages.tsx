@@ -1,5 +1,6 @@
 ﻿import { useState } from "react";
 import { Link } from "@/router-shim";
+import { useEffect, type ReactNode } from "react";
 import { createEnquirySubmitter } from "@/lib/enquiries";
 import { FounderSection } from "@/components/founder-section";
 import { SheRiseInitiative } from "@/components/sherise-initiative";
@@ -24,6 +25,7 @@ import {
   Newsletter,
 } from "@/components/commerce";
 import { Button } from "@/components/ui/button";
+import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/components/ui/carousel";
 import { posts, type BlogPost } from "@/lib/catalog";
 import disposeSafelyImage from "@/assets/period guide/Dispose safely.png";
 import markItImage from "@/assets/period guide/Mark it.png";
@@ -34,7 +36,14 @@ import wellnessTipsImage from "@/assets/WELLNESS TIPS DURING MENSTRUATION.png";
 import story from "@/assets/sherise-story.jpg";
 import menstrualWellnessImage from "@/assets/MENSTRUAL WELLNESS & MINDFUL SELF-CARE.png";
 import philosophyImage from "@/assets/sherise-philosophy.webp";
-import whyPhilosophyImage from "@/assets/why-sherise-philosophy.webp";
+import whyPhilosophyImage from "@/assets/product img why sherise.png";
+import anionStripImage from "@/assets/Anion strip.png";
+import softCottonImage from "@/assets/comfort section cards img/Soft Cotton Top Layer.png";
+import absorbentCoreImage from "@/assets/comfort section cards img/Super Absorbent.png";
+import breathableSheetImage from "@/assets/comfort section cards img/Breathable back sheet.png";
+import leakGuardImage from "@/assets/comfort section cards img/Leak guard protection.png";
+import dryComfortImage from "@/assets/comfort section cards img/dry and comfortable feel.png";
+import wrappedHygieneImage from "@/assets/comfort section cards img/indvidually wrapped for hygiene.png";
 export const faq = [
   {
     q: "How often should I change my sanitary pad?",
@@ -275,6 +284,67 @@ function PolicyList({ items }: { items: { q: string; a: string }[] }) {
     </div>
   );
 }
+function ComfortCarousel({ children }: { children: ReactNode }) {
+  const [api, setApi] = useState<CarouselApi>();
+  const [selected, setSelected] = useState(0);
+  const [count, setCount] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    if (!api) return;
+    const update = () => {
+      setSelected(api.selectedScrollSnap());
+      setCount(api.scrollSnapList().length);
+    };
+    update();
+    api.on("select", update);
+    api.on("reInit", update);
+    return () => {
+      api.off("select", update);
+      api.off("reInit", update);
+    };
+  }, [api]);
+
+  useEffect(() => {
+    if (!api || paused) return;
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const timer = window.setInterval(() => {
+      if (!motion.matches && !document.hidden) api.scrollNext();
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, [api, paused]);
+
+  return (
+    <Carousel
+      id="comfort-carousel"
+      aria-label="Comfort in every layer features"
+      opts={{ align: "start", loop: true }}
+      setApi={setApi}
+      className="mt-10 scroll-mt-28 md:mt-12"
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false);
+      }}
+    >
+      <CarouselContent className="-ml-4">{children}</CarouselContent>
+      <div className="mt-4 flex justify-center gap-0">
+        {Array.from({ length: count }, (_, index) => (
+          <button
+            key={index}
+            type="button"
+            aria-label={`Go to feature ${index + 1}`}
+            aria-current={selected === index ? "true" : undefined}
+            onClick={() => api?.scrollTo(index)}
+            className="flex size-7 items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-navy"
+          >
+            <span className={`h-1.5 rounded-full transition-all ${selected === index ? "w-4 bg-brand-navy" : "w-1.5 bg-brand-navy/25"}`} />
+          </button>
+        ))}
+      </div>
+    </Carousel>
+  );
+}
+
 export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a: string }[] }) {
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
@@ -772,9 +842,9 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
             <div className="editorial-grid mb-14">
               <img
                 src={kind === "about" ? philosophyImage : kind === "why-sherise" ? whyPhilosophyImage : story}
-                alt={kind === "about" ? "Women sharing a conversation about SheRise period-care essentials" : kind === "why-sherise" ? "Women gathered for a menstrual-health discussion beneath a tree beside a SheRise philosophy banner" : "Everyday comfort and a moment of pause"}
-                width={kind === "about" ? 1500 : kind === "why-sherise" ? 1400 : 800}
-                height={kind === "about" ? 1000 : kind === "why-sherise" ? 1200 : 800}
+                alt={kind === "about" ? "Women sharing a conversation about SheRise period-care essentials" : kind === "why-sherise" ? "SheRise sanitary pads, pink packaging and individually wrapped pads on a table" : "Everyday comfort and a moment of pause"}
+                width={kind === "about" ? 1500 : kind === "why-sherise" ? 1407 : 800}
+                height={kind === "about" ? 1000 : kind === "why-sherise" ? 768 : 800}
               />
               <div className="p-5 md:p-12">
                 {kind === "why-sherise" ? (
@@ -782,27 +852,23 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                     <h2 className="font-display text-3xl leading-tight text-brand-navy md:text-4xl">
                       Why choose <span className="text-brand-coral">SheRise</span>
                     </h2>
-                    <p className="mt-4 leading-7 text-muted-foreground">
-                      Inspired by the natural rhythm of the body, SheRise celebrates strength,
-                      balance and renewal—with period care designed for everyday comfort.
-                    </p>
-                    <div className="mt-6">
-                      <h2 className="font-display text-2xl text-brand-navy">Comfort in every layer.</h2>
-                      <dl className="mt-3 grid gap-x-6 sm:grid-cols-2">
-                        {[
-                          { title: "Soft Cotton Top Layer", copy: "A soft surface for comfort against your skin." },
-                          { title: "Super Absorbent Core", copy: "Absorbs menstrual flow to help keep you dry." },
-                          { title: "Breathable Back Sheet", copy: "Breathable care for everyday wear." },
-                          { title: "Leak Guard Protection", copy: "Added protection to help guard against leaks." },
-                          { title: "Dry & Comfortable Feel", copy: "Comfort that fits into your daily routine." },
-                          { title: "Individually Wrapped for Hygiene", copy: "Easy to carry and kept wrapped until use." },
-                        ].map(({ title, copy }) => (
-                          <div key={title} className="border-t border-brand-coral/20 py-3">
-                            <dt className="text-sm font-semibold text-brand-navy">{title}</dt>
-                            <dd className="mt-1 text-sm leading-6 text-muted-foreground">{copy}</dd>
-                          </div>
-                        ))}
-                      </dl>
+                    <div className="mt-5 space-y-4 text-justify leading-7 text-muted-foreground">
+                      <p>
+                        From busy mornings to slower evenings, your period care should fit into your
+                        life. SheRise brings together a soft cotton top layer, an absorbent core and
+                        a breathable back sheet to help you feel comfortable through your daily routine.
+                      </p>
+                      <p>
+                        A soft feel against your skin and added leak guards give you practical reasons
+                        to choose SheRise. Different sizes and pack options let you pick what suits
+                        your flow, while individual wrappers make it easy to keep a spare in your bag
+                        for work, college or days out.
+                      </p>
+                      <p>
+                        Whether you are choosing your first pack or stocking up for your next cycle,
+                        explore the product details to find your fit. Choose SheRise for thoughtful
+                        essentials that put everyday comfort and convenience first.
+                      </p>
                     </div>
                     <div className="mt-6">
                       <Action to="/shop">Shop SheRise pads</Action>
@@ -836,9 +902,78 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                 )}
               </div>
             </div>
+            {kind === "why-sherise" && (
+              <section
+                id="product-features"
+                aria-labelledby="comfort-heading"
+                className="mb-14 scroll-mt-28 pt-8 md:pt-12"
+              >
+                <h2 id="comfort-heading" className="text-center font-display text-3xl text-brand-navy md:text-4xl">
+                  Product <span className="text-brand-coral">Features</span>
+                </h2>
+                <ComfortCarousel>
+                  {[
+                    { title: "Soft Cotton Top Layer", copy: "A soft surface for comfort against your skin.", image: softCottonImage, alt: "Soft cotton top layer" },
+                    { title: "Super Absorbent Core", copy: "Absorbs menstrual flow to help keep you dry.", image: absorbentCoreImage, alt: "Super absorbent core" },
+                    { title: "Breathable Back Sheet", copy: "Breathable care for everyday wear.", image: breathableSheetImage, alt: "Breathable back sheet" },
+                    { title: "Leak Guard Protection", copy: "Added protection to help guard against leaks.", image: leakGuardImage, alt: "Leak guard protection" },
+                    { title: "Dry & Comfortable Feel", copy: "Comfort that fits into your daily routine.", image: dryComfortImage, alt: "Dry and comfortable everyday care" },
+                    { title: "Individually Wrapped for Hygiene", copy: "Easy to carry and kept wrapped until use.", image: wrappedHygieneImage, alt: "Individually wrapped pads for hygiene" },
+                  ].map(({ title, image, alt }) => (
+                    <CarouselItem key={title} className="basis-[85%] pl-4 sm:basis-1/2 lg:basis-1/3 xl:basis-1/4">
+                    <article className="h-full overflow-hidden rounded-none border border-brand-coral/15 bg-white">
+                      <img
+                        src={image}
+                        alt={alt}
+                        width={432}
+                        height={360}
+                        loading="lazy"
+                        className="aspect-[4/3] w-full object-cover"
+                      />
+                    </article>
+                    </CarouselItem>
+                  ))}
+                </ComfortCarousel>
+              </section>
+            )}
             <Benefits />
             {kind === "about" && <FounderSection />}
-            {kind === "why-sherise" && <SheRiseInitiative />}
+            {kind === "why-sherise" && (
+              <>
+                <section id="anion-strip" className="mt-12 grid scroll-mt-28 items-center gap-8 border-y border-brand-coral/20 py-8 md:grid-cols-2 md:gap-12">
+                  <img
+                    src={anionStripImage}
+                    alt="SheRise sanitary pad with a visible anion strip alongside its packaging"
+                    width={432}
+                    height={360}
+                    loading="lazy"
+                    className="mx-auto h-auto w-full max-w-lg rounded-none md:order-2"
+                  />
+                  <div>
+                    <h2 className="font-display text-3xl text-brand-navy">
+                      Thoughtful care with an <span className="text-brand-coral">Anion Strip</span>
+                    </h2>
+                    <div className="mt-4 max-w-3xl space-y-4 text-justify leading-7 text-muted-foreground">
+                      <p>
+                        Selected SheRise pads feature an Anion Strip as part of their layered
+                        design—bringing an extra detail to your everyday period care.
+                      </p>
+                      <ul className="space-y-3 text-left">
+                        <li><strong className="text-brand-navy">Soft Comfort:</strong> A soft cotton top layer for a gentle feel against your skin.</li>
+                        <li><strong className="text-brand-navy">Everyday Dryness:</strong> An absorbent core helps manage menstrual flow.</li>
+                        <li><strong className="text-brand-navy">Breathable Care:</strong> A breathable back sheet supports everyday comfort.</li>
+                        <li><strong className="text-brand-navy">Hygiene on the Go:</strong> Individually wrapped pads stay covered until you need them.</li>
+                      </ul>
+                      <p className="italic text-brand-navy">
+                        Because true comfort is in every thoughtful detail.
+                      </p>
+                    </div>
+                    <div className="mt-5"><Action to="/shop">Explore our pads</Action></div>
+                  </div>
+                </section>
+                <SheRiseInitiative />
+              </>
+            )}
           </>
         )}
       </div>
