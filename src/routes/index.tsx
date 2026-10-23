@@ -149,18 +149,19 @@ function Home() {
           </div>
         </div>
       </section>
-      <div className="brand-ribbon">
-        <span>Made for your everyday</span>
-        <Flower2 />
-        <span>Care without the complicated</span>
-        <Flower2 />
-        <span>Room to be you</span>
-        <Flower2 />
-        <span>Release. Renew & Rise.</span>
+      <div className="ngo-ribbon" tabIndex={0} role="region" aria-label="SheRise NGO initiative">
+        <div className="ngo-ribbon-track">
+          {[0, 1].map((copy) => (
+            <div key={copy} className="ngo-ribbon-message" aria-hidden={copy === 1 ? true : undefined}>
+              <Flower2 aria-hidden="true" />
+              <span>Together with NGO initiatives, SheRise supports menstrual health awareness, dignity and confidence for girls and women.</span>
+            </div>
+          ))}
+        </div>
       </div>
-      <section className="container-shell section-space">
+      <section className="container-shell section-space pt-10! md:pt-14!">
         <div className="text-center">
-          <SectionHeading eyebrow="YOUR CARE, YOUR WAY" title="A little comfort for every day." />
+          <SectionHeading eyebrow="EVERYDAY ESSENTIALS" title="Your care, your way" />
         </div>
         <CategoryCarousel />
       </section>
@@ -183,9 +184,8 @@ function Home() {
           </div>
         </div>
       </section>
-      <section className="container-shell section-space text-center">
+      <section className="container-shell section-space pt-8! text-center md:pt-10!">
         <SectionHeading
-          eyebrow="LET YOUR BODY LEAD"
           title="Find your perfect flow."
           copy="Every cycle is different. Start with what feels right for you."
         />
@@ -225,21 +225,23 @@ function Home() {
           <Action to="/about">OUR STORY</Action>
         </div>
       </section>
-      <section className="container-shell section-space">
-        <SectionHeading
-          eyebrow="A MORE THOUGHTFUL KIND OF CARE"
-          title="Comfort you can count on."
-        />
+      <section className="container-shell section-space pt-12! md:pt-16!">
+        <h2 className="mb-9 text-center text-3xl text-brand-navy md:text-5xl">
+          A more thoughtful <span className="text-brand-coral">kind of care</span>
+        </h2>
         <Benefits />
       </section>
       <section className="bg-brand-cream">
         <div className="container-shell section-space grid gap-10 md:grid-cols-2">
           <div>
-            <SectionHeading
-              eyebrow="GET TO KNOW YOUR FLOW"
-              title="The right care starts with you."
-              copy="A simple place to start. No complicated rules, just a little guidance."
-            />
+            <div className="mb-9">
+              <h2 className="text-3xl text-brand-navy md:text-5xl">
+                Get to know <span className="text-brand-coral">your flow</span>
+              </h2>
+              <p className="mt-3 text-muted-foreground">
+                A simple place to start. No complicated rules, just a little guidance.
+              </p>
+            </div>
             <Action to="/period-guide" outline>
               VIEW PERIOD GUIDE
             </Action>
@@ -259,17 +261,16 @@ function Home() {
           </ol>
         </div>
       </section>
-      <section className="container-shell section-space">
+      <section className="container-shell section-space pt-8! text-center md:pt-10!">
         <SectionHeading
-          eyebrow="OPEN CONVERSATIONS, ALWAYS"
           title="Let's talk periods."
           copy="Good reads for getting to know yourself a little better."
         />
         <BlogGrid items={publishedPosts} />
       </section>
-      <section className="container-shell pb-16">
+      <section className="container-shell pb-16 text-center">
         <SectionHeading
-          eyebrow={approvedReviews.length ? "VERIFIED CUSTOMER REVIEWS" : "REAL STORIES, WHEN THEY ARRIVE"}
+          eyebrow={approvedReviews.length ? "VERIFIED CUSTOMER REVIEWS" : ""}
           title="The SheRise community"
           copy={
             approvedReviews.length

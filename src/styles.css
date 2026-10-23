@@ -97,7 +97,7 @@
   --brand-navy-foreground: oklch(0.99 0.005 80);
   --brand-blush: oklch(0.94 0.045 22);
   --brand-cream: oklch(0.97 0.018 74);
-  --brand-burgundy: oklch(0.39 0.13 18);
+  --brand-burgundy: var(--brand-coral);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -355,21 +355,52 @@ em {
   color: var(--brand-navy);
   transform: rotate(-3deg);
 }
-.brand-ribbon {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 35px;
-  padding: 22px 16px;
+.ngo-ribbon {
+  overflow: hidden;
+  padding-block: 22px;
   background: var(--brand-navy);
   color: #fff8f0;
-  font-size: 11px;
+  font-size: 16px;
   letter-spacing: 0.07em;
 }
-.brand-ribbon svg {
+.ngo-ribbon-track {
+  display: flex;
+  width: max-content;
+  animation: ngo-ribbon-scroll 32s linear infinite;
+}
+.ngo-ribbon-message {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 16px;
+  padding-inline: 16px;
+  white-space: nowrap;
+}
+.ngo-ribbon svg {
   width: 17px;
   flex-shrink: 0;
   color: #edb9ac;
+}
+.ngo-ribbon:hover .ngo-ribbon-track,
+.ngo-ribbon:focus-within .ngo-ribbon-track {
+  animation-play-state: paused;
+}
+@keyframes ngo-ribbon-scroll {
+  to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ngo-ribbon-track {
+    animation: none;
+    width: 100%;
+    min-width: 0;
+  }
+  .ngo-ribbon-message {
+    flex: 1 1 100%;
+    white-space: normal;
+  }
+  .ngo-ribbon-message[aria-hidden="true"] {
+    display: none;
+  }
 }
 @media (min-width: 1024px) {
   .everyday-products > div {
@@ -507,15 +538,6 @@ footer a[aria-label="SheRise home"] span {
     padding: 18px;
     bottom: 20px;
     left: 20px;
-  }
-  .brand-ribbon {
-    gap: 14px;
-    flex-wrap: wrap;
-    font-size: 9px;
-  }
-  .brand-ribbon span:nth-last-child(-n + 3),
-  .brand-ribbon svg:last-of-type {
-    display: none;
   }
   .category-grid {
     display: flex;
@@ -1186,17 +1208,6 @@ footer a[aria-label="SheRise home"] span {
     line-height: 1.08;
   }
 
-  .brand-ribbon {
-    justify-content: flex-start;
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    scroll-snap-type: x proximity;
-  }
-
-  .brand-ribbon span {
-    flex: 0 0 auto;
-    scroll-snap-align: start;
-  }
 
   .category-tile h3,
   .flow-tile span:first-of-type {

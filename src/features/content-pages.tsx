@@ -437,9 +437,8 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
           <>
             <section id="period-guide-overview" className="scroll-mt-28 grid gap-6 md:grid-cols-[1.05fr_0.95fr] md:gap-8">
               <div className="flex flex-col justify-center">
-                <p className="eyebrow">MENSTRUAL WELLNESS & MINDFUL SELF-CARE</p>
-                <h2 className="font-display text-3xl leading-tight md:text-4xl">
-                  Comfort and calm for your cycle.
+                <h2 className="font-display text-3xl leading-tight text-brand-navy md:text-4xl">
+                  Menstrual wellness &amp; <span className="text-brand-coral">mindful self-care</span>
                 </h2>
                 <div className="mt-6 leading-7 text-muted-foreground">
                   <p className="text-justify">
@@ -484,9 +483,8 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                 />
                 </div>
                 <div className="order-1 self-center py-1 lg:order-2">
-                  <p className="eyebrow">WELLNESS TIPS DURING MENSTRUATION</p>
-                  <h3 className="max-w-lg font-display text-3xl leading-tight md:text-4xl">
-                    Taking care of yourself during your period.
+                  <h3 className="max-w-lg font-display text-3xl leading-tight text-brand-navy md:text-4xl">
+                    Wellness tips <span className="text-brand-coral">during menstruation</span>
                   </h3>
                   <p className="mt-4 max-w-xl leading-7 text-muted-foreground">
                     Some days you may need more rest; other days, your usual routine feels fine.
@@ -781,10 +779,9 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
               <div className="p-5 md:p-12">
                 {kind === "why-sherise" ? (
                   <>
-                    <p className="eyebrow">WHY CHOOSE SHERISE</p>
-                    <blockquote className="font-display text-3xl leading-tight text-brand-navy md:text-4xl">
-                      With every cycle, she releases, renews and rises.
-                    </blockquote>
+                    <h2 className="font-display text-3xl leading-tight text-brand-navy md:text-4xl">
+                      Why choose <span className="text-brand-coral">SheRise</span>
+                    </h2>
                     <p className="mt-4 leading-7 text-muted-foreground">
                       Inspired by the natural rhythm of the body, SheRise celebrates strength,
                       balance and renewal—with period care designed for everyday comfort.
@@ -813,11 +810,8 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                   </>
                 ) : (
                   <>
-                    <p className="eyebrow">THE SHERISE PHILOSOPHY</p>
-                    <h2 className="text-4xl">
-                      Made for the way
-                      <br />
-                      you live.
+                    <h2 className="text-4xl text-brand-navy">
+                      The SheRise <span className="text-brand-coral">philosophy</span>
                     </h2>
                     <div className="my-6 space-y-5 text-justify leading-8">
                       <p>

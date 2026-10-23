@@ -71,18 +71,15 @@ export function FounderVisionPanels() {
       >
         <div className="grid gap-7 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16">
           <div>
-            <p className="eyebrow !mb-4">THE IDEA BEHIND SHERISE</p>
             <h3
               id="founder-journey"
               className="max-w-lg font-display text-4xl leading-[1.12] text-brand-navy lg:text-5xl"
             >
-              A purpose rooted
-              <br />
-              in dignity.
+              The idea behind <span className="text-brand-coral">SheRise</span>
             </h3>
             <ul
               aria-label="Our values"
-              className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold text-brand-burgundy"
+              className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold text-black"
             >
               {["Dignity", "Freedom", "Confidence", "Self-care"].map((value) => (
                 <li key={value}>{value}</li>
@@ -126,17 +123,12 @@ export function FounderVisionPanels() {
         <VisionFlorals className="founder-floral-start pointer-events-none absolute top-0 -z-10 w-28 opacity-45 sm:w-44 lg:w-60" />
         <VisionFlorals className="founder-floral-end pointer-events-none absolute bottom-0 -z-10 w-28 rotate-180 opacity-35 sm:w-40 lg:w-52" />
         <div className="mx-auto max-w-2xl text-center">
-          <p className="eyebrow !mb-3">HER VISION</p>
           <h3
             id="founder-vision"
             className="font-display text-4xl leading-tight text-brand-navy md:text-5xl"
           >
-            The future we&rsquo;re <span className="italic text-brand-burgundy">rooting for.</span>
+            Her <span className="text-brand-coral">vision</span>
           </h3>
-          <p className="mx-auto mt-5 max-w-xl text-[#746168]">
-            A trusted platform for women&rsquo;s wellbeing &mdash; bringing products, education and
-            holistic wellness together.
-          </p>
         </div>
         <div className="founder-vision-layout mt-10 grid gap-x-8 gap-y-8 lg:mt-14 xl:gap-x-10">
           <ul className="founder-vision-list founder-vision-list-first order-2 grid gap-7">
@@ -187,14 +179,11 @@ export function FounderVisionPanels() {
         className="grid scroll-mt-[74px] items-start gap-9 border-y border-[#e5d8cf] py-10 md:py-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16"
       >
         <div>
-          <p className="eyebrow !mb-4">HER SOCIAL IMPACT</p>
           <h3
             id="founder-impact"
             className="max-w-xl font-display text-4xl leading-[1.12] text-brand-navy md:text-5xl"
           >
-            Dignity starts with
-            <br />
-            <span className="text-brand-burgundy">awareness and access.</span>
+            Her <span className="text-brand-coral">social impact</span>
           </h3>
           <p className="founder-prose mt-6 max-w-xl">
             Alongside her entrepreneurial journey, the founder is associated with{" "}

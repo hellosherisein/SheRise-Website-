@@ -517,7 +517,7 @@ export function WelcomePopup() {
       return;
     }
 
-    const id = window.setTimeout(() => setOpen(true), 700);
+    const id = window.setTimeout(() => setOpen(true), 10_000);
     return () => window.clearTimeout(id);
   }, [path]);
 

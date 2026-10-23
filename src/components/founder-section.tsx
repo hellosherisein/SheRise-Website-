@@ -57,14 +57,11 @@ export function FounderSection({
           </figcaption>
         </figure>
         <div>
-          <p className="eyebrow !mb-3">MEET THE FOUNDER</p>
           <h2
             id="founder-heading"
             className="font-display text-4xl leading-[1.1] text-brand-navy lg:text-5xl"
           >
-            Helping every woman
-            <br />
-            <span className="text-brand-burgundy">rise with confidence.</span>
+            Meet the <span className="text-brand-coral">founder</span>
           </h2>
           <p className="founder-prose mt-5">
             A women's wellness advocate and entrepreneur, the founder of <strong>SheRise</strong>{" "}
