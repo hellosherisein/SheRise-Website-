@@ -107,6 +107,7 @@ export async function loadCatalogProducts(): Promise<Product[]> {
     WHERE p.deleted_at IS NULL
       AND c.deleted_at IS NULL
       AND p.status = 'ACTIVE'
+      AND p.slug <> 'sherise-9-count-organic-sanitary-pads'
     ORDER BY p.is_featured DESC, p.created_at DESC, p.id DESC
   `);
 
@@ -167,6 +168,7 @@ export async function loadCatalogProduct(slug: string): Promise<Product | undefi
       WHERE p.deleted_at IS NULL
         AND c.deleted_at IS NULL
         AND p.status = 'ACTIVE'
+        AND p.slug <> 'sherise-9-count-organic-sanitary-pads'
         AND p.slug = ?
       LIMIT 1
     `,

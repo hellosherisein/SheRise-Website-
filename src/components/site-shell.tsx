@@ -616,7 +616,6 @@ export function WelcomePopup() {
               <option>Sanitary Pads</option>
               <option>Period Care Combos</option>
               <option>7 Count Pack</option>
-              <option>9 Count Pack</option>
               <option>20 Count Pack</option>
               <option>Wholesale / Bulk Enquiry</option>
             </select>
