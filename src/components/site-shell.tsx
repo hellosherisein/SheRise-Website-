@@ -38,6 +38,7 @@ import welcomePopupImage from "@/assets/pop-up img .png";
 
 import { siteConfig } from "@/lib/site-config";
 import { createEnquirySubmitter } from "@/lib/enquiries";
+import { whySheRiseLinks } from "@/lib/section-navigation";
 const nav = [
   { label: "Home", to: "/" },
   { label: "Shop", to: "/shop" },
@@ -45,11 +46,6 @@ const nav = [
   { label: "Why SheRise", to: "/why-sherise" },
   { label: "Period Care", to: "/period-guide" },
   { label: "Blog", to: "/blog" },
-] as const;
-const whySheRiseLinks = [
-  { label: "Product Features", to: "/why-sherise#product-features" },
-  { label: "Anion Strip", to: "/why-sherise#anion-strip" },
-  { label: "Foundation", to: "/why-sherise#foundation" },
 ] as const;
 export function AnnouncementBar() {
   const [i, setI] = useState(0);

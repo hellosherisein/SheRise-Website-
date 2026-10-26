@@ -5,6 +5,7 @@ import { Toaster } from "sonner";
 import { CartDrawer, Footer, Header, SearchOverlay, WelcomePopup } from "@/components/site-shell";
 import { AuthProvider } from "@/lib/auth";
 import { StoreProvider } from "@/lib/store";
+import { whySheRiseLinks } from "@/lib/section-navigation";
 import { LoaderDataProvider } from "@/router-shim";
 import "./styles.css";
 
@@ -51,9 +52,10 @@ type RouteConfig = {
 type RouteMatch = {
   route: RouteConfig;
   params: Record<string, string>;
+  sectionId?: string;
 };
 
-const routes: Array<{ pattern: string; route: RouteConfig }> = [
+const routes: Array<{ pattern: string; route: RouteConfig; sectionId?: string }> = [
   { pattern: "/", route: HomeRoute },
   { pattern: "/about", route: AboutRoute },
   { pattern: "/account", route: AccountRoute },
@@ -92,6 +94,11 @@ const routes: Array<{ pattern: string; route: RouteConfig }> = [
   { pattern: "/shop", route: ShopRoute },
   { pattern: "/terms", route: TermsRoute },
   { pattern: "/why-sherise", route: WhySheRiseRoute },
+  ...whySheRiseLinks.map(({ to, sectionId }) => ({
+    pattern: to,
+    route: WhySheRiseRoute,
+    sectionId,
+  })),
   { pattern: "/wishlist", route: WishlistRoute },
 ];
 
@@ -102,7 +109,10 @@ function App() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const sync = () => setLocationKey(getLocationKey());
+    const sync = () => {
+      normalizeLegacySectionUrl();
+      setLocationKey(getLocationKey());
+    };
     window.addEventListener("popstate", sync);
     window.addEventListener("hashchange", sync);
     return () => {
@@ -143,16 +153,18 @@ function App() {
 
   useEffect(() => {
     if (loading || error || (match?.route.loader && loaderData === undefined)) return;
-    const hash = window.location.hash.slice(1);
-    if (!hash) return;
-    let targetId: string;
-    try {
-      targetId = decodeURIComponent(hash);
-    } catch {
-      return;
+    let targetId = match?.sectionId || "";
+    if (!targetId) {
+      const hash = window.location.hash.slice(1);
+      if (!hash) return;
+      try {
+        targetId = decodeURIComponent(hash);
+      } catch {
+        return;
+      }
     }
 
-    // Cross-page fragments can be visited before React renders their target.
+    // Wait for React to render the section on both clean and legacy links.
     const scrollToSection = () => {
       document.getElementById(targetId)?.scrollIntoView({ block: "start", behavior: "instant" });
     };
@@ -211,7 +223,13 @@ function App() {
 function matchRoute(pathname: string): RouteMatch | null {
   for (const candidate of routes) {
     const params = matchPattern(candidate.pattern, pathname);
-    if (params) return { route: candidate.route, params };
+    if (params) {
+      return {
+        route: candidate.route,
+        params,
+        ...(candidate.sectionId ? { sectionId: candidate.sectionId } : {}),
+      };
+    }
   }
   return null;
 }
@@ -242,6 +260,20 @@ function getLocationKey() {
   return `${window.location.pathname}${window.location.search}${window.location.hash}`;
 }
 
+function normalizeLegacySectionUrl() {
+  if (window.location.pathname.replace(/\/$/, "") !== "/why-sherise") return;
+  let sectionId: string;
+  try {
+    sectionId = decodeURIComponent(window.location.hash.slice(1));
+  } catch {
+    return;
+  }
+  const section = whySheRiseLinks.find((link) => link.sectionId === sectionId);
+  if (section) {
+    window.history.replaceState(window.history.state, "", `${section.to}${window.location.search}`);
+  }
+}
+
 function applyHead(match: RouteMatch | null, loaderData: unknown) {
   const result = match?.route.head?.({ loaderData, params: match.params });
   const meta = typeof result === "object" && result && "meta" in result ? result.meta : undefined;
@@ -264,4 +296,5 @@ function NotFound() {
   );
 }
 
+normalizeLegacySectionUrl();
 createRoot(document.getElementById("root")!).render(<App />);
