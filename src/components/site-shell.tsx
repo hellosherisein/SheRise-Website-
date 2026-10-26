@@ -38,6 +38,7 @@ import welcomePopupImage from "@/assets/pop-up img .png";
 
 import { siteConfig } from "@/lib/site-config";
 import { createEnquirySubmitter } from "@/lib/enquiries";
+import { aboutLinks, periodCareLinks, whySheRiseLinks } from "@/lib/section-navigation";
 const nav = [
   { label: "Home", to: "/" },
   { label: "Shop", to: "/shop" },
@@ -45,11 +46,6 @@ const nav = [
   { label: "Why SheRise", to: "/why-sherise" },
   { label: "Period Care", to: "/period-guide" },
   { label: "Blog", to: "/blog" },
-] as const;
-const whySheRiseLinks = [
-  { label: "Product Features", to: "/why-sherise#product-features" },
-  { label: "Anion Strip", to: "/why-sherise#anion-strip" },
-  { label: "Foundation", to: "/why-sherise#foundation" },
 ] as const;
 export function AnnouncementBar() {
   const [i, setI] = useState(0);
@@ -92,27 +88,15 @@ export function Header() {
                   <button
                     type="button"
                     className={`flex cursor-pointer items-center text-sm font-semibold transition-colors hover:text-brand-coral ${
-                      path === "/period-guide" || path === "/faq" ? "text-brand-coral" : ""
+                      path === "/period-guide" || path.startsWith("/period-guide/") || path === "/faq" ? "text-brand-coral" : ""
                     }`}
                   >
                     Period Care <ChevronDown className="ml-1 size-3 transition-transform group-hover:rotate-180 group-focus-within:rotate-180" />
                   </button>
                   <div className="absolute left-0 top-[70px] hidden w-64 gap-1 border bg-background p-4 shadow-lg group-hover:grid group-focus-within:grid">
-                    <Link className="p-3 hover:bg-brand-blush" to="/period-guide#period-guide-overview">
-                      Period Guide Overview
-                    </Link>
-                    <Link className="p-3 hover:bg-brand-blush" to="/period-guide#wellness-tips">
-                      Wellness Tips
-                    </Link>
-                    <Link className="p-3 hover:bg-brand-blush" to="/period-guide#red-dot-method">
-                      Red Dot Disposal
-                    </Link>
-                    <Link className="p-3 hover:bg-brand-blush" to="/period-guide#during-period">
-                      During Your Period
-                    </Link>
-                    <Link className="p-3 hover:bg-brand-blush" to="/period-guide#mindful-self-care">
-                      Mindful Self-Care
-                    </Link>
+                    {periodCareLinks.map((item) => (
+                      <Link key={item.to} className="p-3 hover:bg-brand-blush" to={item.to}>{item.label}</Link>
+                    ))}
                     <Link className="p-3 hover:bg-brand-blush" to="/faq">
                       FAQs
                     </Link>
@@ -120,7 +104,7 @@ export function Header() {
                 </div>
               ) : n.to === "/why-sherise" ? (
                 <div key={n.to} className="group relative py-7">
-                  <Link to={n.to} className={`flex items-center text-sm font-semibold transition-colors hover:text-brand-coral ${path === n.to ? "text-brand-coral" : ""}`}>
+                  <Link to={n.to} className={`flex items-center text-sm font-semibold transition-colors hover:text-brand-coral ${path === n.to || path.startsWith(`${n.to}/`) ? "text-brand-coral" : ""}`}>
                     Why SheRise <ChevronDown aria-hidden="true" className="ml-1 size-3 transition-transform group-hover:rotate-180 group-focus-within:rotate-180" />
                   </Link>
                   <div className="absolute left-0 top-[70px] hidden w-72 gap-1 border bg-background p-4 shadow-lg group-hover:grid group-focus-within:grid">
@@ -133,20 +117,14 @@ export function Header() {
                 <div key={n.to} className="group relative py-7">
                   <Link
                     to="/about"
-                    className={`flex items-center text-sm font-semibold transition-colors hover:text-brand-coral ${path === "/about" ? "text-brand-coral" : ""}`}
+                    className={`flex items-center text-sm font-semibold transition-colors hover:text-brand-coral ${path === "/about" || path.startsWith("/about/") ? "text-brand-coral" : ""}`}
                   >
                     About <ChevronDown aria-hidden="true" className="ml-1 size-3 transition-transform group-hover:rotate-180 group-focus-within:rotate-180" />
                   </Link>
                   <div className="absolute left-0 top-[70px] hidden w-72 gap-1 border bg-background p-4 shadow-lg group-hover:grid group-focus-within:grid">
-                    <Link className="p-3 hover:bg-brand-blush" to="/about#meet-the-founder">
-                      Meet our founder
-                    </Link>
-                    <Link className="p-3 hover:bg-brand-blush" to="/about#vision">
-                      The SheRise Vision
-                    </Link>
-                    <Link className="p-3 hover:bg-brand-blush" to="/about#sherise-welfare-foundation">
-                      SheRise Welfare Foundation
-                    </Link>
+                    {aboutLinks.map((item) => (
+                      <Link key={item.to} className="p-3 hover:bg-brand-blush" to={item.to}>{item.label}</Link>
+                    ))}
                   </div>
                 </div>
               ) : (
@@ -225,21 +203,9 @@ export function Header() {
                     Period Care <ChevronDown className="size-5" />
                   </summary>
                   <div className="mt-4 grid gap-3 pl-4 text-base">
-                    <Link to="/period-guide#period-guide-overview" onClick={() => setMenu(false)}>
-                      Period Guide Overview
-                    </Link>
-                    <Link to="/period-guide#wellness-tips" onClick={() => setMenu(false)}>
-                      Wellness Tips
-                    </Link>
-                    <Link to="/period-guide#red-dot-method" onClick={() => setMenu(false)}>
-                      Red Dot Disposal
-                    </Link>
-                    <Link to="/period-guide#during-period" onClick={() => setMenu(false)}>
-                      During Your Period
-                    </Link>
-                    <Link to="/period-guide#mindful-self-care" onClick={() => setMenu(false)}>
-                      Mindful Self-Care
-                    </Link>
+                    {periodCareLinks.map((item) => (
+                      <Link key={item.to} to={item.to} onClick={() => setMenu(false)}>{item.label}</Link>
+                    ))}
                     <Link to="/faq" onClick={() => setMenu(false)}>
                       FAQs
                     </Link>
@@ -262,15 +228,9 @@ export function Header() {
                     About <ChevronDown aria-hidden="true" className="size-5" />
                   </summary>
                   <div className="mt-4 grid gap-3 pl-4 text-base">
-                    <Link to="/about#meet-the-founder" onClick={() => setMenu(false)}>
-                      Meet our founder
-                    </Link>
-                    <Link to="/about#vision" onClick={() => setMenu(false)}>
-                      The SheRise Vision
-                    </Link>
-                    <Link to="/about#sherise-welfare-foundation" onClick={() => setMenu(false)}>
-                      SheRise Welfare Foundation
-                    </Link>
+                    {aboutLinks.map((item) => (
+                      <Link key={item.to} to={item.to} onClick={() => setMenu(false)}>{item.label}</Link>
+                    ))}
                   </div>
                 </details>
               ) : (
@@ -616,7 +576,6 @@ export function WelcomePopup() {
               <option>Sanitary Pads</option>
               <option>Period Care Combos</option>
               <option>7 Count Pack</option>
-              <option>9 Count Pack</option>
               <option>20 Count Pack</option>
               <option>Wholesale / Bulk Enquiry</option>
             </select>

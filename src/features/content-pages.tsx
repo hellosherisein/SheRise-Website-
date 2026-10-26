@@ -893,9 +893,9 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                     <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
                       <Action to="/shop">Explore SheRise</Action>
                       {kind === "about" && (
-                        <a href="#meet-the-founder" className="inline-flex min-h-11 items-center font-semibold text-brand-burgundy underline underline-offset-8">
+                        <Link to="/about/meet-the-founder" className="inline-flex min-h-11 items-center font-semibold text-brand-burgundy underline underline-offset-8">
                           Meet our founder
-                        </a>
+                        </Link>
                       )}
                     </div>
                   </>
