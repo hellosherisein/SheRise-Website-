@@ -5,7 +5,7 @@ import { Toaster } from "sonner";
 import { CartDrawer, Footer, Header, SearchOverlay, WelcomePopup } from "@/components/site-shell";
 import { AuthProvider } from "@/lib/auth";
 import { StoreProvider } from "@/lib/store";
-import { whySheRiseLinks } from "@/lib/section-navigation";
+import { aboutLinks, periodCareLinks, sectionNavigation, whySheRiseLinks } from "@/lib/section-navigation";
 import { LoaderDataProvider } from "@/router-shim";
 import "./styles.css";
 
@@ -58,6 +58,7 @@ type RouteMatch = {
 const routes: Array<{ pattern: string; route: RouteConfig; sectionId?: string }> = [
   { pattern: "/", route: HomeRoute },
   { pattern: "/about", route: AboutRoute },
+  ...aboutLinks.map(({ to, sectionId }) => ({ pattern: to, route: AboutRoute, sectionId })),
   { pattern: "/account", route: AccountRoute },
   { pattern: "/account/profile", route: AccountProfileRoute },
   { pattern: "/account/orders", route: AccountOrdersRoute },
@@ -84,6 +85,7 @@ const routes: Array<{ pattern: string; route: RouteConfig; sectionId?: string }>
   { pattern: "/order-success", route: OrderSuccessRoute },
   { pattern: "/payment-failed", route: PaymentFailedRoute },
   { pattern: "/period-guide", route: PeriodGuideRoute },
+  ...periodCareLinks.map(({ to, sectionId }) => ({ pattern: to, route: PeriodGuideRoute, sectionId })),
   { pattern: "/privacy-policy", route: PrivacyRoute },
   { pattern: "/products/:slug", route: ProductRoute },
   { pattern: "/register", route: RegisterRoute },
@@ -261,14 +263,16 @@ function getLocationKey() {
 }
 
 function normalizeLegacySectionUrl() {
-  if (window.location.pathname.replace(/\/$/, "") !== "/why-sherise") return;
+  const pathname = window.location.pathname.replace(/\/$/, "");
+  const group = sectionNavigation.find(({ pagePath }) => pagePath === pathname);
+  if (!group) return;
   let sectionId: string;
   try {
     sectionId = decodeURIComponent(window.location.hash.slice(1));
   } catch {
     return;
   }
-  const section = whySheRiseLinks.find((link) => link.sectionId === sectionId);
+  const section = group.links.find((link) => link.sectionId === sectionId);
   if (section) {
     window.history.replaceState(window.history.state, "", `${section.to}${window.location.search}`);
   }
