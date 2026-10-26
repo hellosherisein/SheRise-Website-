@@ -67,7 +67,7 @@ const routes: Array<{ pattern: string; route: RouteConfig }> = [
   { pattern: "/account_/addresses", route: AccountAddressesRoute },
   { pattern: "/account_/security", route: AccountSecurityRoute },
   { pattern: "/account_/wishlist", route: AccountWishlistRoute },
-  { pattern: "/admin/login", route: AdminLoginRoute },
+  { pattern: "/she-rise/admin-login", route: AdminLoginRoute },
   { pattern: "/admin", route: AdminRoute },
   { pattern: "/admin/:section", route: AdminRoute },
   { pattern: "/blog", route: BlogRoute },
