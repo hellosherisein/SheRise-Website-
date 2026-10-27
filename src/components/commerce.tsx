@@ -94,7 +94,7 @@ export function SectionHeading({
 }
 export function ProductGrid({ items = products }: { items?: Product[] }) {
   return (
-    <div className="grid grid-cols-1 gap-y-8 sm:grid-cols-2 sm:gap-x-6 sm:gap-y-10 md:gap-x-8 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-y-8 sm:grid-cols-2 sm:gap-x-10 sm:gap-y-10 md:gap-x-14 lg:grid-cols-4">
       {items.map((p) => (
         <ProductCard key={p.slug} product={p} />
       ))}
