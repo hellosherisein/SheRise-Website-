@@ -139,9 +139,10 @@ function Home() {
             className="h-full w-full object-cover"
           />
           <div className="hero-note">
-            <span className="font-display text-3xl">
-              A little care.
-              <br />A whole lot of you.
+            <span className="font-display text-3xl md:text-4xl">
+              Your cycle.
+              <br />Your comfort.
+              <br />Your confidence.
             </span>
             <span className="mt-3 block text-[10px] uppercase tracking-widest">
               RELEASE. RENEW & RISE.

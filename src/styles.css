@@ -1209,7 +1209,7 @@ footer a[aria-label="SheRise home"] span {
   }
 
   .hero-note .font-display {
-    font-size: 1.55rem;
+    font-size: clamp(1.5rem, 6vw, 2rem);
     line-height: 1.08;
   }
 
