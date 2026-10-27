@@ -92,9 +92,20 @@ export function SectionHeading({
     </div>
   );
 }
-export function ProductGrid({ items = products }: { items?: Product[] }) {
+export function ProductGrid({
+  items = products,
+  layout = "default",
+}: {
+  items?: Product[];
+  layout?: "default" | "shop";
+}) {
+  const gridColumns =
+    layout === "shop"
+      ? "grid-cols-1 md:grid-cols-2"
+      : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
+
   return (
-    <div className="grid grid-cols-1 gap-y-8 sm:grid-cols-2 sm:gap-x-8 sm:gap-y-10 md:gap-x-10 lg:grid-cols-4">
+    <div className={`grid gap-x-10 gap-y-8 sm:gap-y-10 ${gridColumns}`}>
       {items.map((p) => (
         <ProductCard key={p.slug} product={p} />
       ))}

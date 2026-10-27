@@ -197,7 +197,7 @@ export function Collection({
           ) : catalogProducts === null ? (
             <p role="status" className="py-8">Loading products…</p>
           ) : items.length ? (
-            <ProductGrid items={items.slice(0, limit)} />
+            <ProductGrid items={items.slice(0, limit)} layout="shop" />
           ) : (
             <EmptyState
               title="No matches just yet"
