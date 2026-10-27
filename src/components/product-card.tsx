@@ -13,13 +13,7 @@ import { type Product, money } from "@/lib/catalog";
 import { useStore } from "@/lib/store";
 import fallbackProductImage from "@/assets/sherise-flatlay.jpg";
 
-export function ProductCard({
-  product,
-  compactImage = false,
-}: {
-  product: Product;
-  compactImage?: boolean;
-}) {
+export function ProductCard({ product }: { product: Product }) {
   const { wishlist, toggleWish, add, ready, catalogProducts, catalogError, retryCatalog } = useStore();
   const liveProduct = catalogProducts?.find((item) => item.slug === product.slug);
   const p = liveProduct || product;
@@ -51,9 +45,7 @@ export function ProductCard({
 
   return (
     <article className="group relative flex h-full min-w-0 flex-col bg-white">
-      <div
-        className={`relative aspect-square overflow-hidden bg-brand-cream ${compactImage ? "mx-auto w-[88%]" : "w-full"}`}
-      >
+      <div className="relative aspect-square w-full overflow-hidden bg-brand-cream">
         <Link
           to="/products/$slug"
           params={{ slug: p.slug }}
