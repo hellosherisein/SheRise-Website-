@@ -2025,6 +2025,15 @@ function ActionDialog({
             if (saving) return;
             const formData = new FormData(event.currentTarget);
             setSaveError("");
+            if (isProduct) {
+              const imagePayload = [formData.get("imageUrl"), formData.get("imageUrls")]
+                .map((value) => String(value ?? ""))
+                .join("\n");
+              if (new Blob([imagePayload]).size > 4 * 1024 * 1024) {
+                toast.error("Product images are too large to save together. Choose fewer or smaller images.");
+                return;
+              }
+            }
             if (isBlog && ["uploading", "error"].includes(String(formData.get("imageUploadState")))) {
               toast.error(formData.get("imageUploadState") === "uploading" ? "Wait for the blog image upload to finish." : "Retry the image upload or enter an image URL before saving.");
               return;
@@ -2952,9 +2961,13 @@ function ProductFormFields({
             type="hidden"
             name="imageUrls"
             value={orderedGalleryImages
-              .filter((item) => item.url.startsWith("data:image/") || item.url.startsWith("http"))
-              .map((item) => item.url)
-              .join("\n")}
+                .filter(
+                  (item) =>
+                    item.url !== imageUrl &&
+                    (item.url.startsWith("data:image/") || item.url.startsWith("http")),
+                )
+                .map((item) => item.url)
+                .join("\n")}
           />
         </div>
 
