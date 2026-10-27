@@ -318,12 +318,21 @@ export function ProductDetail({ product: p }: { product: Product }) {
     [pack, setPack] = useState(0),
     [qty, setQty] = useState(1),
     [photo, setPhoto] = useState(0),
+    [galleryPaused, setGalleryPaused] = useState(false),
     [zoom, setZoom] = useState(false),
     [pin, setPin] = useState(""),
     [pinMessage, setPinMessage] = useState(""),
     [recent, setRecent] = useState<string[]>([]);
   const variant = p.packOptions[pack]!;
   let touch = 0;
+  useEffect(() => {
+    if (galleryPaused || zoom || p.images.length < 2) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const interval = window.setInterval(() => {
+      setPhoto((current) => (current + 1) % p.images.length);
+    }, 4000);
+    return () => window.clearInterval(interval);
+  }, [galleryPaused, photo, p.images.length, zoom]);
   useEffect(() => {
     try {
       const old = JSON.parse(localStorage.getItem("sherise-recent") || "[]");
@@ -361,6 +370,14 @@ export function ProductDetail({ product: p }: { product: Product }) {
         <div>
           <div
             className="relative bg-brand-blush"
+            onMouseEnter={() => setGalleryPaused(true)}
+            onMouseLeave={() => setGalleryPaused(false)}
+            onFocus={() => setGalleryPaused(true)}
+            onBlur={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                setGalleryPaused(false);
+              }
+            }}
             onTouchStart={(e) => {
               touch = e.changedTouches[0]!.clientX;
             }}
