@@ -45,7 +45,7 @@ export function ProductCard({ product }: { product: Product }) {
 
   return (
     <article className="group relative flex h-full min-w-0 flex-col bg-white">
-      <div className="relative aspect-[4/5] overflow-hidden bg-brand-cream">
+      <div className="relative aspect-square overflow-hidden bg-brand-cream">
         <Link
           to="/products/$slug"
           params={{ slug: p.slug }}
