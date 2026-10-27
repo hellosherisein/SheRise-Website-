@@ -2049,7 +2049,7 @@ function ActionDialog({
                 publishedDate: String(formData.get("publishedDate") ?? ""),
                 slug: String(formData.get("slug") ?? ""),
                 sku: String(formData.get("sku") ?? ""),
-                category: String(formData.get("category") ?? ""),
+                category: formData.getAll("category").map(String).join(","),
                 shortDescription: String(formData.get("shortDescription") ?? ""),
                 description: String(formData.get("description") ?? ""),
                 mrp: String(formData.get("mrp") ?? ""),
@@ -2714,10 +2714,12 @@ function ProductFormFields({
             />
           </label>
           <label className="grid gap-1 text-sm font-medium">
-            Category
+            Categories
             <select
               name="category"
-              defaultValue={initialData?.category || "Sanitary Pads"}
+              multiple
+              size={5}
+              defaultValue={(initialData?.category || "Sanitary Pads").split(",").map((item) => item.trim())}
               className="border border-[#e4d5cc] bg-[#fffaf6] px-3 py-2 outline-none focus:border-brand-coral"
             >
               <option>Sanitary Pads</option>
@@ -2726,6 +2728,9 @@ function ProductFormFields({
               <option>Night / Overnight Pads</option>
               <option>Combo Packs</option>
             </select>
+            <span className="text-xs font-normal text-muted-foreground">
+              Hold Ctrl (Windows) or Command (Mac) to select multiple categories.
+            </span>
           </label>
           <StatusField defaultValue={initialData?.status} includeOutOfStock />
         </div>

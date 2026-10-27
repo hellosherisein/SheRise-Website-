@@ -42,6 +42,7 @@ export default async function handler(req, res) {
     assertAdminRequest(req);
 
     const moduleName = Array.isArray(req.query.module) ? req.query.module[0] : req.query.module;
+    if (moduleName === "categories") await ensureProductSchema();
     if (req.method === "POST" && moduleName === "blogs") {
       const body = await readJsonBody(req);
       if (body.adminAction === "delete") await deleteBlog(executeSql, body);
@@ -196,6 +197,23 @@ async function ensureProductSchema() {
   }
 
   await executeSql("ALTER TABLE product_images MODIFY image_url LONGTEXT NOT NULL");
+  await ensureProductCategoryAssignments();
+}
+
+async function ensureProductCategoryAssignments() {
+  await executeSql(`
+    CREATE TABLE IF NOT EXISTS product_category_assignments (
+      product_id BIGINT UNSIGNED NOT NULL,
+      category_id BIGINT UNSIGNED NOT NULL,
+      sort_order INT NOT NULL DEFAULT 0,
+      PRIMARY KEY (product_id, category_id),
+      KEY idx_product_category_assignments_category (category_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+  await executeSql(`
+    INSERT IGNORE INTO product_category_assignments (product_id, category_id, sort_order)
+    SELECT id, category_id, 0 FROM products WHERE category_id IS NOT NULL
+  `);
 }
 
 async function createProduct(input) {
@@ -203,7 +221,8 @@ async function createProduct(input) {
   if (!name) throw new Error("Product name is required.");
   const slug = slugify(cleanText(input.slug, 220) || name);
   const sku = (cleanText(input.sku, 100) || `SR-${slug.slice(0, 24)}`).toUpperCase();
-  const categoryId = await resolveCategoryId(cleanText(input.category, 150));
+  const categoryIds = await resolveProductCategoryIds(input.category);
+  const categoryId = categoryIds[0];
   const mrp = moneyValue(input.mrp);
   const sellingPrice = moneyValue(input.sellingPrice);
   const discountPercent = mrp > 0 ? Math.max(0, Math.round((1 - sellingPrice / mrp) * 10000) / 100) : 0;
@@ -275,6 +294,7 @@ async function createProduct(input) {
   );
 
   const productId = productResult.insertId;
+  await saveProductCategories(productId, categoryIds);
   await saveProductImages(productId, name, imageUrls);
   await executeSql(
     `
@@ -333,8 +353,11 @@ async function updateProduct(input) {
   const name = cleanText(input.title, 200) || existing.name;
   const slug = slugify(cleanText(input.slug, 220) || existing.slug || name);
   const sku = (cleanText(input.sku, 100) || existing.sku || originalSku).toUpperCase();
-  const categoryText = cleanText(input.category, 150);
-  const categoryId = categoryText ? await resolveCategoryId(categoryText) : Number(existing.category_id);
+  const categoryNames = productCategoryNames(input.category);
+  const categoryIds = categoryNames.length
+    ? await resolveProductCategoryIds(categoryNames)
+    : [Number(existing.category_id)];
+  const categoryId = categoryIds[0];
   const mrp = optionalMoneyValue(input.mrp, Number(existing.mrp));
   const sellingPrice = optionalMoneyValue(input.sellingPrice, Number(existing.selling_price));
   const discountPercent = mrp > 0 ? Math.max(0, Math.round((1 - sellingPrice / mrp) * 10000) / 100) : 0;
@@ -424,6 +447,8 @@ async function updateProduct(input) {
     ],
   );
 
+  await saveProductCategories(productId, categoryIds);
+
   await executeSql(
     "UPDATE inventory SET current_stock = ? WHERE product_id = ? AND inventory_level = 'PRODUCT'",
     [stock, productId],
@@ -480,6 +505,29 @@ async function resolveCategoryId(category) {
   return result.insertId;
 }
 
+function productCategoryNames(value) {
+  const values = Array.isArray(value) ? value : [value];
+  return [...new Set(values.flatMap((item) => String(item ?? "").split(",")).map((item) => item.trim()).filter(Boolean))];
+}
+
+async function resolveProductCategoryIds(value) {
+  const names = productCategoryNames(value);
+  const selectedNames = names.length ? names : ["Sanitary Pads"];
+  const ids = [];
+  for (const name of selectedNames) ids.push(await resolveCategoryId(name));
+  return ids;
+}
+
+async function saveProductCategories(productId, categoryIds) {
+  await executeSql("DELETE FROM product_category_assignments WHERE product_id = ?", [productId]);
+  for (const [index, categoryId] of categoryIds.entries()) {
+    await executeSql(
+      "INSERT INTO product_category_assignments (product_id, category_id, sort_order) VALUES (?, ?, ?)",
+      [productId, categoryId, index],
+    );
+  }
+}
+
 async function replaceProductImages(productId, name, imageUrls) {
   await executeSql("DELETE FROM product_images WHERE product_id = ?", [productId]);
   await saveProductImages(productId, name, imageUrls);
@@ -506,7 +554,12 @@ async function productsPayload() {
       p.name,
       p.slug,
       p.sku,
-      c.name AS category_name,
+      COALESCE((
+        SELECT GROUP_CONCAT(pc.name ORDER BY pca.sort_order, pc.name SEPARATOR ', ')
+        FROM product_category_assignments pca
+        JOIN product_categories pc ON pc.id = pca.category_id
+        WHERE pca.product_id = p.id
+      ), c.name) AS category_name,
       p.selling_price,
       p.mrp,
       p.flow_type,
@@ -572,9 +625,10 @@ async function categoriesPayload() {
       c.seo_description,
       c.sort_order,
       c.status,
-      COUNT(p.id) AS product_count
+      COUNT(DISTINCT p.id) AS product_count
     FROM product_categories c
-    LEFT JOIN products p ON p.category_id = c.id AND p.deleted_at IS NULL
+    LEFT JOIN product_category_assignments pca ON pca.category_id = c.id
+    LEFT JOIN products p ON p.id = pca.product_id AND p.deleted_at IS NULL
     WHERE c.deleted_at IS NULL
     GROUP BY c.id
     ORDER BY c.sort_order ASC, c.name ASC

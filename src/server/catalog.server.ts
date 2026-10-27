@@ -11,6 +11,7 @@ type ProductRow = RowDataPacket & {
   short_description: string | null;
   description: string | null;
   category_name: string | null;
+  category_names: string | null;
   mrp: number | string;
   selling_price: number | string;
   discount_percent: number | string;
@@ -64,6 +65,12 @@ export async function loadCatalogProducts(): Promise<Product[]> {
       p.short_description,
       p.description,
       c.name AS category_name,
+      COALESCE((
+        SELECT GROUP_CONCAT(pc.name ORDER BY pca.sort_order, pc.name SEPARATOR '||')
+        FROM product_category_assignments pca
+        JOIN product_categories pc ON pc.id = pca.category_id
+        WHERE pca.product_id = p.id
+      ), c.name) AS category_names,
       p.mrp,
       p.selling_price,
       p.discount_percent,
@@ -125,6 +132,12 @@ export async function loadCatalogProduct(slug: string): Promise<Product | undefi
         p.short_description,
         p.description,
         c.name AS category_name,
+        COALESCE((
+          SELECT GROUP_CONCAT(pc.name ORDER BY pca.sort_order, pc.name SEPARATOR '||')
+          FROM product_category_assignments pca
+          JOIN product_categories pc ON pc.id = pca.category_id
+          WHERE pca.product_id = p.id
+        ), c.name) AS category_names,
         p.mrp,
         p.selling_price,
         p.discount_percent,
@@ -213,6 +226,19 @@ async function prepareCatalogPackagingColumns() {
       if (!/duplicate column|Duplicate column/i.test(message)) throw error;
     }
   }
+  await executeSql(`
+    CREATE TABLE IF NOT EXISTS product_category_assignments (
+      product_id BIGINT UNSIGNED NOT NULL,
+      category_id BIGINT UNSIGNED NOT NULL,
+      sort_order INT NOT NULL DEFAULT 0,
+      PRIMARY KEY (product_id, category_id),
+      KEY idx_product_category_assignments_category (category_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+  await executeSql(`
+    INSERT IGNORE INTO product_category_assignments (product_id, category_id, sort_order)
+    SELECT id, category_id, 0 FROM products WHERE category_id IS NOT NULL
+  `);
 }
 
 function productRowToProduct(row: ProductRow): Product {
@@ -242,6 +268,7 @@ function productRowToProduct(row: ProductRow): Product {
     shortDescription: row.short_description || row.name,
     description: row.description || row.short_description || row.name,
     category: row.category_name === "Period Care" ? "Period Care" : "Sanitary Pads",
+    categories: (row.category_names || row.category_name || "").split("||").filter(Boolean),
     images: row.image_urls ? row.image_urls.split("||").map(normalizeImagePath).filter(Boolean) : [],
     sizes: isComboOffer ? ["XXL", "XXXL"] : ["XL", "XXL", "XXXL"],
     flow: row.flow_type ? row.flow_type.split(",").map((item) => item.trim()).filter(Boolean) : ["Medium"],

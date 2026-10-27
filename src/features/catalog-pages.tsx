@@ -55,12 +55,12 @@ export function Collection({
   const items = (catalogProducts ?? [])
     .filter(
       (p) =>
-        (!cat || p.category === cat) &&
+        (!cat || p.category === cat || p.categories?.includes(cat)) &&
         (!flow || p.flow.some((value) => value.trim().toLowerCase() === flow.toLowerCase())) &&
         (!size || p.sizes.includes(size)) &&
         p.salePrice <= price &&
         (!stock || p.stock > 0) &&
-        (p.name + " " + p.flow.join(" ") + " " + p.category)
+        (p.name + " " + p.flow.join(" ") + " " + p.category + " " + (p.categories || []).join(" "))
           .toLowerCase()
           .includes(q.toLowerCase()),
     )

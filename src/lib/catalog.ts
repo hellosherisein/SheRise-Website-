@@ -4,7 +4,7 @@ import story from "@/assets/sherise-story.jpg";
 
 export type Product = {
   id: string; slug: string; name: string; shortDescription: string; description: string;
-  category: "Sanitary Pads" | "Period Care"; images: string[]; sizes: string[];
+  category: "Sanitary Pads" | "Period Care"; categories?: string[]; images: string[]; sizes: string[];
   flow: string[]; packOptions: { label: string; price: number; mrp: number; stock: number }[];
   mrp: number; salePrice: number; discount: number; stock: number; sku: string;
   rating?: number; reviewCount?: number; features: string[]; materials: string[];
