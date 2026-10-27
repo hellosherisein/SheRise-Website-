@@ -1673,7 +1673,7 @@ function productRowToFormData(row: string[]): ActionFormData {
     code: row[2] || "",
     status: row[7] || "ACTIVE",
     notes: "",
-    slug: slugFromTitle(row[0] || ""),
+    slug: row[8] || slugFromTitle(row[0] || ""),
     sku: row[2] || "",
     category: row[3] || "Sanitary Pads",
     mrp: "",
@@ -1697,6 +1697,7 @@ function productFormToRow(formData: ActionFormData, fallback: ActionFormData | n
     String(Number.isFinite(stock) ? Math.max(0, stock) : 0),
     displayFlowValues(formData.flow || fallback?.flow || "MEDIUM"),
     stock === 0 ? "OUT OF STOCK" : status,
+    formData.slug || fallback?.slug || slugFromTitle(formData.title || fallback?.title || "Product"),
   ];
 }
 
@@ -3170,7 +3171,7 @@ function DataTable({
               className={onRowClick ? "cursor-pointer transition-colors hover:bg-brand-cream/70" : undefined}
               onClick={() => onRowClick?.(row)}
             >
-              {row.map((cell, index) => (
+              {row.slice(0, columns.length).map((cell, index) => (
                 <td key={`${index}-${cell.slice(0, 24)}`} className={columns[index] === "Image" ? "w-24 py-4 pr-4" : "max-w-[260px] py-4 pr-4 align-middle"}>
                   <TableCellContent cell={cell} column={columns[index] || ""} isFirst={index === 0} onRowClick={Boolean(onRowClick)} />
                 </td>
@@ -3571,7 +3572,7 @@ function statusTone(value: string): Tone {
 }
 
 function downloadCsv(title: string, columns: string[], rows: string[][]) {
-  const csv = [columns, ...rows]
+  const csv = [columns, ...rows.map((row) => row.slice(0, columns.length))]
     .map((row) =>
       row
         .map((cell) => `"${cell.replaceAll('"', '""')}"`)

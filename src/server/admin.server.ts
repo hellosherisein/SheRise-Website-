@@ -201,6 +201,9 @@ export async function handleAdminRequest(_request: Request, module: string): Pro
     return json({ error: "Admin module is not connected yet." }, 404);
   } catch (error) {
     console.error("Admin MySQL API failed:", error instanceof Error ? error.message : error);
+    if ((error as { code?: string })?.code === "ER_DUP_ENTRY") {
+      return json({ error: duplicateEntryMessage(error) }, 409);
+    }
     return json(
       {
         error:
@@ -209,6 +212,19 @@ export async function handleAdminRequest(_request: Request, module: string): Pro
       500,
     );
   }
+}
+
+function duplicateEntryMessage(error: unknown) {
+  const detail = String(
+    (error as { sqlMessage?: string; message?: string })?.sqlMessage ||
+      (error as Error)?.message ||
+      "",
+  );
+  if (/slug/i.test(detail)) {
+    return "Another product already uses this slug. Keep the existing slug or enter a unique one.";
+  }
+  if (/sku/i.test(detail)) return "Another product already uses this SKU. Enter a unique SKU.";
+  return "A unique product value is already in use. Check the product SKU and slug.";
 }
 
 function hasMysqlOrders() {
@@ -809,6 +825,7 @@ async function productsPayload(): Promise<ModulePayload> {
       String(row.stock),
       row.flow_type || "-",
       row.status,
+      row.slug,
     ]),
     metrics: [
       { label: "Total Products", value: String(rows.length), trend: `${draft} draft`, tone: draft ? "warn" : "up" },

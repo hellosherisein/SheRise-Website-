@@ -602,6 +602,7 @@ async function productsPayload() {
       String(row.stock || 0),
       value(row.flow_type, "-"),
       value(row.status, "ACTIVE"),
+      value(row.slug),
     ]),
     metrics: [
       { label: "Total Products", value: String(rows.length), trend: `${draft} draft`, tone: draft ? "warn" : "up" },
