@@ -370,8 +370,6 @@ export function ProductDetail({ product: p }: { product: Product }) {
         <div>
           <div
             className="relative bg-brand-blush"
-            onMouseEnter={() => setGalleryPaused(true)}
-            onMouseLeave={() => setGalleryPaused(false)}
             onFocus={() => setGalleryPaused(true)}
             onBlur={(event) => {
               if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
