@@ -229,20 +229,6 @@ export function Collection({
               information feel approachable, practical and shame-free. The goal is simple: more
               awareness, more dignity and more confidence for girls and women who need it most.
             </p>
-            <div className="mt-7 grid max-w-md grid-cols-2 border-y border-brand-navy/15 py-4">
-              <div>
-                <p className="font-display text-4xl text-brand-burgundy">3</p>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
-                  focus areas
-                </p>
-              </div>
-              <div className="border-l border-brand-navy/15 pl-5">
-                <p className="font-display text-4xl text-brand-burgundy">1</p>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
-                  shared mission
-                </p>
-              </div>
-            </div>
           </div>
           <div
             className="grid min-w-0 gap-4 py-4 sm:grid-cols-3 lg:gap-5"
