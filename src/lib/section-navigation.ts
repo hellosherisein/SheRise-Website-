@@ -1,7 +1,7 @@
 export const whySheRiseLinks = [
-  { label: "Product Features", to: "/why-sherise/product-features", sectionId: "product-features" },
-  { label: "Anion Strip", to: "/why-sherise/anion-strip", sectionId: "anion-strip" },
-  { label: "Foundation", to: "/why-sherise/foundation", sectionId: "foundation" },
+  { label: "Designed for Your Comfort", to: "/why-sherise/product-features", sectionId: "product-features" },
+  { label: "Anion Strip Technology*", to: "/why-sherise/anion-strip", sectionId: "anion-strip" },
+  { label: "Our Social Impact", to: "/why-sherise/foundation", sectionId: "foundation" },
 ] as const;
 
 export const aboutLinks = [

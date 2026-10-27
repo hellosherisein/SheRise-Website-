@@ -909,7 +909,7 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                 className="mb-14 scroll-mt-28 pt-8 md:pt-12"
               >
                 <h2 id="comfort-heading" className="text-center font-display text-3xl text-brand-navy md:text-4xl">
-                  Product <span className="text-brand-coral">Features</span>
+                  Designed for <span className="text-brand-coral">Your Comfort</span>
                 </h2>
                 <ComfortCarousel>
                   {[
@@ -951,7 +951,7 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                   />
                   <div>
                     <h2 className="font-display text-3xl text-brand-navy">
-                      What to know about the <span className="text-brand-coral">Anion Strip</span>
+                      What to know about <span className="text-brand-coral">Anion Strip Technology*</span>
                     </h2>
                     <div className="mt-4 max-w-3xl space-y-4 text-justify [text-justify:inter-word] leading-7 text-muted-foreground">
                       <p>
@@ -963,7 +963,7 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                         We have not verified clinical evidence showing that the strip in SheRise
                         pads provides those effects, so we describe it as a design feature rather
                         than a health benefit. For the pad&apos;s softness, absorbency, breathability,
-                        and individual wrapping, see Product Features above.
+                        and individual wrapping, see Designed for Your Comfort above.
                       </p>
                     </div>
                     <div className="mt-5"><Action to="/shop">Explore our pads</Action></div>
@@ -983,7 +983,7 @@ export function BlogListing({ items = posts }: { items?: BlogPost[] }) {
   return (
     <div className="container-shell section-space">
       <PageHeading
-        title="Let’s talk periods."
+        title="Period & Wellness Journal"
         copy="A thoughtful reading corner for everyday care, routines and getting to know yourself."
       />
       <BlogGrid items={items} />

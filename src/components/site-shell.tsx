@@ -43,9 +43,9 @@ const nav = [
   { label: "Home", to: "/" },
   { label: "Shop", to: "/shop" },
   { label: "About", to: "/about" },
-  { label: "Why SheRise", to: "/why-sherise" },
+  { label: "Why Choose SheRise", to: "/why-sherise" },
   { label: "Period Care", to: "/period-guide" },
-  { label: "Blog", to: "/blog" },
+  { label: "Period & Wellness Journal", to: "/blog" },
 ] as const;
 export function AnnouncementBar() {
   const [i, setI] = useState(0);
@@ -105,7 +105,7 @@ export function Header() {
               ) : n.to === "/why-sherise" ? (
                 <div key={n.to} className="group relative py-7">
                   <Link to={n.to} className={`flex items-center text-sm font-semibold transition-colors hover:text-brand-coral ${path === n.to || path.startsWith(`${n.to}/`) ? "text-brand-coral" : ""}`}>
-                    Why SheRise <ChevronDown aria-hidden="true" className="ml-1 size-3 transition-transform group-hover:rotate-180 group-focus-within:rotate-180" />
+                    Why Choose SheRise <ChevronDown aria-hidden="true" className="ml-1 size-3 transition-transform group-hover:rotate-180 group-focus-within:rotate-180" />
                   </Link>
                   <div className="absolute left-0 top-[70px] hidden w-72 gap-1 border bg-background p-4 shadow-lg group-hover:grid group-focus-within:grid">
                     {whySheRiseLinks.map((item) => (
@@ -214,7 +214,7 @@ export function Header() {
               ) : n.to === "/why-sherise" ? (
                 <details key={n.to} className="border-b py-4">
                   <summary className="flex cursor-pointer list-none items-center justify-between font-display text-2xl">
-                    Why SheRise <ChevronDown aria-hidden="true" className="size-5" />
+                    Why Choose SheRise <ChevronDown aria-hidden="true" className="size-5" />
                   </summary>
                   <div className="mt-4 grid gap-3 pl-4 text-base">
                     {whySheRiseLinks.map((item) => (
@@ -655,9 +655,9 @@ export function Footer() {
           title="Learn"
           links={[
             ["About Us", "/about"],
-            ["Why SheRise", "/why-sherise"],
+            ["Why Choose SheRise", "/why-sherise"],
             ["Period Guide", "/period-guide"],
-            ["Blog", "/blog"],
+            ["Period & Wellness Journal", "/blog"],
             ["FAQs", "/faq"],
           ]}
         />
