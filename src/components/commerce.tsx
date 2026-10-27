@@ -107,7 +107,7 @@ export function ProductGrid({
   return (
     <div className={`grid gap-x-10 gap-y-8 sm:gap-y-10 ${gridColumns}`}>
       {items.map((p) => (
-        <ProductCard key={p.slug} product={p} />
+        <ProductCard key={p.slug} product={p} compactImage={layout === "shop"} />
       ))}
     </div>
   );
