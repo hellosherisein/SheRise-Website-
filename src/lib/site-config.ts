@@ -2,7 +2,7 @@
 export const siteConfig = {
   businessName: "SheRise",
   brandLogo: "/sherise-icon.svg",
-  instagramUrl: "",
+  instagramUrl: "https://www.instagram.com/hellosherise.in/",
   facebookUrl: "",
   supportEmail: "",
   demoMode: true,
