@@ -354,10 +354,13 @@ async function updateProduct(input) {
   const slug = slugify(cleanText(input.slug, 220) || existing.slug || name);
   const sku = (cleanText(input.sku, 100) || existing.sku || originalSku).toUpperCase();
   const categoryNames = productCategoryNames(input.category);
-  const categoryIds = categoryNames.length
+  const selectedCategoryIds = categoryNames.length
     ? await resolveProductCategoryIds(categoryNames)
     : [Number(existing.category_id)];
-  const categoryId = categoryIds[0];
+  const categoryId = selectedCategoryIds.includes(Number(existing.category_id))
+    ? Number(existing.category_id)
+    : selectedCategoryIds[0];
+  const categoryIds = [categoryId, ...selectedCategoryIds.filter((id) => id !== categoryId)];
   const mrp = optionalMoneyValue(input.mrp, Number(existing.mrp));
   const sellingPrice = optionalMoneyValue(input.sellingPrice, Number(existing.selling_price));
   const discountPercent = mrp > 0 ? Math.max(0, Math.round((1 - sellingPrice / mrp) * 10000) / 100) : 0;

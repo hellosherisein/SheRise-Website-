@@ -2614,6 +2614,14 @@ function BlogFormFields({ initialData }: { initialData?: ActionFormData | null }
   );
 }
 
+const productCategoryOptions = [
+  "Sanitary Pads",
+  "Period Care",
+  "Day Pads",
+  "Night / Overnight Pads",
+  "Combo Packs",
+];
+
 function ProductFormFields({
   initialData,
   imagePreview,
@@ -2624,6 +2632,9 @@ function ProductFormFields({
   setImagePreview: (value: string) => void;
 }) {
   const selectedFlow = new Set((initialData?.flow || "").split(",").map((item) => item.trim().toUpperCase()));
+  const selectedCategories = new Set(
+    (initialData?.category || "Sanitary Pads").split(",").map((item) => item.trim()),
+  );
   const [imageUrl, setImageUrl] = useState(initialData?.imageUrl || "");
   const [uploadedFileName, setUploadedFileName] = useState("");
   const [galleryImages, setGalleryImages] = useState<Array<{ url: string; preview: string; name: string }>>([]);
@@ -2713,25 +2724,24 @@ function ProductFormFields({
               placeholder="SR-ANION-20"
             />
           </label>
-          <label className="grid gap-1 text-sm font-medium">
-            Categories
-            <select
-              name="category"
-              multiple
-              size={5}
-              defaultValue={(initialData?.category || "Sanitary Pads").split(",").map((item) => item.trim())}
-              className="border border-[#e4d5cc] bg-[#fffaf6] px-3 py-2 outline-none focus:border-brand-coral"
-            >
-              <option>Sanitary Pads</option>
-              <option>Period Care</option>
-              <option>Day Pads</option>
-              <option>Night / Overnight Pads</option>
-              <option>Combo Packs</option>
-            </select>
+          <fieldset className="grid gap-2 border border-[#e4d5cc] bg-[#fffaf6] p-3 text-sm">
+            <legend className="px-1 font-medium">Categories</legend>
+            {productCategoryOptions.map((category) => (
+              <label key={category} className="flex cursor-pointer items-center gap-2.5 py-1">
+                <input
+                  type="checkbox"
+                  name="category"
+                  value={category}
+                  defaultChecked={selectedCategories.has(category)}
+                  className="size-4 accent-brand-navy"
+                />
+                <span>{category}</span>
+              </label>
+            ))}
             <span className="text-xs font-normal text-muted-foreground">
-              Hold Ctrl (Windows) or Command (Mac) to select multiple categories.
+              Select all categories that apply.
             </span>
-          </label>
+          </fieldset>
           <StatusField defaultValue={initialData?.status} includeOutOfStock />
         </div>
 
