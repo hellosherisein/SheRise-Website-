@@ -43,6 +43,27 @@ export default async function handler(req, res) {
 
     const moduleName = Array.isArray(req.query.module) ? req.query.module[0] : req.query.module;
     if (moduleName === "categories") await ensureProductSchema();
+    if (req.method === "GET" && moduleName === "product-image") {
+      const imageId = String(req.query.id || "");
+      if (!/^[1-9]\d{0,14}$/.test(imageId)) {
+        res.status(400).end();
+        return;
+      }
+      const image = (await queryRows("SELECT image_url FROM product_images WHERE id = ? LIMIT 1", [imageId]))[0];
+      const match = String(image?.image_url || "").match(/^data:(image\/(?:png|jpeg|webp|gif));base64,([A-Za-z0-9+/\r\n]+={0,2})$/i);
+      if (!match) {
+        res.status(404).end();
+        return;
+      }
+      const bytes = Buffer.from(match[2], "base64");
+      res.status(200);
+      res.setHeader("content-type", match[1].toLowerCase());
+      res.setHeader("content-length", String(bytes.length));
+      res.setHeader("cache-control", "private, max-age=300");
+      res.setHeader("x-content-type-options", "nosniff");
+      res.end(bytes);
+      return;
+    }
     if (req.method === "POST" && moduleName === "blogs") {
       const body = await readJsonBody(req);
       if (body.adminAction === "delete") await deleteBlog(executeSql, body);
@@ -370,6 +391,7 @@ async function updateProduct(input) {
   const stock = rawStatus === "OUT OF STOCK" ? 0 : stockText ? Math.max(0, Number.parseInt(stockText, 10)) : Number(existing.stock);
   const status = productStatusValue(rawStatus || existing.status);
   const imageUrls = imageList(input.imageUrls, cleanImageText(input.imageUrl));
+  const storedImageUrls = await Promise.all(imageUrls.map((url) => resolveAdminImageUrl(url, productId)));
   const shortDescription = cleanText(input.shortDescription, 500) || existing.short_description;
   const description = cleanText(input.description, 5000) || existing.description;
   const materials = cleanText(input.materials, 1000) || existing.material_composition;
@@ -456,7 +478,18 @@ async function updateProduct(input) {
     "UPDATE inventory SET current_stock = ? WHERE product_id = ? AND inventory_level = 'PRODUCT'",
     [stock, productId],
   );
-  if (imageUrls.length > 0) await replaceProductImages(productId, name, imageUrls);
+  if (storedImageUrls.length > 0) await replaceProductImages(productId, name, storedImageUrls);
+}
+
+async function resolveAdminImageUrl(imageUrl, productId) {
+  const match = imageUrl.match(/^\/api\/admin\/product-image\?id=([1-9]\d{0,14})$/);
+  if (!match) return imageUrl;
+  const row = (await queryRows(
+    "SELECT image_url FROM product_images WHERE id = ? AND product_id = ? LIMIT 1",
+    [match[1], productId],
+  ))[0];
+  if (!row?.image_url) throw new Error("The saved product image could not be loaded. Please refresh and try again.");
+  return row.image_url;
 }
 
 async function deleteProduct(input) {
@@ -570,7 +603,9 @@ async function productsPayload() {
       p.is_featured,
       COALESCE(SUM(i.current_stock), 0) AS stock,
       (
-        SELECT pi.image_url
+        SELECT CASE WHEN LEFT(pi.image_url, 11) = 'data:image/'
+          THEN CONCAT('/api/admin/product-image?id=', pi.id)
+          ELSE pi.image_url END
         FROM product_images pi
         WHERE pi.product_id = p.id
         ORDER BY pi.is_featured DESC, pi.sort_order ASC

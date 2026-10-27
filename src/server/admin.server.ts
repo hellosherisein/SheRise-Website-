@@ -12,6 +12,7 @@ import { reviewsPayload as mysqlReviewsPayload, moderateReview } from "../../api
 import { popupLeadsPayload as mysqlPopupLeadsPayload } from "../../api/_popup-leads.mjs";
 import { blogsPayload as mysqlBlogsPayload } from "../../api/_blogs.mjs";
 import { newsletterPayload as mysqlNewsletterPayload } from "../../api/_newsletter.mjs";
+import { assertAdminRequest } from "../../api/_admin-session.mjs";
 import { reviewStatus } from "./reviews.server";
 import {
   deleteContentBlog,
@@ -130,6 +131,9 @@ type InventoryOverrideRow = {
 
 export async function handleAdminRequest(_request: Request, module: string): Promise<Response> {
   try {
+    if (_request.method === "GET" && module === "product-image") {
+      return adminProductImageResponse(_request);
+    }
     if (module === "products" || module === "categories") await ensureProductPackagingColumns();
     if (_request.method === "POST" && module === "products") {
       const body = await readBody(_request);
@@ -225,6 +229,32 @@ function duplicateEntryMessage(error: unknown) {
   }
   if (/sku/i.test(detail)) return "Another product already uses this SKU. Enter a unique SKU.";
   return "A unique product value is already in use. Check the product SKU and slug.";
+}
+
+async function adminProductImageResponse(request: Request): Promise<Response> {
+  try {
+    assertAdminRequest({ headers: { cookie: request.headers.get("cookie") || "" } });
+  } catch {
+    return json({ error: "Admin login required." }, 401);
+  }
+
+  const id = new URL(request.url).searchParams.get("id") || "";
+  if (!/^[1-9]\d{0,14}$/.test(id)) return new Response(null, { status: 400 });
+  const rows = await queryRows<RowDataPacket>("SELECT image_url FROM product_images WHERE id = ? LIMIT 1", [id]);
+  const value = rows[0]?.["image_url"];
+  const match = typeof value === "string"
+    ? value.match(/^data:(image\/(?:png|jpeg|webp|gif));base64,([A-Za-z0-9+/\r\n]+={0,2})$/i)
+    : null;
+  if (!match) return new Response(null, { status: 404 });
+  const bytes = Buffer.from(match[2]!, "base64");
+  return new Response(new Uint8Array(bytes), {
+    headers: {
+      "content-type": match[1]!.toLowerCase(),
+      "content-length": String(bytes.length),
+      "cache-control": "private, max-age=300",
+      "x-content-type-options": "nosniff",
+    },
+  });
 }
 
 function hasMysqlOrders() {
@@ -544,6 +574,7 @@ async function updateProduct(input: Record<string, unknown>) {
   const status = productStatusValue(rawStatus || existing.status);
   const imageUrl = cleanImageText(input["imageUrl"]);
   const imageUrls = imageList(input["imageUrls"], imageUrl);
+  const storedImageUrls = await Promise.all(imageUrls.map((url) => resolveAdminImageUrl(url, productId)));
   const shortDescription = cleanText(input["shortDescription"], 500) || existing.short_description;
   const description = cleanText(input["description"], 5000) || existing.description;
   const materials = cleanText(input["materials"], 1000) || existing.material_composition;
@@ -663,7 +694,21 @@ async function updateProduct(input: Record<string, unknown>) {
     [stock, productId],
   );
 
-  if (imageUrls.length > 0) await replaceProductImages(productId, name, imageUrls);
+  if (storedImageUrls.length > 0) await replaceProductImages(productId, name, storedImageUrls);
+}
+
+async function resolveAdminImageUrl(imageUrl: string, productId: number) {
+  const match = imageUrl.match(/^\/api\/admin\/product-image\?id=([1-9]\d{0,14})$/);
+  if (!match) return imageUrl;
+  const rows = await queryRows<RowDataPacket>(
+    "SELECT image_url FROM product_images WHERE id = ? AND product_id = ? LIMIT 1",
+    [match[1], productId],
+  );
+  const value = rows[0]?.["image_url"];
+  if (typeof value !== "string") {
+    throw new Error("The saved product image could not be loaded. Please refresh and try again.");
+  }
+  return value;
 }
 
 async function replaceProductImages(productId: number, name: string, imageUrls: string[]) {
@@ -791,7 +836,9 @@ async function productsPayload(): Promise<ModulePayload> {
       p.is_featured,
       COALESCE(SUM(i.current_stock), 0) AS stock,
       (
-        SELECT pi.image_url
+        SELECT CASE WHEN LEFT(pi.image_url, 11) = 'data:image/'
+          THEN CONCAT('/api/admin/product-image?id=', pi.id)
+          ELSE pi.image_url END
         FROM product_images pi
         WHERE pi.product_id = p.id
         ORDER BY pi.is_featured DESC, pi.sort_order ASC
