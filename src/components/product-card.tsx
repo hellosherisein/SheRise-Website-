@@ -103,7 +103,7 @@ export function ProductCard({ product }: { product: Product }) {
           <div>
             <span className="font-bold">{money(p.salePrice)}</span>{" "}
             <del className="text-xs text-muted-foreground">{money(p.mrp)}</del>
-            <p className="text-xs text-brand-burgundy">{p.discount}% off - demo</p>
+            <p className="text-xs text-brand-burgundy">{p.discount}% off</p>
           </div>
           <Button
             variant="navy"
