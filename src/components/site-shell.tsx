@@ -654,7 +654,7 @@ export function Footer() {
         <FooterCol
           title="Learn"
           links={[
-            ["About Us", "/about"],
+            ["About SheRise", "/about"],
             ["Why Choose SheRise", "/why-sherise"],
             ["Period Guide", "/period-guide"],
             ["Period & Wellness Journal", "/blog"],
