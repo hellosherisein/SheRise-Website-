@@ -951,21 +951,19 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                   />
                   <div>
                     <h2 className="font-display text-3xl text-brand-navy">
-                      Thoughtful care with an <span className="text-brand-coral">Anion Strip</span>
+                      What to know about the <span className="text-brand-coral">Anion Strip</span>
                     </h2>
-                    <div className="mt-4 max-w-3xl space-y-4 text-justify leading-7 text-muted-foreground">
+                    <div className="mt-4 max-w-3xl space-y-4 leading-7 text-muted-foreground">
                       <p>
-                        Selected SheRise pads feature an Anion Strip as part of their layered
-                        design—bringing an extra detail to your everyday period care.
+                        Selected SheRise pads include an Anion Strip as an additional component in
+                        the pad&apos;s layered design. Anion or negative-ion pads are sometimes
+                        promoted with claims about odour, bacteria, cramps, or other health effects.
                       </p>
-                      <ul className="space-y-3 text-left">
-                        <li><strong className="text-brand-navy">Soft Comfort:</strong> A soft cotton top layer for a gentle feel against your skin.</li>
-                        <li><strong className="text-brand-navy">Everyday Dryness:</strong> An absorbent core helps manage menstrual flow.</li>
-                        <li><strong className="text-brand-navy">Breathable Care:</strong> A breathable back sheet supports everyday comfort.</li>
-                        <li><strong className="text-brand-navy">Hygiene on the Go:</strong> Individually wrapped pads stay covered until you need them.</li>
-                      </ul>
-                      <p className="italic text-brand-navy">
-                        Because true comfort is in every thoughtful detail.
+                      <p>
+                        We have not verified clinical evidence showing that the strip in SheRise
+                        pads provides those effects, so we describe it as a design feature rather
+                        than a health benefit. For the pad&apos;s softness, absorbency, breathability,
+                        and individual wrapping, see Product Features above.
                       </p>
                     </div>
                     <div className="mt-5"><Action to="/shop">Explore our pads</Action></div>

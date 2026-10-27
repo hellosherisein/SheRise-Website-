@@ -256,6 +256,11 @@ footer :is(p, li, a, span) {
   line-height: 1.85;
 }
 
+.about-page .founder-prose {
+  text-align: left;
+  text-justify: auto;
+}
+
 .about-page p:not(.eyebrow) {
   text-align: justify;
   text-justify: inter-word;
