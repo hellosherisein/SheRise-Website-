@@ -953,7 +953,7 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                     <h2 className="font-display text-3xl text-brand-navy">
                       What to know about the <span className="text-brand-coral">Anion Strip</span>
                     </h2>
-                    <div className="mt-4 max-w-3xl space-y-4 leading-7 text-muted-foreground">
+                    <div className="mt-4 max-w-3xl space-y-4 text-justify [text-justify:inter-word] leading-7 text-muted-foreground">
                       <p>
                         Selected SheRise pads include an Anion Strip as an additional component in
                         the pad&apos;s layered design. Anion or negative-ion pads are sometimes
