@@ -75,7 +75,7 @@ export function FounderVisionPanels() {
               id="founder-journey"
               className="max-w-lg font-display text-4xl leading-[1.12] text-brand-navy lg:text-5xl"
             >
-              The idea behind <span className="text-brand-coral">SheRise</span>
+              The Idea Behind <span className="text-brand-coral">SheRise</span>
             </h3>
             <ul
               aria-label="Our values"
@@ -102,7 +102,7 @@ export function FounderVisionPanels() {
         </div>
         <div className="mt-8 bg-[#f7eee8] px-5 py-6 md:mt-9 md:px-7">
           <h4 id="founder-wellness" className="mb-5 text-sm font-semibold text-brand-burgundy">
-            Care for your whole self
+            Care for Your Whole Self
           </h4>
           <ul className="grid grid-cols-2 gap-x-6 gap-y-5 md:grid-cols-3 xl:grid-cols-6">
             {pillars.map(({ title, caption }) => (
@@ -127,7 +127,7 @@ export function FounderVisionPanels() {
             id="founder-vision"
             className="font-display text-4xl leading-tight text-brand-navy md:text-5xl"
           >
-            Her <span className="text-brand-coral">vision</span>
+            Her <span className="text-brand-coral">Vision</span>
           </h3>
         </div>
         <div className="founder-vision-layout mt-10 grid gap-x-8 gap-y-8 lg:mt-14 xl:gap-x-10">
@@ -183,7 +183,7 @@ export function FounderVisionPanels() {
             id="founder-impact"
             className="max-w-xl font-display text-4xl leading-[1.12] text-brand-navy md:text-5xl"
           >
-            Her <span className="text-brand-coral">social impact</span>
+            Her <span className="text-brand-coral">Social Impact</span>
           </h3>
           <p className="founder-prose mt-6 max-w-xl">
             Through the <strong>SheRise Welfare Foundation</strong>, we work to improve menstrual
