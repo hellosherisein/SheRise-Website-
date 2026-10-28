@@ -142,7 +142,7 @@ function Home() {
             <span className="font-display text-3xl md:text-4xl">
               Your cycle.
               <br />Your comfort.
-              <br /><span className="text-[#f4b8a5]">Your confidence.</span>
+              <br /><span className="text-[#e98f7a]">Your confidence.</span>
             </span>
             <span className="mt-3 block text-[10px] uppercase tracking-widest">
               RELEASE. RENEW & RISE.
