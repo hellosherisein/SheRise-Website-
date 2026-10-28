@@ -360,6 +360,19 @@ em {
   color: var(--brand-navy);
   transform: rotate(-3deg);
 }
+@media (max-width: 767px) and (prefers-reduced-motion: no-preference) {
+  .mobile-page-enter {
+    animation: mobile-page-enter 280ms ease-out both;
+  }
+}
+@keyframes mobile-page-enter {
+  from {
+    opacity: 0.65;
+  }
+  to {
+    opacity: 1;
+  }
+}
 .ngo-ribbon {
   overflow: hidden;
   padding-block: 22px;

@@ -5,9 +5,9 @@ export const whySheRiseLinks = [
 ] as const;
 
 export const aboutLinks = [
-  { label: "Meet our founder", to: "/about/meet-the-founder", sectionId: "meet-the-founder" },
-  { label: "The SheRise Vision", to: "/about/vision", sectionId: "vision" },
-  { label: "SheRise Welfare Foundation", to: "/about/sherise-welfare-foundation", sectionId: "sherise-welfare-foundation" },
+  { label: "Meet our Founder", to: "/about/meet-the-founder", sectionId: "meet-the-founder" },
+  { label: "Our Mission & Vision", to: "/about/vision", sectionId: "vision" },
+  { label: "Our Foundation", to: "/about/sherise-welfare-foundation", sectionId: "sherise-welfare-foundation" },
 ] as const;
 
 export const periodCareLinks = [

@@ -192,7 +192,7 @@ function App() {
           ) : (
             <>
               <Header />
-              <main>
+              <main key={locationKey} className="mobile-page-enter">
                 {error ? (
                   <section className="container-shell min-h-[60vh] py-16" role="alert">
                     <h1 className="text-3xl text-brand-navy">Could not load this page</h1>

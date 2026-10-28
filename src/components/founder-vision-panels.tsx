@@ -186,9 +186,10 @@ export function FounderVisionPanels() {
             Her <span className="text-brand-coral">social impact</span>
           </h3>
           <p className="founder-prose mt-6 max-w-xl">
-            Alongside her entrepreneurial journey, the founder is associated with{" "}
-            <strong>SheRise Welfare Foundation</strong>, reflecting her commitment to meaningful
-            social impact.
+            Through the <strong>SheRise Welfare Foundation</strong>, we work to improve menstrual
+            health awareness and access to hygiene resources. We create safe spaces where girls and
+            women can learn, ask questions and speak openly, so they can make informed choices with
+            dignity and confidence.
           </p>
           <ul className="mt-5 divide-y divide-[#e5d8cf]">
             {[

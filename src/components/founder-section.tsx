@@ -153,6 +153,20 @@ export function FounderSection({
                   {founderName || "Sweta Jadhav"} | Founder, SheRise Welfare Foundation
                 </cite>
               </footer>
+              <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 pl-14 text-sm">
+                <a
+                  href="mailto:hellosherise.in@gmail.com"
+                  className="text-brand-burgundy underline underline-offset-4 hover:text-brand-navy"
+                >
+                  hellosherise.in@gmail.com
+                </a>
+                <a
+                  href="tel:+919594241666"
+                  className="text-brand-burgundy underline underline-offset-4 hover:text-brand-navy"
+                >
+                  +91 95942 41666
+                </a>
+              </div>
             </blockquote>
           </div>
         </section>

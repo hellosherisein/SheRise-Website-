@@ -71,6 +71,9 @@ export function Header() {
   const path = useRouterState({ select: (s) => s.location.pathname });
   const { cart, wishlist, setCartOpen, setSearchOpen } = useStore();
   const [menu, setMenu] = useState(false);
+  const [periodMenuOpen, setPeriodMenuOpen] = useState(false);
+  const [aboutMenuOpen, setAboutMenuOpen] = useState(false);
+  const [whyMenuOpen, setWhyMenuOpen] = useState(false);
   const count = cart.reduce((a, b) => a + b.quantity, 0);
   return (
     <>
@@ -119,7 +122,7 @@ export function Header() {
                     to="/about"
                     className={`flex items-center text-sm font-semibold transition-colors hover:text-brand-coral ${path === "/about" || path.startsWith("/about/") ? "text-brand-coral" : ""}`}
                   >
-                    About <ChevronDown aria-hidden="true" className="ml-1 size-3 transition-transform group-hover:rotate-180 group-focus-within:rotate-180" />
+                    About SheRise <ChevronDown aria-hidden="true" className="ml-1 size-3 transition-transform group-hover:rotate-180 group-focus-within:rotate-180" />
                   </Link>
                   <div className="absolute left-0 top-[70px] hidden w-72 gap-1 border bg-background p-4 shadow-lg group-hover:grid group-focus-within:grid">
                     {aboutLinks.map((item) => (
@@ -198,41 +201,104 @@ export function Header() {
           <nav className="mt-8 grid">
             {nav.map((n) => (
               n.to === "/period-guide" ? (
-                <details key={n.to} className="border-b py-4">
-                  <summary className="flex cursor-pointer list-none items-center justify-between font-display text-2xl">
-                    Period Care <ChevronDown className="size-5" />
-                  </summary>
-                  <div className="mt-4 grid gap-3 pl-4 text-base">
-                    {periodCareLinks.map((item) => (
-                      <Link key={item.to} to={item.to} onClick={() => setMenu(false)}>{item.label}</Link>
-                    ))}
-                    <Link to="/faq" onClick={() => setMenu(false)}>
-                      FAQs
+                <div key={n.to} className="border-b py-4">
+                  <div className="flex items-center justify-between">
+                    <Link to={n.to} onClick={() => setMenu(false)} className="font-display text-2xl">
+                      Period Care
                     </Link>
+                    <button
+                      type="button"
+                      aria-label="Show Period Care pages"
+                      aria-expanded={periodMenuOpen}
+                      aria-controls="period-care-menu"
+                      onClick={() => setPeriodMenuOpen((open) => !open)}
+                      className="p-2"
+                    >
+                      <ChevronDown aria-hidden="true" className={`size-5 transition-transform ${periodMenuOpen ? "rotate-180" : ""}`} />
+                    </button>
                   </div>
-                </details>
+                  <div
+                    id="period-care-menu"
+                    aria-hidden={!periodMenuOpen}
+                    inert={!periodMenuOpen}
+                    className={`grid overflow-hidden pl-4 text-base transition-[grid-template-rows,opacity,margin] duration-300 ease-in-out ${periodMenuOpen ? "mt-4 grid-rows-[1fr] opacity-100" : "mt-0 grid-rows-[0fr] opacity-0"}`}
+                  >
+                    <div className="min-h-0 overflow-hidden">
+                      <div className="grid gap-3">
+                        {periodCareLinks.map((item) => (
+                          <Link key={item.to} to={item.to} onClick={() => setMenu(false)}>{item.label}</Link>
+                        ))}
+                        <Link to="/faq" onClick={() => setMenu(false)}>
+                          FAQs
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               ) : n.to === "/why-sherise" ? (
-                <details key={n.to} className="border-b py-4">
-                  <summary className="flex cursor-pointer list-none items-center justify-between font-display text-2xl">
-                    Why Choose SheRise <ChevronDown aria-hidden="true" className="size-5" />
-                  </summary>
-                  <div className="mt-4 grid gap-3 pl-4 text-base">
-                    {whySheRiseLinks.map((item) => (
-                      <Link key={item.to} to={item.to} onClick={() => setMenu(false)}>{item.label}</Link>
-                    ))}
+                <div key={n.to} className="border-b py-4">
+                  <div className="flex items-center justify-between">
+                    <Link to={n.to} onClick={() => setMenu(false)} className="font-display text-2xl">
+                      Why Choose SheRise
+                    </Link>
+                    <button
+                      type="button"
+                      aria-label="Show Why Choose SheRise pages"
+                      aria-expanded={whyMenuOpen}
+                      aria-controls="why-sherise-menu"
+                      onClick={() => setWhyMenuOpen((open) => !open)}
+                      className="p-2"
+                    >
+                      <ChevronDown aria-hidden="true" className={`size-5 transition-transform ${whyMenuOpen ? "rotate-180" : ""}`} />
+                    </button>
                   </div>
-                </details>
+                  <div
+                    id="why-sherise-menu"
+                    aria-hidden={!whyMenuOpen}
+                    inert={!whyMenuOpen}
+                    className={`grid overflow-hidden pl-4 text-base transition-[grid-template-rows,opacity,margin] duration-300 ease-in-out ${whyMenuOpen ? "mt-4 grid-rows-[1fr] opacity-100" : "mt-0 grid-rows-[0fr] opacity-0"}`}
+                  >
+                    <div className="min-h-0 overflow-hidden">
+                      <div className="grid gap-3">
+                        {whySheRiseLinks.map((item) => (
+                          <Link key={item.to} to={item.to} onClick={() => setMenu(false)}>{item.label}</Link>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               ) : n.to === "/about" ? (
-                <details key={n.to} className="border-b py-4">
-                  <summary className="flex cursor-pointer list-none items-center justify-between font-display text-2xl">
-                    About <ChevronDown aria-hidden="true" className="size-5" />
-                  </summary>
-                  <div className="mt-4 grid gap-3 pl-4 text-base">
-                    {aboutLinks.map((item) => (
-                      <Link key={item.to} to={item.to} onClick={() => setMenu(false)}>{item.label}</Link>
-                    ))}
+                <div key={n.to} className="border-b py-4">
+                  <div className="flex items-center justify-between">
+                    <Link to={n.to} onClick={() => setMenu(false)} className="font-display text-2xl">
+                      About SheRise
+                    </Link>
+                    <button
+                      type="button"
+                      aria-label="Show About SheRise pages"
+                      aria-expanded={aboutMenuOpen}
+                      aria-controls="about-sherise-menu"
+                      onClick={() => setAboutMenuOpen((open) => !open)}
+                      className="p-2"
+                    >
+                      <ChevronDown aria-hidden="true" className={`size-5 transition-transform ${aboutMenuOpen ? "rotate-180" : ""}`} />
+                    </button>
                   </div>
-                </details>
+                  <div
+                    id="about-sherise-menu"
+                    aria-hidden={!aboutMenuOpen}
+                    inert={!aboutMenuOpen}
+                    className={`grid overflow-hidden pl-4 text-base transition-[grid-template-rows,opacity,margin] duration-300 ease-in-out ${aboutMenuOpen ? "mt-4 grid-rows-[1fr] opacity-100" : "mt-0 grid-rows-[0fr] opacity-0"}`}
+                  >
+                    <div className="min-h-0 overflow-hidden">
+                      <div className="grid gap-3">
+                        {aboutLinks.map((item) => (
+                          <Link key={item.to} to={item.to} onClick={() => setMenu(false)}>{item.label}</Link>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <Link
                   key={n.to}
