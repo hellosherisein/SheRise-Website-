@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { createConnectionCheck } from "../api/_ekart-health.mjs";
 import { createEkartClient } from "../api/_ekart-client.mjs";
 import { createCarrier, calculateShipping } from "../api/_shipping.mjs";
 import { commerceConfigSchema } from "../api/_commerce.mjs";
@@ -13,6 +14,54 @@ import {
 } from "../api/_ekart-shipments.mjs";
 
 // All transport and database dependencies below are fake. This script never loads .env.
+{
+  let calls = 0,
+    time = Date.parse("2026-10-29T00:00:00Z");
+  const env = {
+    EKART_CLIENT_ID: "private-id",
+    EKART_USERNAME: "private-user",
+    EKART_PASSWORD: "private-password",
+    EKART_SHIPPING_ENABLED: "false",
+  };
+  const check = createConnectionCheck({
+    env,
+    now: () => time,
+    client: {
+      async serviceability(pin) {
+        assert.equal(pin, "400013");
+        calls++;
+        if (calls > 1)
+          throw Object.assign(new Error("private-password upstream body"), {
+            stage: "authentication",
+            carrierStatus: 401,
+          });
+        return { status: true, access_token: "must-never-leak" };
+      },
+    },
+  });
+  assert.equal((await check()).connection.status, "not-tested");
+  assert.equal(calls, 0, "GET snapshot never contacts carrier");
+  const checks = await Promise.all([check(true), check(true)]);
+  assert.equal(calls, 1, "Concurrent checks share one request");
+  assert.equal(checks[0].connection.status, "connected");
+  await check(true);
+  assert.equal(calls, 1, "Repeated check is cached");
+  time += 60001;
+  const failed = await check(true);
+  assert.equal(failed.connection.status, "authentication-failed");
+  assert.equal(failed.connection.carrierStatus, 401);
+  assert.equal(failed.liveEnabled, false);
+  assert.doesNotMatch(JSON.stringify(failed), /private-|upstream|must-never-leak/);
+  const missing = createConnectionCheck({
+    env: {},
+    client: {
+      serviceability() {
+        throw Error("must not call");
+      },
+    },
+  });
+  assert.equal((await missing(true)).credentialsConfigured, false);
+}
 const spec = fs.readFileSync("docs/ekart-openapi.yaml", "utf8");
 for (const path of [
   "/integrations/v2/auth/token/{client_id}",

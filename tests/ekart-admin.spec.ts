@@ -29,6 +29,18 @@ async function setup(page: Page, created = false) {
     const path = new URL(route.request().url()).pathname;
     if (path === "/api/customer/session")
       return route.fulfill({ json: { user: null, addresses: [], orders: [], wishlist: [] } });
+    if (path === "/api/admin/shipping-connection")
+      return route.fulfill({
+        json: {
+          credentialsConfigured: true,
+          liveEnabled: false,
+          connection: {
+            status: "authentication-failed",
+            carrierStatus: 401,
+            checkedAt: "2026-10-29T00:00:00Z",
+          },
+        },
+      });
     if (path === "/api/admin/shipping-settings")
       return route.fulfill({
         json: {
@@ -131,4 +143,8 @@ test("shipping settings expose confirmed account pricing and seller configuratio
     "Seller legal name",
   );
   await expect(page.getByRole("checkbox", { name: /I confirmed this pricing plan/ })).toBeChecked();
+  await page.getByRole("button", { name: "Check Ekart API connection" }).click();
+  await expect(
+    page.getByText(/Ekart API: authentication-failed \(HTTP 401\). Live shipments: disabled/),
+  ).toBeVisible();
 });

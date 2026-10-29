@@ -80,6 +80,7 @@ let source = readFileSync(new URL("../api/admin/[module].mjs", import.meta.url),
   "const createPool = () => globalThis.__adminOrdersTestPool;",
 );
 for (const name of [
+  "_ekart-health",
   "_ekart-shipments",
   "_commerce",
   "_shipping-admin",
@@ -261,7 +262,12 @@ console.log(
   "Admin orders: authenticated listing, item grouping, status updates, validation, and rollback passed.",
 );
 
-for (const module of ["shipping-settings", "shipping-orders", "shipping-label"]) {
+for (const module of [
+  "shipping-settings",
+  "shipping-orders",
+  "shipping-label",
+  "shipping-connection",
+]) {
   const before = queries;
   assert.equal((await request("GET", undefined, false, module)).statusCode, 401);
   assert.equal((await request("POST", { action: "verify-cod" }, false, module)).statusCode, 401);

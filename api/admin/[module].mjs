@@ -1,3 +1,4 @@
+import { ekartConnectionCheck } from "../_ekart-health.mjs";
 import { shipmentLabel } from "../_ekart-shipments.mjs";
 import { shipmentPayload, shippingAdminAction } from "../_shipping-admin.mjs";
 import { commerceSettingsPayload, saveCommerceConfig } from "../_commerce.mjs";
@@ -45,6 +46,15 @@ export default async function handler(req, res) {
     assertAdminRequest(req);
 
     const moduleName = Array.isArray(req.query.module) ? req.query.module[0] : req.query.module;
+    if (moduleName === "shipping-connection") {
+      if (req.method !== "GET" && req.method !== "POST") {
+        res.status(405).json({ error: "Method not allowed." });
+        return;
+      }
+      res.setHeader("cache-control", "no-store");
+      res.status(200).json(await ekartConnectionCheck(req.method === "POST"));
+      return;
+    }
     if (moduleName === "shipping-label") {
       if (req.method !== "GET") {
         res.status(405).json({ error: "Method not allowed." });

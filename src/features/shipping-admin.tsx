@@ -2,6 +2,49 @@ import { useCallback, useEffect, useState } from "react";
 import { fetchAdminPayload } from "@/lib/admin-auth";
 import type { CommerceConfig } from "../../api/_commerce.mjs";
 
+function EkartConnectionStatus() {
+  const [message, setMessage] = useState("API connection has not been tested in this session.");
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="space-y-2 rounded border p-3">
+      <p role="status">{message}</p>
+      <button
+        type="button"
+        disabled={busy}
+        className="rounded border px-4 py-2"
+        onClick={async () => {
+          setBusy(true);
+          try {
+            const result = await fetchAdminPayload<{
+              credentialsConfigured: boolean;
+              liveEnabled: boolean;
+              connection: {
+                status: string;
+                checkedAt: string | null;
+                carrierStatus?: number | null;
+              };
+            }>("shipping-connection", { method: "POST" });
+            setMessage(
+              !result.credentialsConfigured
+                ? "Ekart server credentials are missing."
+                : `Ekart API: ${result.connection.status}${result.connection.carrierStatus ? ` (HTTP ${result.connection.carrierStatus})` : ""}. Live shipments: ${result.liveEnabled ? "enabled" : "disabled"}.${result.connection.checkedAt ? ` Checked ${new Date(result.connection.checkedAt).toLocaleString()}.` : ""}`,
+            );
+          } catch {
+            setMessage("Could not check Ekart connection. Retry after checking server access.");
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {busy ? "Checking API…" : "Check Ekart API connection"}
+      </button>
+      <p className="text-sm">
+        Checks pickup serviceability only. Results are cached for one minute.
+      </p>
+    </div>
+  );
+}
+
 export function ShippingSettingsEditor() {
   const [config, setConfig] = useState<CommerceConfig | null>(null),
     [message, setMessage] = useState(""),
@@ -62,6 +105,7 @@ export function ShippingSettingsEditor() {
       }}
     >
       <h3 className="text-xl font-semibold">Shipping configuration</h3>
+      <EkartConnectionStatus />
       <p>
         Pickup PIN: 400013. Ekart APIs are implemented. Live shipments require confirmed account
         configuration and explicit server activation.

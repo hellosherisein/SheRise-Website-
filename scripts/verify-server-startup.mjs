@@ -82,7 +82,12 @@ for (const [enabled, webhookSecret] of [
       "Production shipping API reaches customer authentication without touching a database",
     );
     assert.match(delivery.headers.get("content-type"), /application\/json/);
-    for (const module of ["shipping-settings", "shipping-orders", "shipping-label"]) {
+    for (const module of [
+      "shipping-settings",
+      "shipping-orders",
+      "shipping-label",
+      "shipping-connection",
+    ]) {
       const result = await fetch(origin + "/api/admin/" + module);
       assert.equal(result.status, 401);
       assert.match(result.headers.get("content-type"), /application\/json/);

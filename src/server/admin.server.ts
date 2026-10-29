@@ -1,3 +1,4 @@
+import { ekartConnectionCheck } from "../../api/_ekart-health.mjs";
 import { shipmentLabel } from "../../api/_ekart-shipments.mjs";
 import { adminErrorResponse } from "../../api/_admin-errors.mjs";
 import { shipmentPayload, shippingAdminAction } from "../../api/_shipping-admin.mjs";
@@ -139,6 +140,11 @@ type InventoryOverrideRow = {
 export async function handleAdminRequest(_request: Request, module: string): Promise<Response> {
   try {
     assertAdminRequest({ headers: { cookie: _request.headers.get("cookie") || "" } });
+    if (module === "shipping-connection") {
+      if (_request.method !== "GET" && _request.method !== "POST")
+        return json({ error: "Method not allowed." }, 405);
+      return json(await ekartConnectionCheck(_request.method === "POST"));
+    }
     if (module === "shipping-label") {
       if (_request.method !== "GET") return json({ error: "Method not allowed." }, 405);
       const bytes = await shipmentLabel(
