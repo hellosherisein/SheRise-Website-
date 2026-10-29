@@ -405,7 +405,9 @@ function AccountDashboard({ section }: { section: string }) {
   const productImageFor = (slug?: string, savedImage?: string) => {
     if (!slug) return savedImage || fallbackProductImage;
     const liveProduct = liveProducts.find((p) => p.slug === slug);
-    return liveProduct?.images[0] || savedImage || getProduct(slug)?.images[0] || fallbackProductImage;
+    return (
+      liveProduct?.images[0] || savedImage || getProduct(slug)?.images[0] || fallbackProductImage
+    );
   };
   async function update(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -461,11 +463,21 @@ function AccountDashboard({ section }: { section: string }) {
               <Menu size={20} aria-hidden="true" />
               <span className="min-w-0 flex-1 text-left">
                 <span className="block text-xs font-normal opacity-75">Account menu</span>
-                <span className="block">{tabs.find((tab) => tab.id === section)?.label || "My account"}</span>
+                <span className="block">
+                  {tabs.find((tab) => tab.id === section)?.label || "My account"}
+                </span>
               </span>
-              <ChevronDown size={18} aria-hidden="true" className={accountMenuOpen ? "rotate-180" : ""} />
+              <ChevronDown
+                size={18}
+                aria-hidden="true"
+                className={accountMenuOpen ? "rotate-180" : ""}
+              />
             </button>
-            <nav id="account-navigation" aria-label="Account" className={`account-nav ${accountMenuOpen ? "account-nav--open" : ""}`}>
+            <nav
+              id="account-navigation"
+              aria-label="Account"
+              className={`account-nav ${accountMenuOpen ? "account-nav--open" : ""}`}
+            >
               {tabs.map(({ label, to, id, Icon }) => (
                 <Link
                   key={id}
@@ -741,14 +753,34 @@ function AccountDashboard({ section }: { section: string }) {
                                   {orderStatusLabel(o.status)}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                  {orderStatusDate(o.status, o.createdAt, o.cancelledAt)}
+                                  {orderStatusDate(
+                                    o.status,
+                                    o.createdAt,
+                                    o.cancelledAt,
+                                    o.statusAt,
+                                  )}
                                 </p>
                               </div>
                               <div className="order-card-modern__meta ml-auto text-right">
                                 <p className="break-all text-xs text-muted-foreground">{o.id}</p>
-                                <p className="mt-1 font-semibold text-brand-navy">{money(orderTotal)}</p>
-                                {o.payment === "RAZORPAY" ? <p className="mt-1 text-xs">Payment: {o.paymentStatus || "PENDING"}</p> : null}
-                                {o.payment === "RAZORPAY" && !["SUCCESS", "REFUNDED"].includes(o.paymentStatus || "") && o.status !== "cancelled" ? <Link to={`/payment-failed?order=${encodeURIComponent(o.id)}`} className="mt-2 inline-block text-xs font-semibold underline">Check / Retry Payment</Link> : null}
+                                <p className="mt-1 font-semibold text-brand-navy">
+                                  {money(orderTotal)}
+                                </p>
+                                {o.payment === "RAZORPAY" ? (
+                                  <p className="mt-1 text-xs">
+                                    Payment: {o.paymentStatus || "PENDING"}
+                                  </p>
+                                ) : null}
+                                {o.payment === "RAZORPAY" &&
+                                !["SUCCESS", "REFUNDED"].includes(o.paymentStatus || "") &&
+                                !["cancelled", "returned"].includes(o.status) ? (
+                                  <Link
+                                    to={`/payment-failed?order=${encodeURIComponent(o.id)}`}
+                                    className="mt-2 inline-block text-xs font-semibold underline"
+                                  >
+                                    Check / Retry Payment
+                                  </Link>
+                                ) : null}
                               </div>
                             </header>
 
@@ -769,7 +801,10 @@ function AccountDashboard({ section }: { section: string }) {
                                 </p>
                                 <Link
                                   to="/products/$slug"
-                                  params={{ slug: firstItem?.slug || "sherise-20-count-organic-sanitary-pads" }}
+                                  params={{
+                                    slug:
+                                      firstItem?.slug || "sherise-20-count-organic-sanitary-pads",
+                                  }}
                                   className="mt-1 block truncate font-semibold text-brand-navy"
                                 >
                                   {firstItem?.name || "SheRise order"}
@@ -780,7 +815,8 @@ function AccountDashboard({ section }: { section: string }) {
                                     : "Order items"}
                                 </p>
                                 <p className="mt-1 text-xs text-muted-foreground">
-                                  {o.items.length} product{o.items.length === 1 ? "" : "s"} · Qty {totalQuantity}
+                                  {o.items.length} product{o.items.length === 1 ? "" : "s"} · Qty{" "}
+                                  {totalQuantity}
                                 </p>
                               </div>
                               <details className="order-detail-dropdown">
@@ -789,10 +825,31 @@ function AccountDashboard({ section }: { section: string }) {
                                   <ChevronRight size={24} />
                                 </summary>
                                 <div className="order-detail-dropdown__body">
+                                  {o.trackingNumber ? (
+                                    <p>Tracking number: {o.trackingNumber}</p>
+                                  ) : null}
+                                  {o.awb ? <p>Courier AWB: {o.awb}</p> : null}
+                                  {o.shipmentStatus ? <p>Shipment: {o.shipmentStatus}</p> : null}
+                                  {o.trackingUrl && /^https:\/\//.test(o.trackingUrl) ? (
+                                    <a
+                                      href={o.trackingUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="underline"
+                                    >
+                                      Track shipment
+                                    </a>
+                                  ) : null}
+                                  {o.shipmentEvents?.map((event, index) => (
+                                    <p key={index}>
+                                      {event.status} ?{" "}
+                                      {new Date(event.occurredAt).toLocaleString("en-IN")}
+                                    </p>
+                                  ))}
                                   <OrderTracking
                                     status={o.status}
                                     createdAt={o.createdAt}
-                                    cancellationReason={o.cancellationReason}
+                                    cancellationReason={o.cancellationReason || ""}
                                   />
                                   <div className="grid gap-3 sm:grid-cols-2">
                                     <div className="order-detail-box">
@@ -818,17 +875,26 @@ function AccountDashboard({ section }: { section: string }) {
                                         Shipping {shippingAmount ? money(shippingAmount) : "Free"}
                                       </p>
                                       {Number(o.donationAmount) > 0 && (
-                                        <p className="mt-1 text-sm">Donation {money(o.donationAmount!)}</p>
+                                        <p className="mt-1 text-sm">
+                                          Donation {money(o.donationAmount!)}
+                                        </p>
                                       )}
                                       <p className="mt-1 text-sm">Payment: {o.payment}</p>
                                       <p className="mt-1 text-xs text-muted-foreground">
-                                        No payment collected in preview mode.
+                                        {o.isPreview
+                                          ? "Preview order: no payment collected."
+                                          : o.payment === "Cash on Delivery"
+                                            ? `Pay ${money(o.codAmount ?? o.total)} on delivery. Collection status: ${o.paymentStatus || "PENDING"}.`
+                                            : `Payment status: ${o.paymentStatus || "PENDING"}.`}
                                       </p>
                                     </div>
                                   </div>
                                   <div className="mt-4 space-y-3">
                                     {o.items.map((item, index) => (
-                                      <div className="flex gap-3 border-t border-[#eadbd2] pt-3" key={`${item.slug}-${index}`}>
+                                      <div
+                                        className="flex gap-3 border-t border-[#eadbd2] pt-3"
+                                        key={`${item.slug}-${index}`}
+                                      >
                                         <img
                                           src={productImageFor(item.slug, item.image)}
                                           alt={item.name}
@@ -842,9 +908,12 @@ function AccountDashboard({ section }: { section: string }) {
                                         <div>
                                           <p className="text-sm font-semibold">{item.name}</p>
                                           <p className="text-xs text-muted-foreground">
-                                            {item.size} · {item.flow} · {item.pack} · Qty {item.quantity}
+                                            {item.size} · {item.flow} · {item.pack} · Qty{" "}
+                                            {item.quantity}
                                           </p>
-                                          <p className="text-xs">{money(item.price * item.quantity)}</p>
+                                          <p className="text-xs">
+                                            {money(item.price * item.quantity)}
+                                          </p>
                                         </div>
                                       </div>
                                     ))}
@@ -854,7 +923,9 @@ function AccountDashboard({ section }: { section: string }) {
                             </div>
 
                             {o.status === "delivered" ? <OrderReviewControl order={o} /> : null}
-                            {canCancelOrder(o.status) ? <CancelOrderControl orderId={o.id} /> : null}
+                            {canCancelOrder(o.status) ? (
+                              <CancelOrderControl orderId={o.id} />
+                            ) : null}
                           </article>
                         );
                       })
@@ -896,9 +967,24 @@ function OrderTracking({
     { key: "delivered", label: "Delivered", helper: "Reached your address" },
   ] as const;
   const currentIndex =
-    status === "cancelled" ? 0 : Math.max(0, stages.findIndex((stage) => stage.key === status));
+    status === "cancelled"
+      ? 0
+      : Math.max(
+          0,
+          stages.findIndex((stage) => stage.key === status),
+        );
   const placedDate = new Date(createdAt);
 
+  if (status === "returned")
+    return (
+      <section className="mb-5 rounded border p-4">
+        <h3>Returned</h3>
+        <p>
+          The carrier has reported that this shipment was returned. Payment and refund status are
+          shown separately.
+        </p>
+      </section>
+    );
   if (status === "cancelled") {
     return (
       <section className="mb-5 border border-red-200 bg-red-50 p-4">
@@ -923,18 +1009,14 @@ function OrderTracking({
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase text-muted-foreground">Order Tracking</p>
-          <h3 className="mt-1 text-lg font-semibold">
-            {status === "cancelled" ? "Order cancelled" : stages[currentIndex]?.label}
-          </h3>
+          <h3 className="mt-1 text-lg font-semibold">{stages[currentIndex]?.label}</h3>
         </div>
-        <span className="order-status">
-          {orderStatusLabel(status)}
-        </span>
+        <span className="order-status">{orderStatusLabel(status)}</span>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {stages.map((stage, index) => {
-          const done = status !== "cancelled" && index <= currentIndex;
-          const active = status !== "cancelled" && index === currentIndex;
+          const done = index <= currentIndex;
+          const active = index === currentIndex;
           return (
             <div
               key={stage.key}
@@ -968,11 +1050,8 @@ function OrderTracking({
       </div>
       {status === "preview" ? (
         <p className="mt-3 text-xs text-muted-foreground">
-          This preview order is placed. Packing, shipping and delivery will update here once fulfilment is connected.
-        </p>
-      ) : status === "cancelled" ? (
-        <p className="mt-3 text-xs text-red-700">
-          This order was cancelled{cancellationReason ? `: ${cancellationReason}` : "."}
+          Your order is placed. Shipping updates will appear when verified fulfillment information
+          is available.
         </p>
       ) : null}
     </section>
@@ -991,22 +1070,33 @@ function orderStatusLabel(status: CustomerOrder["status"]) {
       return "Delivered";
     case "cancelled":
       return "Cancelled";
+    case "returned":
+      return "Returned";
   }
 }
 
-function orderStatusDate(status: CustomerOrder["status"], createdAt: string, cancelledAt?: string) {
-  const sourceDate = status === "cancelled" && cancelledAt ? cancelledAt : createdAt;
+function orderStatusDate(
+  status: CustomerOrder["status"],
+  createdAt: string,
+  cancelledAt?: string,
+  statusAt?: string,
+) {
+  const sourceDate = statusAt || (status === "cancelled" && cancelledAt ? cancelledAt : createdAt);
   const date = new Date(sourceDate);
   const prefix =
-    status === "delivered"
-      ? "Delivered on"
-      : status === "cancelled"
-        ? "Cancelled on"
-        : status === "shipped"
-          ? "Shipped on"
-          : status === "packed"
-            ? "Packed on"
-            : "Placed on";
+    !statusAt && !(status === "cancelled" && cancelledAt)
+      ? "Placed on"
+      : status === "returned"
+        ? "Returned on"
+        : status === "delivered"
+          ? "Delivered on"
+          : status === "cancelled"
+            ? "Cancelled on"
+            : status === "shipped"
+              ? "Shipped on"
+              : status === "packed"
+                ? "Packed on"
+                : "Placed on";
 
   return `${prefix} ${date.toLocaleDateString("en-IN", {
     weekday: "short",
@@ -1058,7 +1148,7 @@ function ProductReviewForm({
 }: {
   orderId: string;
   item: CustomerOrder["items"][number];
-  existingReview?: NonNullable<CustomerOrder["reviews"]>[number];
+  existingReview?: NonNullable<CustomerOrder["reviews"]>[number] | undefined;
 }) {
   const auth = useAuth();
   const [rating, setRating] = useState(existingReview?.rating ?? 0);
@@ -1086,14 +1176,20 @@ function ProductReviewForm({
 
   async function choosePhotos(files: File[]) {
     setError("");
-    if (photos.length + files.length > 3) { setError("Upload up to 3 product photos."); return; }
+    if (photos.length + files.length > 3) {
+      setError("Upload up to 3 product photos.");
+      return;
+    }
     setPreparingPhotos(true);
     try {
       const prepared = await Promise.all(files.map(prepareReviewPhoto));
       setPhotos((current) => [...current, ...prepared].slice(0, 3));
       setSaved(false);
-    } catch (e) { setError(message(e)); }
-    finally { setPreparingPhotos(false); }
+    } catch (e) {
+      setError(message(e));
+    } finally {
+      setPreparingPhotos(false);
+    }
   }
 
   async function submitReview() {
@@ -1151,10 +1247,17 @@ function ProductReviewForm({
               setSaved(false);
             }}
           >
-            <Star size={28} fill={value <= rating ? "currentColor" : "none"} strokeWidth={1.5} aria-hidden="true" />
+            <Star
+              size={28}
+              fill={value <= rating ? "currentColor" : "none"}
+              strokeWidth={1.5}
+              aria-hidden="true"
+            />
           </button>
         ))}
-        <span className="ml-2 text-sm font-semibold text-brand-navy">{rating ? `${rating}/5` : "Select a rating"}</span>
+        <span className="ml-2 text-sm font-semibold text-brand-navy">
+          {rating ? `${rating}/5` : "Select a rating"}
+        </span>
       </div>
       <label className="field mt-4">
         Review
@@ -1173,27 +1276,65 @@ function ProductReviewForm({
           placeholder="Share fit, comfort, absorbency, packaging..."
         />
       </label>
-      <p id={`review-hint-${orderId}-${item.slug}`} className="mt-1 text-xs text-muted-foreground">Review required: write at least 8 characters. A photo alone cannot be submitted.</p>
+      <p id={`review-hint-${orderId}-${item.slug}`} className="mt-1 text-xs text-muted-foreground">
+        Review required: write at least 8 characters. A photo alone cannot be submitted.
+      </p>
       <label className="field mt-4">
         Product photos (optional)
-        <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={busy || preparingPhotos || photos.length >= 3}
-          onChange={(event) => { const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ""; void choosePhotos(files); }} />
-        <span className="text-xs text-muted-foreground">Up to 3 JPG, PNG or WebP photos, 8 MB each. Photos appear on this product’s page after approval.</span>
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+          disabled={busy || preparingPhotos || photos.length >= 3}
+          onChange={(event) => {
+            const files = Array.from(event.currentTarget.files ?? []);
+            event.currentTarget.value = "";
+            void choosePhotos(files);
+          }}
+        />
+        <span className="text-xs text-muted-foreground">
+          Up to 3 JPG, PNG or WebP photos, 8 MB each. Photos appear on this product’s page after
+          approval.
+        </span>
       </label>
-      {preparingPhotos && <p role="status" className="mt-2 text-sm">Preparing photos…</p>}
+      {preparingPhotos && (
+        <p role="status" className="mt-2 text-sm">
+          Preparing photos…
+        </p>
+      )}
       <div className="mt-3 flex flex-wrap gap-3">
-        {photos.map((photo, index) => <div key={`${index}-${photo.slice(-30)}`} className="space-y-1">
-          <img src={photo} alt={`Your product photo ${index + 1}`} className="size-24 rounded border object-cover" />
-          <button type="button" disabled={busy || preparingPhotos} className="text-xs underline" aria-label={`Remove photo ${index + 1}`}
-            onClick={() => { setPhotos((current) => current.filter((_, position) => position !== index)); setSaved(false); }}>Remove</button>
-        </div>)}
+        {photos.map((photo, index) => (
+          <div key={`${index}-${photo.slice(-30)}`} className="space-y-1">
+            <img
+              src={photo}
+              alt={`Your product photo ${index + 1}`}
+              className="size-24 rounded border object-cover"
+            />
+            <button
+              type="button"
+              disabled={busy || preparingPhotos}
+              className="text-xs underline"
+              aria-label={`Remove photo ${index + 1}`}
+              onClick={() => {
+                setPhotos((current) => current.filter((_, position) => position !== index));
+                setSaved(false);
+              }}
+            >
+              Remove
+            </button>
+          </div>
+        ))}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <Button disabled={busy || preparingPhotos || rating < 1} onClick={submitReview}>
           {busy ? "Saving..." : saved ? "Update review" : "Submit review"}
         </Button>
         {saved ? <p className="text-sm text-emerald-700">Review saved.</p> : null}
-        {error ? <p role="alert" className="text-sm text-red-700">{error}</p> : null}
+        {error ? (
+          <p role="alert" className="text-sm text-red-700">
+            {error}
+          </p>
+        ) : null}
       </div>
     </div>
   );
@@ -1259,10 +1400,19 @@ function CancelOrderControl({ orderId }: { orderId: string }) {
           </div>
           {error ? <p className="text-sm text-red-700">{error}</p> : null}
           <DialogFooter>
-            <Button variant="outline" className="bg-white" disabled={busy} onClick={() => setConfirmOpen(false)}>
+            <Button
+              variant="outline"
+              className="bg-white"
+              disabled={busy}
+              onClick={() => setConfirmOpen(false)}
+            >
               Keep order
             </Button>
-            <Button className="bg-red-700 text-white hover:bg-red-800" disabled={busy} onClick={cancelOrder}>
+            <Button
+              className="bg-red-700 text-white hover:bg-red-800"
+              disabled={busy}
+              onClick={cancelOrder}
+            >
               {busy ? "Cancelling..." : "Confirm cancellation"}
             </Button>
           </DialogFooter>

@@ -19,7 +19,8 @@ export async function handlePopupLeadRequest(request: Request): Promise<Response
       return json({ error: "Use a JSON request." }, 400);
     }
     const body = (await request.json()) as Record<string, unknown>;
-    if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "Use a valid enquiry." }, 400);
+    if (!body || typeof body !== "object" || Array.isArray(body))
+      return json({ error: "Use a valid enquiry." }, 400);
     const lead: PopupLead = {
       name: cleanText(body["name"], 120),
       mobile: cleanText(body["mobile"], 30),
@@ -29,19 +30,29 @@ export async function handlePopupLeadRequest(request: Request): Promise<Response
       source: body["source"] === "Contact form" ? "Contact form" : "Website popup",
       createdAt: new Date().toISOString(),
     };
-    if (!lead.name || (lead.source === "Website popup" && !lead.mobile)) return json({ error: "Name and phone number are required." }, 400);
-    if (lead.mobile && !/^[0-9]{10}$/.test(lead.mobile)) return json({ error: "Enter a valid 10-digit mobile number." }, 400);
+    if (!lead.name || (lead.source === "Website popup" && !lead.mobile))
+      return json({ error: "Name and phone number are required." }, 400);
+    if (lead.mobile && !/^[0-9]{10}$/.test(lead.mobile))
+      return json({ error: "Enter a valid 10-digit mobile number." }, 400);
     if (lead.source === "Contact form" && (!lead.email || lead.message.length < 10)) {
       return json({ error: "Email and a message of at least 10 characters are required." }, 400);
     }
-    if (lead.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lead.email)) return json({ error: "Enter a valid email address." }, 400);
+    if (lead.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lead.email))
+      return json({ error: "Enter a valid email address." }, 400);
 
     if (process.env["MYSQL_HOST"] && process.env["MYSQL_USER"] && process.env["MYSQL_DATABASE"]) {
       const { executeSql } = await import("./mysql.server");
       await executeSql(
         `INSERT INTO popup_leads (name, mobile, email, interested_product_text, message, source)
          VALUES (?, ?, ?, ?, ?, ?)`,
-        [lead.name, lead.mobile, lead.email || null, lead.interestedIn, lead.message || null, lead.source],
+        [
+          lead.name,
+          lead.mobile,
+          lead.email || null,
+          lead.interestedIn,
+          lead.message || null,
+          lead.source,
+        ],
       );
     } else {
       database()

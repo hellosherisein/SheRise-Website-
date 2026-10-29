@@ -1,4 +1,8 @@
-﻿import type { RowDataPacket } from "mysql2/promise";
+import { shipmentLabel } from "../../api/_ekart-shipments.mjs";
+import { adminErrorResponse } from "../../api/_admin-errors.mjs";
+import { shipmentPayload, shippingAdminAction } from "../../api/_shipping-admin.mjs";
+import { commerceSettingsPayload, saveCommerceConfig } from "../../api/_commerce.mjs";
+import type { RowDataPacket } from "mysql2/promise";
 
 import { infoTitles, policies } from "@/features/content-pages";
 import { posts, products as frontendProducts } from "@/lib/catalog";
@@ -7,7 +11,10 @@ import { siteConfig } from "@/lib/site-config";
 
 import { database } from "./database.server";
 import { executeSql, mysqlTransaction, queryRows } from "./mysql.server";
-import { ordersPayload as mysqlOrdersPayload, updateOrderStatus as updateMysqlOrderStatus } from "../../api/_admin-orders.mjs";
+import {
+  ordersPayload as mysqlOrdersPayload,
+  updateOrderStatus as updateMysqlOrderStatus,
+} from "../../api/_admin-orders.mjs";
 import { reviewsPayload as mysqlReviewsPayload, moderateReview } from "../../api/_reviews.mjs";
 import { popupLeadsPayload as mysqlPopupLeadsPayload } from "../../api/_popup-leads.mjs";
 import { blogsPayload as mysqlBlogsPayload } from "../../api/_blogs.mjs";
@@ -131,6 +138,38 @@ type InventoryOverrideRow = {
 
 export async function handleAdminRequest(_request: Request, module: string): Promise<Response> {
   try {
+    assertAdminRequest({ headers: { cookie: _request.headers.get("cookie") || "" } });
+    if (module === "shipping-label") {
+      if (_request.method !== "GET") return json({ error: "Method not allowed." }, 405);
+      const bytes = await shipmentLabel(
+        queryRows,
+        new URL(_request.url).searchParams.get("order") || "",
+      );
+      return new Response(new Uint8Array(bytes), {
+        headers: {
+          "content-type": "application/pdf",
+          "content-disposition": 'attachment; filename="shipping-label.pdf"',
+          "cache-control": "no-store",
+          "x-content-type-options": "nosniff",
+        },
+      });
+    }
+    if (module === "shipping-orders") {
+      if (_request.method === "POST") {
+        await shippingAdminAction(mysqlTransaction, await readBody(_request));
+        return json({ saved: true });
+      }
+      if (_request.method !== "GET") return json({ error: "Method not allowed." }, 405);
+      return json(
+        await shipmentPayload(queryRows, new URL(_request.url).searchParams.get("order") || ""),
+      );
+    }
+    if (module === "shipping-settings") {
+      if (_request.method === "POST")
+        await saveCommerceConfig(executeSql, await readBody(_request));
+      else if (_request.method !== "GET") return json({ error: "Method not allowed." }, 405);
+      return json(await commerceSettingsPayload(queryRows));
+    }
     if (_request.method === "GET" && module === "product-image") {
       return adminProductImageResponse(_request);
     }
@@ -190,21 +229,31 @@ export async function handleAdminRequest(_request: Request, module: string): Pro
     if (module === "products") return json(await productsPayload());
     if (module === "categories") return json(await categoriesPayload());
     if (module === "inventory") return json(await inventoryPayload());
-    if (module === "orders") return json(hasMysqlOrders() ? await mysqlOrdersPayload(queryRows) : ordersPayload());
+    if (module === "orders")
+      return json(hasMysqlOrders() ? await mysqlOrdersPayload(queryRows) : ordersPayload());
     if (module === "customers") return json(customersPayload());
     if (module === "coupons") return json(couponsPayload());
-    if (module === "reviews") return json(hasMysqlOrders() ? await mysqlReviewsPayload(queryRows) : reviewsPayload());
+    if (module === "reviews")
+      return json(hasMysqlOrders() ? await mysqlReviewsPayload(queryRows) : reviewsPayload());
     if (module === "homepage") return json(homepagePayload());
     if (module === "banners") return json(await bannersPayload());
-    if (module === "popup-leads") return json(hasMysqlOrders() ? await mysqlPopupLeadsPayload(queryRows) : popupLeadsPayload());
-    if (module === "newsletter") return json(hasMysqlOrders() ? await mysqlNewsletterPayload(queryRows) : newsletterPayload());
+    if (module === "popup-leads")
+      return json(hasMysqlOrders() ? await mysqlPopupLeadsPayload(queryRows) : popupLeadsPayload());
+    if (module === "newsletter")
+      return json(hasMysqlOrders() ? await mysqlNewsletterPayload(queryRows) : newsletterPayload());
     if (module === "blogs") return json(await blogsPayload());
     if (module === "faqs") return json(faqsPayload());
     if (module === "business-settings") return json(businessSettingsPayload());
     if (module === "shipping-settings") return json(shippingSettingsPayload());
     return json({ error: "Admin module is not connected yet." }, 404);
   } catch (error) {
-    console.error("Admin MySQL API failed:", error instanceof Error ? error.message : error);
+    const failure = adminErrorResponse(error);
+    if ((error as { statusCode?: number }).statusCode || (error as Error).name === "ZodError")
+      return json(failure.body, failure.status);
+    console.error(
+      "Admin MySQL API failed:",
+      (error as { code?: string }).code || "ADMIN_REQUEST_FAILED",
+    );
     if ((error as { code?: string })?.code === "ER_DUP_ENTRY") {
       return json({ error: duplicateEntryMessage(error) }, 409);
     }
@@ -240,11 +289,15 @@ async function adminProductImageResponse(request: Request): Promise<Response> {
 
   const id = new URL(request.url).searchParams.get("id") || "";
   if (!/^[1-9]\d{0,14}$/.test(id)) return new Response(null, { status: 400 });
-  const rows = await queryRows<RowDataPacket>("SELECT image_url FROM product_images WHERE id = ? LIMIT 1", [id]);
+  const rows = await queryRows<RowDataPacket>(
+    "SELECT image_url FROM product_images WHERE id = ? LIMIT 1",
+    [id],
+  );
   const value = rows[0]?.["image_url"];
-  const match = typeof value === "string"
-    ? value.match(/^data:(image\/(?:png|jpeg|webp|gif));base64,([A-Za-z0-9+/\r\n]+={0,2})$/i)
-    : null;
+  const match =
+    typeof value === "string"
+      ? value.match(/^data:(image\/(?:png|jpeg|webp|gif));base64,([A-Za-z0-9+/\r\n]+={0,2})$/i)
+      : null;
   if (!match) return new Response(null, { status: 404 });
   const bytes = Buffer.from(match[2]!, "base64");
   return new Response(new Uint8Array(bytes), {
@@ -258,16 +311,17 @@ async function adminProductImageResponse(request: Request): Promise<Response> {
 }
 
 function hasMysqlOrders() {
-  return Boolean(process.env["MYSQL_HOST"] && process.env["MYSQL_USER"] && process.env["MYSQL_DATABASE"]);
+  return Boolean(
+    process.env["MYSQL_HOST"] && process.env["MYSQL_USER"] && process.env["MYSQL_DATABASE"],
+  );
 }
 
 function updateOrderStatus(input: Record<string, unknown>) {
   const orderId = cleanText(input["orderId"], 64);
   const status = orderStatusValue(input["status"]);
   if (!orderId) throw new Error("Order id is required.");
-  const row = database()
-    .prepare("SELECT data FROM orders WHERE id=?")
-    .get(orderId) as { data: string } | undefined;
+  const row = database().prepare("SELECT data FROM orders WHERE id=?").get(orderId) as
+    { data: string } | undefined;
   if (!row) throw new Error("Order not found.");
   const order = safeJson<CustomerOrder>(row.data);
   order.status = status;
@@ -279,21 +333,22 @@ function updateReviewStatus(input: Record<string, unknown>) {
   const productName = cleanText(input["productName"], 220);
   const nextStatus = reviewModerationStatus(input["status"]);
   if (!orderId || !productName) throw new Error("Review details are required.");
-  const row = database()
-    .prepare("SELECT data FROM orders WHERE id=?")
-    .get(orderId) as { data: string } | undefined;
+  const row = database().prepare("SELECT data FROM orders WHERE id=?").get(orderId) as
+    { data: string } | undefined;
   if (!row) throw new Error("Order not found.");
   const order = safeJson<CustomerOrder>(row.data);
   const item = order.items.find((product) => product.name === productName);
   const review = order.reviews?.find((entry) => entry.slug === item?.slug);
   if (!review) throw new Error("Review not found.");
+  if (!nextStatus) throw new Error("Invalid review status.");
   review.status = nextStatus;
   review.moderatedAt = new Date().toISOString();
   database().prepare("UPDATE orders SET data=? WHERE id=?").run(JSON.stringify(order), orderId);
 }
 
 async function updateInventoryStock(input: Record<string, unknown>) {
-  const sku = cleanText(input["sku"], 100).toUpperCase() || cleanText(input["code"], 100).toUpperCase();
+  const sku =
+    cleanText(input["sku"], 100).toUpperCase() || cleanText(input["code"], 100).toUpperCase();
   if (!sku) throw new Error("SKU is required.");
   const stock = Math.max(0, Number.parseInt(cleanText(input["stock"], 10) || "0", 10));
   const thresholdText = cleanText(input["lowStockThreshold"], 10);
@@ -315,10 +370,14 @@ async function updateInventoryStock(input: Record<string, unknown>) {
     )[0];
 
     if (existing) {
-      await executeSql(
-        "UPDATE inventory SET current_stock = ?, low_stock_threshold = ? WHERE id = ?",
-        [stock, threshold, existing.id],
+      const updated = await executeSql(
+        "UPDATE inventory SET current_stock = ?, low_stock_threshold = ? WHERE id = ? AND reserved_stock <= ?",
+        [stock, threshold, existing.id, stock],
       );
+      if (!updated.affectedRows)
+        throw Object.assign(new Error("Stock cannot be reduced below reserved quantities."), {
+          statusCode: 409,
+        });
     } else {
       await executeSql(
         "INSERT INTO inventory (product_id, variant_id, inventory_level, current_stock, reserved_stock, low_stock_threshold) VALUES (?, NULL, 'PRODUCT', ?, 0, ?)",
@@ -326,6 +385,7 @@ async function updateInventoryStock(input: Record<string, unknown>) {
       );
     }
   } catch (error) {
+    if (hasMysqlOrders()) throw error;
     database()
       .prepare(
         `INSERT INTO inventory_overrides (sku, stock, low_stock_threshold, updated_at)
@@ -389,6 +449,7 @@ function packagingSafetyText(input: Record<string, unknown>) {
 }
 
 async function createProduct(input: Record<string, unknown>) {
+  validateShippingMeasurements(input);
   const name = cleanText(input["title"], 200);
   if (!name) throw new Error("Product name is required.");
   const slug = slugify(cleanText(input["slug"], 220) || name);
@@ -397,12 +458,19 @@ async function createProduct(input: Record<string, unknown>) {
   const categoryId = categoryIds[0]!;
   const mrp = moneyValue(input["mrp"]);
   const sellingPrice = moneyValue(input["sellingPrice"]);
-  const discountPercent = mrp > 0 ? Math.max(0, Math.round((1 - sellingPrice / mrp) * 10000) / 100) : 0;
+  const discountPercent =
+    mrp > 0 ? Math.max(0, Math.round((1 - sellingPrice / mrp) * 10000) / 100) : 0;
   const gstPercent = moneyValue(cleanText(input["gstPercent"], 16) || "0");
   const rawStatus = cleanText(input["status"], 20);
-  const stock = rawStatus === "OUT OF STOCK" ? 0 : Math.max(0, Number.parseInt(cleanText(input["stock"], 8) || "0", 10));
+  const stock =
+    rawStatus === "OUT OF STOCK"
+      ? 0
+      : Math.max(0, Number.parseInt(cleanText(input["stock"], 8) || "0", 10));
   const packQuantity = cleanText(input["packQuantity"], 80) || null;
-  const imageUrls = imageList(input["imageUrls"], cleanImageText(input["imageUrl"]) || `/uploads/products/${slug}.jpg`);
+  const imageUrls = imageList(
+    input["imageUrls"],
+    cleanImageText(input["imageUrl"]) || `/uploads/products/${slug}.jpg`,
+  );
   const status = productStatusValue(rawStatus);
   const features = csvJson(input["features"]);
   const usage = csvJson(input["usageInstructions"]);
@@ -466,6 +534,7 @@ async function createProduct(input: Record<string, unknown>) {
   );
 
   const productId = productResult.insertId;
+  await saveShippingMeasurements(productId, input);
   await saveProductCategories(productId, categoryIds);
   await saveProductImages(productId, name, imageUrls);
   await executeSql(
@@ -492,17 +561,22 @@ async function createProduct(input: Record<string, unknown>) {
       INSERT INTO inventory (product_id, variant_id, inventory_level, current_stock, low_stock_threshold)
       VALUES (?, NULL, 'PRODUCT', ?, ?)
     `,
-    [productId, stock, Math.max(1, Number.parseInt(cleanText(input["lowStockThreshold"], 8) || "5", 10))],
+    [
+      productId,
+      stock,
+      Math.max(1, Number.parseInt(cleanText(input["lowStockThreshold"], 8) || "5", 10)),
+    ],
   );
 }
 
 async function updateProduct(input: Record<string, unknown>) {
+  validateShippingMeasurements(input);
   const originalSku = cleanText(input["originalSku"], 100).toUpperCase();
   if (!originalSku) throw new Error("Product SKU is required.");
   const rows = await queryRows<ProductEditRow>(
     `
       SELECT
-        p.id,
+        p.id, p.shipping_weight_g, p.package_length_cm, p.package_width_cm, p.package_height_cm,
         p.category_id,
         p.name,
         p.slug,
@@ -515,7 +589,8 @@ async function updateProduct(input: Record<string, unknown>) {
         p.pack_quantity,
         p.flow_type,
         p.material_composition,
-        p.product_dimensions,
+        p.shipping_weight_g, p.package_length_cm, p.package_width_cm, p.package_height_cm,
+          p.product_dimensions,
         p.pad_length,
         p.front_pack_content,
         p.anion_strip_notes,
@@ -566,39 +641,60 @@ async function updateProduct(input: Record<string, unknown>) {
   const categoryIds = [categoryId, ...selectedCategoryIds.filter((id) => id !== categoryId)];
   const mrp = optionalMoneyValue(input["mrp"], Number(existing.mrp));
   const sellingPrice = optionalMoneyValue(input["sellingPrice"], Number(existing.selling_price));
-  const discountPercent = mrp > 0 ? Math.max(0, Math.round((1 - sellingPrice / mrp) * 10000) / 100) : 0;
+  const discountPercent =
+    mrp > 0 ? Math.max(0, Math.round((1 - sellingPrice / mrp) * 10000) / 100) : 0;
   const gstPercent = optionalMoneyValue(input["gstPercent"], Number(existing.gst_percent || 0));
   const rawStatus = cleanText(input["status"], 20);
   const stockText = cleanText(input["stock"], 8);
-  const stock = rawStatus === "OUT OF STOCK" ? 0 : stockText ? Math.max(0, Number.parseInt(stockText, 10)) : Number(existing.stock);
+  const stock =
+    rawStatus === "OUT OF STOCK"
+      ? 0
+      : stockText
+        ? Math.max(0, Number.parseInt(stockText, 10))
+        : Number(existing.stock);
   const status = productStatusValue(rawStatus || existing.status);
   const imageUrl = cleanImageText(input["imageUrl"]);
   const imageUrls = imageList(input["imageUrls"], imageUrl);
-  const storedImageUrls = await Promise.all(imageUrls.map((url) => resolveAdminImageUrl(url, productId)));
+  const storedImageUrls = await Promise.all(
+    imageUrls.map((url) => resolveAdminImageUrl(url, productId)),
+  );
   const shortDescription = cleanText(input["shortDescription"], 500) || existing.short_description;
   const description = cleanText(input["description"], 5000) || existing.description;
   const materials = cleanText(input["materials"], 1000) || existing.material_composition;
   const features = jsonListOrExisting(input["features"], existing.features);
-  const usageInstructions = jsonListOrExisting(input["usageInstructions"], existing.usage_instructions);
-  const disposalInstructions = jsonListOrExisting(input["disposalInstructions"], existing.disposal_instructions);
+  const usageInstructions = jsonListOrExisting(
+    input["usageInstructions"],
+    existing.usage_instructions,
+  );
+  const disposalInstructions = jsonListOrExisting(
+    input["disposalInstructions"],
+    existing.disposal_instructions,
+  );
   const safetyInformation = packagingSafetyText(input) || existing.safety_information;
-  const productDimensions = cleanText(input["productDimensions"], 120) || existing.product_dimensions;
+  const productDimensions =
+    cleanText(input["productDimensions"], 120) || existing.product_dimensions;
   const padLength = cleanText(input["padLength"], 80) || existing.pad_length;
-  const frontPackContent = cleanText(input["frontPackContent"], 2000) || existing.front_pack_content;
+  const frontPackContent =
+    cleanText(input["frontPackContent"], 2000) || existing.front_pack_content;
   const anionStripNotes = cleanText(input["anionStripNotes"], 2000) || existing.anion_strip_notes;
   const brandMessage = cleanText(input["brandMessage"], 2000) || existing.brand_message;
-  const storageInstruction = cleanText(input["storageInstruction"], 200) || existing.storage_instruction;
-  const manufacturerDetails = cleanText(input["manufacturerDetails"], 1000) || existing.manufacturer_details;
+  const storageInstruction =
+    cleanText(input["storageInstruction"], 200) || existing.storage_instruction;
+  const manufacturerDetails =
+    cleanText(input["manufacturerDetails"], 1000) || existing.manufacturer_details;
   const marketerDetails = cleanText(input["marketerDetails"], 1000) || existing.marketer_details;
   const productContact = cleanText(input["productContact"], 80) || existing.product_contact;
   const productEmail = cleanText(input["productEmail"], 254) || existing.product_email;
   const productWebsite = cleanText(input["productWebsite"], 200) || existing.product_website;
   const shelfLife = cleanText(input["shelfLife"], 120) || existing.shelf_life;
   const metaTitle = cleanText(input["metaTitle"], 180) || existing.meta_title || name;
-  const metaDescription = cleanText(input["metaDescription"], 300) || existing.meta_description || shortDescription;
+  const metaDescription =
+    cleanText(input["metaDescription"], 300) || existing.meta_description || shortDescription;
   const metaKeywords = cleanText(input["metaKeywords"], 300) || existing.meta_keywords;
   const packQuantity = cleanText(input["packQuantity"], 80) || existing.pack_quantity;
-  const flowType = cleanText(input["flow"], 120) ? flowSet(input["flow"]) : existing.flow_type || "MEDIUM";
+  const flowType = cleanText(input["flow"], 120)
+    ? flowSet(input["flow"])
+    : existing.flow_type || "MEDIUM";
 
   await executeSql(
     `
@@ -676,8 +772,12 @@ async function updateProduct(input: Record<string, unknown>) {
       metaTitle,
       metaDescription || null,
       metaKeywords || null,
-      cleanText(input["isFeatured"], 12) ? checkboxValue(input["isFeatured"]) : existing.is_featured,
-      cleanText(input["isBestseller"], 12) ? checkboxValue(input["isBestseller"]) : existing.is_bestseller,
+      cleanText(input["isFeatured"], 12)
+        ? checkboxValue(input["isFeatured"])
+        : existing.is_featured,
+      cleanText(input["isBestseller"], 12)
+        ? checkboxValue(input["isBestseller"])
+        : existing.is_bestseller,
       status,
       productId,
     ],
@@ -689,11 +789,12 @@ async function updateProduct(input: Record<string, unknown>) {
     `
       UPDATE inventory
       SET current_stock = ?
-      WHERE product_id = ? AND inventory_level = 'PRODUCT'
+      WHERE product_id = ? AND inventory_level = 'PRODUCT' AND reserved_stock <= ?
     `,
-    [stock, productId],
+    [stock, productId, stock],
   );
 
+  await saveShippingMeasurements(productId, input);
   if (storedImageUrls.length > 0) await replaceProductImages(productId, name, storedImageUrls);
 }
 
@@ -725,7 +826,14 @@ async function saveProductImages(productId: number, name: string, imageUrls: str
         INSERT INTO product_images (product_id, image_type, image_url, alt_text, sort_order, is_featured)
         VALUES (?, ?, ?, ?, ?, ?)
       `,
-      [productId, index === 0 ? "FEATURED" : "OTHER", normalizedImageUrl, name, (index + 1) * 10, index === 0 ? 1 : 0],
+      [
+        productId,
+        index === 0 ? "FEATURED" : "OTHER",
+        normalizedImageUrl,
+        name,
+        (index + 1) * 10,
+        index === 0 ? 1 : 0,
+      ],
     );
   }
 }
@@ -733,9 +841,10 @@ async function saveProductImages(productId: number, name: string, imageUrls: str
 async function deleteProduct(input: Record<string, unknown>) {
   const originalSku = cleanText(input["originalSku"], 100).toUpperCase();
   if (!originalSku) throw new Error("Product SKU is required.");
-  await executeSql("UPDATE products SET deleted_at = NOW(), status = 'INACTIVE' WHERE sku = ? AND deleted_at IS NULL", [
-    originalSku,
-  ]);
+  await executeSql(
+    "UPDATE products SET deleted_at = NOW(), status = 'INACTIVE' WHERE sku = ? AND deleted_at IS NULL",
+    [originalSku],
+  );
 }
 
 async function resolveCategoryId(category: string) {
@@ -758,7 +867,14 @@ async function resolveCategoryId(category: string) {
 
 function productCategoryNames(value: unknown): string[] {
   const values = Array.isArray(value) ? value : [value];
-  return [...new Set(values.flatMap((item) => String(item ?? "").split(",")).map((item) => item.trim()).filter(Boolean))];
+  return [
+    ...new Set(
+      values
+        .flatMap((item) => String(item ?? "").split(","))
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ];
 }
 
 async function resolveProductCategoryIds(value: unknown): Promise<number[]> {
@@ -819,7 +935,7 @@ async function createBanner(input: Record<string, unknown>) {
 async function productsPayload(): Promise<ModulePayload> {
   const rows = await queryRows<ProductRow>(`
     SELECT
-      p.id,
+      p.id, p.shipping_weight_g, p.package_length_cm, p.package_width_cm, p.package_height_cm,
       p.name,
       p.slug,
       p.sku,
@@ -873,19 +989,39 @@ async function productsPayload(): Promise<ModulePayload> {
       row.flow_type || "-",
       row.status,
       row.slug,
+      ...["shipping_weight_g", "package_length_cm", "package_width_cm", "package_height_cm"].map(
+        (key) => String(row[key] ?? ""),
+      ),
     ]),
     metrics: [
-      { label: "Total Products", value: String(rows.length), trend: `${draft} draft`, tone: draft ? "warn" : "up" },
+      {
+        label: "Total Products",
+        value: String(rows.length),
+        trend: `${draft} draft`,
+        tone: draft ? "warn" : "up",
+      },
       { label: "Active Products", value: String(active), trend: "Store visible", tone: "up" },
-      { label: "Low Stock", value: String(lowStock), trend: "Needs restock", tone: lowStock ? "warn" : "up" },
-      { label: "Out of Stock", value: String(outOfStock), trend: outOfStock ? "Urgent" : "Clean", tone: outOfStock ? "danger" : "up" },
+      {
+        label: "Low Stock",
+        value: String(lowStock),
+        trend: "Needs restock",
+        tone: lowStock ? "warn" : "up",
+      },
+      {
+        label: "Out of Stock",
+        value: String(outOfStock),
+        trend: outOfStock ? "Urgent" : "Clean",
+        tone: outOfStock ? "danger" : "up",
+      },
     ],
     source: "mysql",
   };
 }
 
 function frontendProductsPayload(): ModulePayload {
-  const lowStock = frontendProducts.filter((product) => product.stock > 0 && product.stock <= 5).length;
+  const lowStock = frontendProducts.filter(
+    (product) => product.stock > 0 && product.stock <= 5,
+  ).length;
   const outOfStock = frontendProducts.filter((product) => product.stock === 0).length;
 
   return {
@@ -903,10 +1039,30 @@ function frontendProductsPayload(): ModulePayload {
       product.stock === 0 ? "OUT OF STOCK" : "ACTIVE",
     ]),
     metrics: [
-      { label: "Frontend Products", value: String(frontendProducts.length), trend: "Static catalog", tone: "neutral" },
-      { label: "Featured", value: String(frontendProducts.filter((product) => product.featured).length), trend: "Visible on site", tone: "up" },
-      { label: "Low Stock", value: String(lowStock), trend: "Needs restock", tone: lowStock ? "warn" : "up" },
-      { label: "Out of Stock", value: String(outOfStock), trend: outOfStock ? "Urgent" : "Clean", tone: outOfStock ? "danger" : "up" },
+      {
+        label: "Frontend Products",
+        value: String(frontendProducts.length),
+        trend: "Static catalog",
+        tone: "neutral",
+      },
+      {
+        label: "Featured",
+        value: String(frontendProducts.filter((product) => product.featured).length),
+        trend: "Visible on site",
+        tone: "up",
+      },
+      {
+        label: "Low Stock",
+        value: String(lowStock),
+        trend: "Needs restock",
+        tone: lowStock ? "warn" : "up",
+      },
+      {
+        label: "Out of Stock",
+        value: String(outOfStock),
+        trend: outOfStock ? "Urgent" : "Clean",
+        tone: outOfStock ? "danger" : "up",
+      },
     ],
     source: "frontend",
   };
@@ -916,7 +1072,7 @@ async function inventoryPayload(): Promise<ModulePayload> {
   try {
     const rows = await queryRows<InventoryRow>(`
       SELECT
-        p.id,
+        p.id, p.shipping_weight_g, p.package_length_cm, p.package_width_cm, p.package_height_cm,
         p.name,
         p.sku,
         p.pack_quantity,
@@ -931,7 +1087,9 @@ async function inventoryPayload(): Promise<ModulePayload> {
     `);
 
     if (rows.length) {
-      const lowStock = rows.filter((row) => Number(row.stock) > 0 && Number(row.stock) <= Number(row.low_stock_threshold || 5));
+      const lowStock = rows.filter(
+        (row) => Number(row.stock) > 0 && Number(row.stock) <= Number(row.low_stock_threshold || 5),
+      );
       const outOfStock = rows.filter((row) => Number(row.stock) === 0);
       const totalStock = rows.reduce((sum, row) => sum + Number(row.stock || 0), 0);
       return {
@@ -951,9 +1109,24 @@ async function inventoryPayload(): Promise<ModulePayload> {
         }),
         metrics: [
           { label: "SKUs", value: String(rows.length), trend: "Catalog items", tone: "neutral" },
-          { label: "Current Stock", value: String(totalStock), trend: "Live MySQL stock", tone: "up" },
-          { label: "Low Stock", value: String(lowStock.length), trend: "Needs restock", tone: lowStock.length ? "warn" : "up" },
-          { label: "Out of Stock", value: String(outOfStock.length), trend: outOfStock.length ? "Urgent" : "Clean", tone: outOfStock.length ? "danger" : "up" },
+          {
+            label: "Current Stock",
+            value: String(totalStock),
+            trend: "Live MySQL stock",
+            tone: "up",
+          },
+          {
+            label: "Low Stock",
+            value: String(lowStock.length),
+            trend: "Needs restock",
+            tone: lowStock.length ? "warn" : "up",
+          },
+          {
+            label: "Out of Stock",
+            value: String(outOfStock.length),
+            trend: outOfStock.length ? "Urgent" : "Clean",
+            tone: outOfStock.length ? "danger" : "up",
+          },
         ],
         source: "mysql",
       };
@@ -974,7 +1147,9 @@ async function inventoryPayload(): Promise<ModulePayload> {
       lowStockThreshold: override ? Number(override.low_stock_threshold) : 5,
     };
   });
-  const lowStock = inventoryProducts.filter((product) => product.stock > 0 && product.stock <= product.lowStockThreshold);
+  const lowStock = inventoryProducts.filter(
+    (product) => product.stock > 0 && product.stock <= product.lowStockThreshold,
+  );
   const outOfStock = inventoryProducts.filter((product) => product.stock === 0);
   const totalStock = inventoryProducts.reduce((sum, product) => sum + product.stock, 0);
 
@@ -987,26 +1162,58 @@ async function inventoryPayload(): Promise<ModulePayload> {
       product.sku,
       product.packOptions.map((pack) => pack.label).join(", "),
       String(product.stock),
-      product.stock === 0 ? "OUT OF STOCK" : product.stock <= product.lowStockThreshold ? "LOW STOCK" : "ACTIVE",
+      product.stock === 0
+        ? "OUT OF STOCK"
+        : product.stock <= product.lowStockThreshold
+          ? "LOW STOCK"
+          : "ACTIVE",
     ]),
     metrics: [
-      { label: "Frontend SKUs", value: String(inventoryProducts.length), trend: "Catalog items", tone: "neutral" },
-      { label: "Current Stock", value: String(totalStock), trend: overrides.length ? "Local stock saved" : "Preview stock", tone: "up" },
-      { label: "Low Stock", value: String(lowStock.length), trend: "Needs restock", tone: lowStock.length ? "warn" : "up" },
-      { label: "Out of Stock", value: String(outOfStock.length), trend: outOfStock.length ? "Urgent" : "Clean", tone: outOfStock.length ? "danger" : "up" },
+      {
+        label: "Frontend SKUs",
+        value: String(inventoryProducts.length),
+        trend: "Catalog items",
+        tone: "neutral",
+      },
+      {
+        label: "Current Stock",
+        value: String(totalStock),
+        trend: overrides.length ? "Local stock saved" : "Preview stock",
+        tone: "up",
+      },
+      {
+        label: "Low Stock",
+        value: String(lowStock.length),
+        trend: "Needs restock",
+        tone: lowStock.length ? "warn" : "up",
+      },
+      {
+        label: "Out of Stock",
+        value: String(outOfStock.length),
+        trend: outOfStock.length ? "Urgent" : "Clean",
+        tone: outOfStock.length ? "danger" : "up",
+      },
     ],
     source: overrides.length ? "sqlite" : "frontend",
   };
 }
 
 function ordersPayload(): ModulePayload {
-  const orders = sqliteRows<{ id: string; user_id: string; data: string }>("SELECT id, user_id, data FROM orders ORDER BY rowid DESC");
+  const orders = sqliteRows<{ id: string; user_id: string; data: string }>(
+    "SELECT id, user_id, data FROM orders ORDER BY rowid DESC",
+  );
   const rows = orders.map((row) => {
-    const order = safeJson<{ total?: number; payment?: string; status?: string; items?: Array<{ name?: string; quantity?: number }> }>(row.data);
+    const order = safeJson<{
+      total?: number;
+      payment?: string;
+      status?: string;
+      items?: Array<{ name?: string; quantity?: number }>;
+    }>(row.data);
     return [
       row.id,
       row.user_id.slice(0, 8),
-      order.items?.map((item) => `${item.name || "Item"} x${item.quantity || 1}`).join(", ") || "Preview order",
+      order.items?.map((item) => `${item.name || "Item"} x${item.quantity || 1}`).join(", ") ||
+        "Preview order",
       `Rs.${Number(order.total || 0).toLocaleString("en-IN")}`,
       order.payment || "Preview",
       (order.status || "preview").toUpperCase(),
@@ -1017,9 +1224,25 @@ function ordersPayload(): ModulePayload {
     title: "Orders",
     action: "Create Order",
     columns: ["Order", "Customer", "Products", "Amount", "Payment", "Status"],
-    rows: rows.length ? rows : [["No frontend orders yet", "Account DB", "Checkout preview saves here", "Rs.0", "Preview", "PENDING"]],
+    rows: rows.length
+      ? rows
+      : [
+          [
+            "No frontend orders yet",
+            "Account DB",
+            "Checkout preview saves here",
+            "Rs.0",
+            "Preview",
+            "PENDING",
+          ],
+        ],
     metrics: [
-      { label: "Preview Orders", value: String(rows.length), trend: "From frontend account DB", tone: rows.length ? "up" : "neutral" },
+      {
+        label: "Preview Orders",
+        value: String(rows.length),
+        trend: "From frontend account DB",
+        tone: rows.length ? "up" : "neutral",
+      },
       { label: "Payments", value: "0", trend: "No real payment", tone: "neutral" },
       { label: "Shipping", value: "Off", trend: "Preview only", tone: "warn" },
       { label: "Cancellations", value: "0", trend: "Clean", tone: "up" },
@@ -1029,7 +1252,14 @@ function ordersPayload(): ModulePayload {
 }
 
 function customersPayload(): ModulePayload {
-  const rows = sqliteRows<{ id: string; name: string; email: string; phone: string | null; whatsapp_number?: string; created_at: string }>(
+  const rows = sqliteRows<{
+    id: string;
+    name: string;
+    email: string;
+    phone: string | null;
+    whatsapp_number?: string;
+    created_at: string;
+  }>(
     "SELECT id, name, email, phone, whatsapp_number, created_at FROM customers ORDER BY created_at DESC",
   );
 
@@ -1048,7 +1278,12 @@ function customersPayload(): ModulePayload {
         ])
       : [["No frontend customers yet", "Register page", "Account DB", "-", "Pending", "PENDING"]],
     metrics: [
-      { label: "Customers", value: String(rows.length), trend: "From frontend login/register", tone: rows.length ? "up" : "neutral" },
+      {
+        label: "Customers",
+        value: String(rows.length),
+        trend: "From frontend login/register",
+        tone: rows.length ? "up" : "neutral",
+      },
       { label: "Accounts", value: "Local", trend: "SQLite preview", tone: "neutral" },
       { label: "Blocked", value: "0", trend: "Clean", tone: "up" },
       { label: "Wishlist DB", value: "On", trend: "Frontend account", tone: "up" },
@@ -1074,7 +1309,9 @@ function couponsPayload(): ModulePayload {
 }
 
 function reviewsPayload(): ModulePayload {
-  const orders = sqliteRows<{ id: string; user_id: string; data: string }>("SELECT id, user_id, data FROM orders ORDER BY rowid DESC");
+  const orders = sqliteRows<{ id: string; user_id: string; data: string }>(
+    "SELECT id, user_id, data FROM orders ORDER BY rowid DESC",
+  );
   const submittedReviews = orders.flatMap((row) => {
     const order = safeJson<CustomerOrder>(row.data);
     return (order.reviews ?? []).map((review) => {
@@ -1105,10 +1342,30 @@ function reviewsPayload(): ModulePayload {
           "Publish verified reviews after launch",
         ]),
     metrics: [
-      { label: "Submitted Reviews", value: String(submittedReviews.length), trend: "From delivered orders", tone: submittedReviews.length ? "warn" : "neutral" },
-      { label: "Products", value: String(frontendProducts.length), trend: "Review surfaces", tone: "up" },
-      { label: "Pending", value: String(pendingCount), trend: pendingCount ? "Moderate" : "Clean", tone: pendingCount ? "warn" : "up" },
-      { label: "Approved", value: String(approvedCount), trend: "Shown on website", tone: approvedCount ? "up" : "neutral" },
+      {
+        label: "Submitted Reviews",
+        value: String(submittedReviews.length),
+        trend: "From delivered orders",
+        tone: submittedReviews.length ? "warn" : "neutral",
+      },
+      {
+        label: "Products",
+        value: String(frontendProducts.length),
+        trend: "Review surfaces",
+        tone: "up",
+      },
+      {
+        label: "Pending",
+        value: String(pendingCount),
+        trend: pendingCount ? "Moderate" : "Clean",
+        tone: pendingCount ? "warn" : "up",
+      },
+      {
+        label: "Approved",
+        value: String(approvedCount),
+        trend: "Shown on website",
+        tone: approvedCount ? "up" : "neutral",
+      },
     ],
     source: "frontend",
   };
@@ -1118,8 +1375,20 @@ function homepagePayload(): ModulePayload {
   const sections = [
     ["Hero", "HERO", "SHOP NOW", "Rise above every period.", "ACTIVE"],
     ["Brand Ribbon", "PROMOTIONAL", "-", "Release. Renew & Rise.", "ACTIVE"],
-    ["Category Tiles", "CATEGORIES", "Category links", "Sanitary Pads, Period Care, Combos", "ACTIVE"],
-    ["Everyday Edit", "FEATURED_PRODUCTS", "SHOP ALL ESSENTIALS", "First 4 frontend products", "ACTIVE"],
+    [
+      "Category Tiles",
+      "CATEGORIES",
+      "Category links",
+      "Sanitary Pads, Period Care, Combos",
+      "ACTIVE",
+    ],
+    [
+      "Everyday Edit",
+      "FEATURED_PRODUCTS",
+      "SHOP ALL ESSENTIALS",
+      "First 4 frontend products",
+      "ACTIVE",
+    ],
     ["Flow Finder", "BENEFITS", "Flow filters", "Light, Medium, Heavy, Overnight", "ACTIVE"],
     ["Editorial Story", "CUSTOM", "OUR STORY", "Your period shouldn't pause your life.", "ACTIVE"],
     ["Blog Strip", "BLOGS", "Blog detail links", `${posts.length} frontend posts`, "ACTIVE"],
@@ -1132,7 +1401,12 @@ function homepagePayload(): ModulePayload {
     columns: ["Section", "Type", "CTA", "Frontend Content", "Status"],
     rows: sections,
     metrics: [
-      { label: "Frontend Sections", value: String(sections.length), trend: "From home page", tone: "up" },
+      {
+        label: "Frontend Sections",
+        value: String(sections.length),
+        trend: "From home page",
+        tone: "up",
+      },
       { label: "Hero Live", value: "1", trend: "Static asset", tone: "up" },
       { label: "Product Blocks", value: "1", trend: "First 4 products", tone: "up" },
       { label: "Newsletter", value: "Connected", trend: "Admin signup storage", tone: "up" },
@@ -1176,8 +1450,18 @@ function popupLeadsPayload(): ModulePayload {
       ? rows
       : [["No enquiries yet", "-", "-", "-", "-", "-", "Website", "PENDING"]],
     metrics: [
-      { label: "Persisted Leads", value: String(rows.length), trend: rows.length ? "Stored in SQLite" : "Waiting for submissions", tone: rows.length ? "up" : "neutral" },
-      { label: "New Leads", value: String(rows.length), trend: "Website enquiries", tone: rows.length ? "warn" : "neutral" },
+      {
+        label: "Persisted Leads",
+        value: String(rows.length),
+        trend: rows.length ? "Stored in SQLite" : "Waiting for submissions",
+        tone: rows.length ? "up" : "neutral",
+      },
+      {
+        label: "New Leads",
+        value: String(rows.length),
+        trend: "Website enquiries",
+        tone: rows.length ? "warn" : "neutral",
+      },
       { label: "Source", value: "Website", trend: "Contact and popup forms", tone: "up" },
       { label: "Storage", value: "On", trend: "Admin visible", tone: "up" },
     ],
@@ -1213,8 +1497,18 @@ function newsletterPayload(): ModulePayload {
       ? rows
       : [["No newsletter signups yet", "Footer newsletter", "Waiting", "Waiting", "PENDING"]],
     metrics: [
-      { label: "Subscribers", value: String(subscribers.length), trend: "Stored in SQLite", tone: subscribers.length ? "up" : "neutral" },
-      { label: "Active", value: String(active), trend: "Newsletter list", tone: active ? "up" : "neutral" },
+      {
+        label: "Subscribers",
+        value: String(subscribers.length),
+        trend: "Stored in SQLite",
+        tone: subscribers.length ? "up" : "neutral",
+      },
+      {
+        label: "Active",
+        value: String(active),
+        trend: "Newsletter list",
+        tone: active ? "up" : "neutral",
+      },
       { label: "Source", value: "Website", trend: "JOIN US form", tone: "up" },
       { label: "Storage", value: "On", trend: "Admin visible", tone: "up" },
     ],
@@ -1240,8 +1534,18 @@ async function blogsPayload(): Promise<ModulePayload> {
       "ACTIVE",
     ]),
     metrics: [
-      { label: "Frontend Posts", value: String(contentPosts.length), trend: "Blog listing", tone: "up" },
-      { label: "Categories", value: String(new Set(contentPosts.map((post) => post.category)).size), trend: "Editorial", tone: "up" },
+      {
+        label: "Frontend Posts",
+        value: String(contentPosts.length),
+        trend: "Blog listing",
+        tone: "up",
+      },
+      {
+        label: "Categories",
+        value: String(new Set(contentPosts.map((post) => post.category)).size),
+        trend: "Editorial",
+        tone: "up",
+      },
       { label: "Drafts", value: "0", trend: "Clean", tone: "up" },
       { label: "Author", value: "SheRise", trend: "Preview editorial", tone: "neutral" },
     ],
@@ -1265,9 +1569,19 @@ function faqsPayload(): ModulePayload {
     columns: ["Question", "Answer Preview", "Status"],
     rows,
     metrics: [
-      { label: "Frontend FAQs", value: String(rows.length), trend: "FAQ + policy accordions", tone: "up" },
+      {
+        label: "Frontend FAQs",
+        value: String(rows.length),
+        trend: "FAQ + policy accordions",
+        tone: "up",
+      },
       { label: "FAQ Page", value: String(contentFaqs.length), trend: "Public FAQ", tone: "up" },
-      { label: "Policies", value: String(policyFaqs.length), trend: "Public policy pages", tone: "neutral" },
+      {
+        label: "Policies",
+        value: String(policyFaqs.length),
+        trend: "Public policy pages",
+        tone: "neutral",
+      },
       { label: "Drafts", value: "0", trend: "Clean", tone: "up" },
     ],
     source: "sqlite",
@@ -1281,16 +1595,46 @@ function businessSettingsPayload(): ModulePayload {
     columns: ["Setting", "Frontend Value", "Where Used", "Status"],
     rows: [
       ["Brand Name", "SheRise", "Header, footer, SEO", "ACTIVE"],
-      ["Instagram", siteConfig.instagramUrl || "Not set", "Footer/social links", siteConfig.instagramUrl ? "ACTIVE" : "PENDING"],
-      ["Facebook", siteConfig.facebookUrl || "Not set", "Footer/social links", siteConfig.facebookUrl ? "ACTIVE" : "PENDING"],
-      ["Support Email", siteConfig.supportEmail || "Not set", "Support/contact copy", siteConfig.supportEmail ? "ACTIVE" : "PENDING"],
+      [
+        "Instagram",
+        siteConfig.instagramUrl || "Not set",
+        "Footer/social links",
+        siteConfig.instagramUrl ? "ACTIVE" : "PENDING",
+      ],
+      [
+        "Facebook",
+        siteConfig.facebookUrl || "Not set",
+        "Footer/social links",
+        siteConfig.facebookUrl ? "ACTIVE" : "PENDING",
+      ],
+      [
+        "Support Email",
+        siteConfig.supportEmail || "Not set",
+        "Support/contact copy",
+        siteConfig.supportEmail ? "ACTIVE" : "PENDING",
+      ],
       ["Demo Mode", siteConfig.demoMode ? "On" : "Off", "Preview messaging", "ACTIVE"],
     ],
     metrics: [
       { label: "Brand", value: "SheRise", trend: "Frontend active", tone: "up" },
-      { label: "Demo Mode", value: siteConfig.demoMode ? "On" : "Off", trend: "Preview site", tone: siteConfig.demoMode ? "warn" : "up" },
-      { label: "Social Links", value: String([siteConfig.instagramUrl, siteConfig.facebookUrl].filter(Boolean).length), trend: "Configured", tone: "neutral" },
-      { label: "Support Email", value: siteConfig.supportEmail ? "Set" : "Missing", trend: "Before launch", tone: siteConfig.supportEmail ? "up" : "warn" },
+      {
+        label: "Demo Mode",
+        value: siteConfig.demoMode ? "On" : "Off",
+        trend: "Preview site",
+        tone: siteConfig.demoMode ? "warn" : "up",
+      },
+      {
+        label: "Social Links",
+        value: String([siteConfig.instagramUrl, siteConfig.facebookUrl].filter(Boolean).length),
+        trend: "Configured",
+        tone: "neutral",
+      },
+      {
+        label: "Support Email",
+        value: siteConfig.supportEmail ? "Set" : "Missing",
+        trend: "Before launch",
+        tone: siteConfig.supportEmail ? "up" : "warn",
+      },
     ],
     source: "frontend",
   };
@@ -1311,7 +1655,12 @@ function shippingSettingsPayload(): ModulePayload {
       { label: "Checkout Shipping", value: "Rs.40", trend: "Free above Rs.499", tone: "warn" },
       { label: "Coverage", value: "Pending", trend: "Policy says not active", tone: "warn" },
       { label: "PIN Check", value: "Format", trend: "No courier API", tone: "neutral" },
-      { label: "Rules", value: String(shippingPolicy.length + 2), trend: "Frontend surfaces", tone: "neutral" },
+      {
+        label: "Rules",
+        value: String(shippingPolicy.length + 2),
+        trend: "Frontend surfaces",
+        tone: "neutral",
+      },
     ],
     source: "frontend",
   };
@@ -1487,13 +1836,20 @@ function productStatusValue(value: unknown) {
 
 function orderStatusValue(value: unknown): CustomerOrder["status"] {
   const status = String(value).toLowerCase();
-  if (status === "packed" || status === "shipped" || status === "delivered" || status === "cancelled") {
+  if (
+    status === "packed" ||
+    status === "shipped" ||
+    status === "delivered" ||
+    status === "cancelled"
+  ) {
     return status;
   }
   return "preview";
 }
 
-function reviewModerationStatus(value: unknown): NonNullable<CustomerOrder["reviews"]>[number]["status"] {
+function reviewModerationStatus(
+  value: unknown,
+): NonNullable<CustomerOrder["reviews"]>[number]["status"] {
   const status = String(value).toUpperCase();
   return status === "APPROVED" || status === "REJECTED" ? status : "PENDING";
 }
@@ -1591,4 +1947,42 @@ function formatDate(value: Date | string | null) {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
   return date.toISOString().slice(0, 10);
+}
+
+function validateShippingMeasurements(input: Record<string, unknown>) {
+  const names = ["shippingWeightG", "packageLengthCm", "packageWidthCm", "packageHeightCm"];
+  if (!names.some((name) => Object.hasOwn(input, name))) return null;
+  const values = names.map((name) => {
+    const raw = input[name];
+    if (raw === "" || raw == null) return null;
+    const value = Number(raw);
+    const factor = name === "shippingWeightG" ? 1000 : 100;
+    if (Math.abs(value * factor - Math.round(value * factor)) > 0.000001)
+      throw Object.assign(
+        new Error("Use at most three decimals for grams and two decimals for centimeters."),
+        { statusCode: 400 },
+      );
+    if (!Number.isFinite(value) || value <= 0 || value > 1000000)
+      throw Object.assign(
+        new Error("Shipping measurements must be positive numbers, or blank if not configured."),
+        { statusCode: 400 },
+      );
+    return value;
+  });
+  if (values.some((value) => value === null) && values.some((value) => value !== null))
+    throw Object.assign(new Error("Configure all four shipping measurements together."), {
+      statusCode: 400,
+    });
+  return values;
+}
+async function saveShippingMeasurements(
+  productId: string | number,
+  input: Record<string, unknown>,
+) {
+  const values = validateShippingMeasurements(input);
+  if (!values) return;
+  await executeSql(
+    "UPDATE products SET shipping_weight_g = ?, package_length_cm = ?, package_width_cm = ?, package_height_cm = ? WHERE id = ?",
+    [...values, productId],
+  );
 }

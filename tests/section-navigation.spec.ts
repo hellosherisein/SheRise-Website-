@@ -4,7 +4,8 @@ test.use({ viewport: { width: 1440, height: 900 } });
 
 const dropdowns = [
   {
-    name: "Why SheRise", path: "/why-sherise",
+    name: "Why SheRise",
+    path: "/why-sherise",
     sections: [
       { label: "Product Features", id: "product-features" },
       { label: "Anion Strip", id: "anion-strip" },
@@ -12,7 +13,8 @@ const dropdowns = [
     ],
   },
   {
-    name: "About", path: "/about",
+    name: "About",
+    path: "/about",
     sections: [
       { label: "Meet our founder", id: "meet-the-founder" },
       { label: "The SheRise Vision", id: "vision" },
@@ -20,7 +22,8 @@ const dropdowns = [
     ],
   },
   {
-    name: "Period Care", path: "/period-guide",
+    name: "Period Care",
+    path: "/period-guide",
     sections: [
       { label: "Period Guide Overview", id: "period-guide-overview" },
       { label: "Wellness Tips", id: "wellness-tips" },
@@ -53,7 +56,9 @@ async function expectSectionInView(page: Page, sectionId: string) {
 
 for (const dropdown of dropdowns) {
   for (const { id } of dropdown.sections) {
-    test(`${dropdown.path}/${id} survives refresh and shows the selected section`, async ({ page }) => {
+    test(`${dropdown.path}/${id} survives refresh and shows the selected section`, async ({
+      page,
+    }) => {
       const response = await page.goto(`${dropdown.path}/${id}`);
       expect(response?.status()).toBe(200);
       await expectSectionInView(page, id);
@@ -61,18 +66,23 @@ for (const dropdown of dropdowns) {
       await expectSectionInView(page, id);
     });
 
-    test(`legacy ${dropdown.path}#${id} bookmark preserves queries on the clean URL`, async ({ page }) => {
+    test(`legacy ${dropdown.path}#${id} bookmark preserves queries on the clean URL`, async ({
+      page,
+    }) => {
       await page.goto(`${dropdown.path}/?utm_source=bookmark#${id}`);
       await expect(page).toHaveURL(new RegExp(`${dropdown.path}/${id}\\?utm_source=bookmark$`));
       await expectSectionInView(page, id);
     });
   }
 
-  test(`${dropdown.name} desktop dropdown uses clean links and keeps the parent active`, async ({ page }) => {
+  test(`${dropdown.name} desktop dropdown uses clean links and keeps the parent active`, async ({
+    page,
+  }) => {
     await page.goto(dropdown.path);
     const nav = page.getByRole("navigation", { name: "Primary", exact: true });
     const parent = nav.getByRole(dropdown.name === "Period Care" ? "button" : "link", {
-      name: dropdown.name, exact: true,
+      name: dropdown.name,
+      exact: true,
     });
     await expect(nav.locator('a[href*="#"]')).toHaveCount(0);
     for (const { label, id } of dropdown.sections) {
@@ -86,7 +96,9 @@ for (const dropdown of dropdowns) {
     }
   });
 
-  test(`${dropdown.name} mobile dropdown opens every section without a fragment`, async ({ page }) => {
+  test(`${dropdown.name} mobile dropdown opens every section without a fragment`, async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto(dropdown.path);
     for (const { label, id } of dropdown.sections) {
@@ -106,7 +118,10 @@ for (const dropdown of dropdowns) {
 test("browser back/forward restores the selected section", async ({ page }) => {
   await page.goto("/why-sherise");
   const nav = page.getByRole("navigation", { name: "Primary", exact: true });
-  for (const [label, sectionId] of [["Product Features", "product-features"], ["Anion Strip", "anion-strip"]] as const) {
+  for (const [label, sectionId] of [
+    ["Product Features", "product-features"],
+    ["Anion Strip", "anion-strip"],
+  ] as const) {
     await nav.getByRole("link", { name: "Why SheRise", exact: true }).hover();
     const link = nav.getByRole("link", { name: label, exact: true });
     await expect(link).toHaveAttribute("href", `/why-sherise/${sectionId}`);
@@ -121,7 +136,9 @@ test("browser back/forward restores the selected section", async ({ page }) => {
   await expectSectionInView(page, "anion-strip");
 });
 
-test("About page founder action uses the clean URL, including from a subsection", async ({ page }) => {
+test("About page founder action uses the clean URL, including from a subsection", async ({
+  page,
+}) => {
   await page.goto("/about/vision");
   const link = page.locator("main").getByRole("link", { name: "Meet our founder", exact: true });
   await expect(link).toHaveAttribute("href", "/about/meet-the-founder");
@@ -130,7 +147,9 @@ test("About page founder action uses the clean URL, including from a subsection"
   await expectSectionInView(page, "meet-the-founder");
 });
 
-test("unknown sections still show a missing page and other page fragments still work", async ({ page }) => {
+test("unknown sections still show a missing page and other page fragments still work", async ({
+  page,
+}) => {
   for (const { path } of dropdowns) {
     await page.goto(`${path}/nonexistent-section`);
     await expect(page.getByRole("heading", { name: "Page not found", exact: true })).toBeVisible();
@@ -140,9 +159,13 @@ test("unknown sections still show a missing page and other page fragments still 
   expect(new URL(page.url()).hash).toBe("#wellness-essence");
 });
 
-test("same-page legacy hash changes normalize encoded sections and preserve queries", async ({ page }) => {
+test("same-page legacy hash changes normalize encoded sections and preserve queries", async ({
+  page,
+}) => {
   await page.goto("/about?utm_source=old-link");
-  await page.evaluate(() => { window.location.hash = "%76ision"; });
+  await page.evaluate(() => {
+    window.location.hash = "%76ision";
+  });
   await expect(page).toHaveURL(/\/about\/vision\?utm_source=old-link$/);
   await expectSectionInView(page, "vision");
 });
@@ -153,5 +176,7 @@ test("Period Care FAQs link still opens the FAQ page", async ({ page }) => {
   await nav.getByRole("button", { name: "Period Care", exact: true }).hover();
   await nav.getByRole("link", { name: "FAQs", exact: true }).click();
   await expect(page).toHaveURL(/\/faq$/);
-  await expect(page.getByRole("heading", { name: "SheRise - Frequently Asked Questions", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "SheRise - Frequently Asked Questions", exact: true }),
+  ).toBeVisible();
 });

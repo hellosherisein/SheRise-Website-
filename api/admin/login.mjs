@@ -16,9 +16,13 @@ export default async function handler(req, res) {
 
   try {
     const body = await readJsonBody(req);
-    const email = String(body.email || "").trim().toLowerCase();
+    const email = String(body.email || "")
+      .trim()
+      .toLowerCase();
     const password = String(body.password || "");
-    const expectedEmail = String(process.env.ADMIN_USERNAME || defaultAdminEmail).trim().toLowerCase();
+    const expectedEmail = String(process.env.ADMIN_USERNAME || defaultAdminEmail)
+      .trim()
+      .toLowerCase();
     const expectedHash = String(process.env.ADMIN_PASSWORD_HASH || defaultAdminPasswordHash);
 
     if (email !== expectedEmail || !safeEqual(sha256(password), expectedHash)) {
@@ -30,7 +34,9 @@ export default async function handler(req, res) {
     res.status(200).json({ ok: true });
   } catch (error) {
     const statusCode = error?.statusCode || 500;
-    res.status(statusCode).json({ error: statusCode === 500 ? "Admin login is not configured." : error.message });
+    res
+      .status(statusCode)
+      .json({ error: statusCode === 500 ? "Admin login is not configured." : error.message });
   }
 }
 

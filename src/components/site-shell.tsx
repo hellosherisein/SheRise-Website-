@@ -85,20 +85,27 @@ export function Header() {
             aria-label="Primary"
             className="hidden min-w-0 items-center justify-center gap-3 xl:flex"
           >
-            {nav.map((n) => (
+            {nav.map((n) =>
               n.to === "/period-guide" ? (
                 <div key={n.to} className="group relative py-7">
                   <button
                     type="button"
                     className={`flex cursor-pointer items-center text-sm font-semibold transition-colors hover:text-brand-coral ${
-                      path === "/period-guide" || path.startsWith("/period-guide/") || path === "/faq" ? "text-brand-coral" : ""
+                      path === "/period-guide" ||
+                      path.startsWith("/period-guide/") ||
+                      path === "/faq"
+                        ? "text-brand-coral"
+                        : ""
                     }`}
                   >
-                    Period Care <ChevronDown className="ml-1 size-3 transition-transform group-hover:rotate-180 group-focus-within:rotate-180" />
+                    Period Care{" "}
+                    <ChevronDown className="ml-1 size-3 transition-transform group-hover:rotate-180 group-focus-within:rotate-180" />
                   </button>
                   <div className="absolute left-0 top-[70px] hidden w-64 gap-1 border bg-background p-4 shadow-lg group-hover:grid group-focus-within:grid">
                     {periodCareLinks.map((item) => (
-                      <Link key={item.to} className="p-3 hover:bg-brand-blush" to={item.to}>{item.label}</Link>
+                      <Link key={item.to} className="p-3 hover:bg-brand-blush" to={item.to}>
+                        {item.label}
+                      </Link>
                     ))}
                     <Link className="p-3 hover:bg-brand-blush" to="/faq">
                       FAQs
@@ -107,12 +114,21 @@ export function Header() {
                 </div>
               ) : n.to === "/why-sherise" ? (
                 <div key={n.to} className="group relative py-7">
-                  <Link to={n.to} className={`flex items-center text-sm font-semibold transition-colors hover:text-brand-coral ${path === n.to || path.startsWith(`${n.to}/`) ? "text-brand-coral" : ""}`}>
-                    Why Choose SheRise <ChevronDown aria-hidden="true" className="ml-1 size-3 transition-transform group-hover:rotate-180 group-focus-within:rotate-180" />
+                  <Link
+                    to={n.to}
+                    className={`flex items-center text-sm font-semibold transition-colors hover:text-brand-coral ${path === n.to || path.startsWith(`${n.to}/`) ? "text-brand-coral" : ""}`}
+                  >
+                    Why Choose SheRise{" "}
+                    <ChevronDown
+                      aria-hidden="true"
+                      className="ml-1 size-3 transition-transform group-hover:rotate-180 group-focus-within:rotate-180"
+                    />
                   </Link>
                   <div className="absolute left-0 top-[70px] hidden w-72 gap-1 border bg-background p-4 shadow-lg group-hover:grid group-focus-within:grid">
                     {whySheRiseLinks.map((item) => (
-                      <Link key={item.to} className="p-3 hover:bg-brand-blush" to={item.to}>{item.label}</Link>
+                      <Link key={item.to} className="p-3 hover:bg-brand-blush" to={item.to}>
+                        {item.label}
+                      </Link>
                     ))}
                   </div>
                 </div>
@@ -122,11 +138,17 @@ export function Header() {
                     to="/about"
                     className={`flex items-center text-sm font-semibold transition-colors hover:text-brand-coral ${path === "/about" || path.startsWith("/about/") ? "text-brand-coral" : ""}`}
                   >
-                    About SheRise <ChevronDown aria-hidden="true" className="ml-1 size-3 transition-transform group-hover:rotate-180 group-focus-within:rotate-180" />
+                    About SheRise{" "}
+                    <ChevronDown
+                      aria-hidden="true"
+                      className="ml-1 size-3 transition-transform group-hover:rotate-180 group-focus-within:rotate-180"
+                    />
                   </Link>
                   <div className="absolute left-0 top-[70px] hidden w-72 gap-1 border bg-background p-4 shadow-lg group-hover:grid group-focus-within:grid">
                     {aboutLinks.map((item) => (
-                      <Link key={item.to} className="p-3 hover:bg-brand-blush" to={item.to}>{item.label}</Link>
+                      <Link key={item.to} className="p-3 hover:bg-brand-blush" to={item.to}>
+                        {item.label}
+                      </Link>
                     ))}
                   </div>
                 </div>
@@ -138,8 +160,8 @@ export function Header() {
                 >
                   {n.label}
                 </Link>
-              )
-            ))}
+              ),
+            )}
           </nav>
           <div className="flex shrink-0 items-center">
             <Button
@@ -199,11 +221,15 @@ export function Header() {
             <SheetDescription>Explore SheRise</SheetDescription>
           </SheetHeader>
           <nav className="mt-8 grid">
-            {nav.map((n) => (
+            {nav.map((n) =>
               n.to === "/period-guide" ? (
                 <div key={n.to} className="border-b py-4">
                   <div className="flex items-center justify-between">
-                    <Link to={n.to} onClick={() => setMenu(false)} className="font-display text-2xl">
+                    <Link
+                      to={n.to}
+                      onClick={() => setMenu(false)}
+                      className="font-display text-2xl"
+                    >
                       Period Care
                     </Link>
                     <button
@@ -214,7 +240,10 @@ export function Header() {
                       onClick={() => setPeriodMenuOpen((open) => !open)}
                       className="p-2"
                     >
-                      <ChevronDown aria-hidden="true" className={`size-5 transition-transform ${periodMenuOpen ? "rotate-180" : ""}`} />
+                      <ChevronDown
+                        aria-hidden="true"
+                        className={`size-5 transition-transform ${periodMenuOpen ? "rotate-180" : ""}`}
+                      />
                     </button>
                   </div>
                   <div
@@ -226,7 +255,9 @@ export function Header() {
                     <div className="min-h-0 overflow-hidden">
                       <div className="grid gap-3">
                         {periodCareLinks.map((item) => (
-                          <Link key={item.to} to={item.to} onClick={() => setMenu(false)}>{item.label}</Link>
+                          <Link key={item.to} to={item.to} onClick={() => setMenu(false)}>
+                            {item.label}
+                          </Link>
                         ))}
                         <Link to="/faq" onClick={() => setMenu(false)}>
                           FAQs
@@ -238,7 +269,11 @@ export function Header() {
               ) : n.to === "/why-sherise" ? (
                 <div key={n.to} className="border-b py-4">
                   <div className="flex items-center justify-between">
-                    <Link to={n.to} onClick={() => setMenu(false)} className="font-display text-2xl">
+                    <Link
+                      to={n.to}
+                      onClick={() => setMenu(false)}
+                      className="font-display text-2xl"
+                    >
                       Why Choose SheRise
                     </Link>
                     <button
@@ -249,7 +284,10 @@ export function Header() {
                       onClick={() => setWhyMenuOpen((open) => !open)}
                       className="p-2"
                     >
-                      <ChevronDown aria-hidden="true" className={`size-5 transition-transform ${whyMenuOpen ? "rotate-180" : ""}`} />
+                      <ChevronDown
+                        aria-hidden="true"
+                        className={`size-5 transition-transform ${whyMenuOpen ? "rotate-180" : ""}`}
+                      />
                     </button>
                   </div>
                   <div
@@ -261,7 +299,9 @@ export function Header() {
                     <div className="min-h-0 overflow-hidden">
                       <div className="grid gap-3">
                         {whySheRiseLinks.map((item) => (
-                          <Link key={item.to} to={item.to} onClick={() => setMenu(false)}>{item.label}</Link>
+                          <Link key={item.to} to={item.to} onClick={() => setMenu(false)}>
+                            {item.label}
+                          </Link>
                         ))}
                       </div>
                     </div>
@@ -270,7 +310,11 @@ export function Header() {
               ) : n.to === "/about" ? (
                 <div key={n.to} className="border-b py-4">
                   <div className="flex items-center justify-between">
-                    <Link to={n.to} onClick={() => setMenu(false)} className="font-display text-2xl">
+                    <Link
+                      to={n.to}
+                      onClick={() => setMenu(false)}
+                      className="font-display text-2xl"
+                    >
                       About SheRise
                     </Link>
                     <button
@@ -281,7 +325,10 @@ export function Header() {
                       onClick={() => setAboutMenuOpen((open) => !open)}
                       className="p-2"
                     >
-                      <ChevronDown aria-hidden="true" className={`size-5 transition-transform ${aboutMenuOpen ? "rotate-180" : ""}`} />
+                      <ChevronDown
+                        aria-hidden="true"
+                        className={`size-5 transition-transform ${aboutMenuOpen ? "rotate-180" : ""}`}
+                      />
                     </button>
                   </div>
                   <div
@@ -293,7 +340,9 @@ export function Header() {
                     <div className="min-h-0 overflow-hidden">
                       <div className="grid gap-3">
                         {aboutLinks.map((item) => (
-                          <Link key={item.to} to={item.to} onClick={() => setMenu(false)}>{item.label}</Link>
+                          <Link key={item.to} to={item.to} onClick={() => setMenu(false)}>
+                            {item.label}
+                          </Link>
                         ))}
                       </div>
                     </div>
@@ -308,17 +357,25 @@ export function Header() {
                 >
                   {n.label}
                 </Link>
-              )
-            ))}
+              ),
+            )}
           </nav>
           <div className="mt-8 grid grid-cols-2 gap-3">
-            <Button asChild variant="navy" className="min-h-12 gap-2 rounded-lg px-3 shadow-sm transition-colors hover:bg-brand-burgundy">
+            <Button
+              asChild
+              variant="navy"
+              className="min-h-12 gap-2 rounded-lg px-3 shadow-sm transition-colors hover:bg-brand-burgundy"
+            >
               <Link to="/account" onClick={() => setMenu(false)}>
                 <UserRound className="size-4 shrink-0" aria-hidden="true" />
                 My account
               </Link>
             </Button>
-            <Button asChild variant="outline" className="min-h-12 gap-2 rounded-lg border-brand-burgundy/25 bg-brand-blush/60 px-3 text-brand-burgundy shadow-none transition-colors hover:bg-brand-blush hover:text-brand-burgundy">
+            <Button
+              asChild
+              variant="outline"
+              className="min-h-12 gap-2 rounded-lg border-brand-burgundy/25 bg-brand-blush/60 px-3 text-brand-burgundy shadow-none transition-colors hover:bg-brand-blush hover:text-brand-burgundy"
+            >
               <Link to="/wishlist" onClick={() => setMenu(false)}>
                 <Heart className="size-4 shrink-0" aria-hidden="true" />
                 Wishlist
@@ -381,7 +438,9 @@ export function CartDrawer() {
             </div>
           ) : (
             cart.map((item) => {
-              const p = liveProducts.find((x) => x.slug === item.slug) || products.find((x) => x.slug === item.slug);
+              const p =
+                liveProducts.find((x) => x.slug === item.slug) ||
+                products.find((x) => x.slug === item.slug);
               const productName = item.name || p?.name || titleFromSlug(item.slug);
               const productImage = item.image || p?.images[0] || popupImage;
               return (
@@ -616,7 +675,11 @@ export function WelcomePopup() {
                 await submitEnquiry(lead);
                 closePopup();
               } catch (error) {
-                setLeadError(error instanceof Error ? error.message : "Could not send your enquiry. Please try again.");
+                setLeadError(
+                  error instanceof Error
+                    ? error.message
+                    : "Could not send your enquiry. Please try again.",
+                );
               } finally {
                 setLeadSaving(false);
               }
@@ -631,10 +694,26 @@ export function WelcomePopup() {
               </DialogDescription>
             </DialogHeader>
             <Input name="name" required maxLength={120} placeholder="Full Name*" className="h-11" />
-            <Input name="email" type="email" maxLength={254} placeholder="Email Address" className="h-11" />
-            <Input name="mobile" type="tel" required minLength={10} maxLength={10} pattern="[0-9]{10}"
-              inputMode="numeric" autoComplete="tel-national" title="Enter exactly 10 digits, without +91 or spaces."
-              placeholder="Phone Number*" className="h-11" />
+            <Input
+              name="email"
+              type="email"
+              maxLength={254}
+              placeholder="Email Address"
+              className="h-11"
+            />
+            <Input
+              name="mobile"
+              type="tel"
+              required
+              minLength={10}
+              maxLength={10}
+              pattern="[0-9]{10}"
+              inputMode="numeric"
+              autoComplete="tel-national"
+              title="Enter exactly 10 digits, without +91 or spaces."
+              placeholder="Phone Number*"
+              className="h-11"
+            />
             <select
               name="interestedIn"
               className="h-11 border border-input bg-background px-3 text-sm outline-none focus:border-brand-coral"
@@ -659,7 +738,11 @@ export function WelcomePopup() {
                 Maybe later
               </Button>
             </div>
-            {leadError ? <p role="alert" className="text-sm text-red-700">{leadError}</p> : null}
+            {leadError ? (
+              <p role="alert" className="text-sm text-red-700">
+                {leadError}
+              </p>
+            ) : null}
           </form>
         </div>
       </DialogContent>

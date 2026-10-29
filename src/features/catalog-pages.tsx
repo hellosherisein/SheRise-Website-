@@ -1,4 +1,5 @@
-﻿import { useEffect, useState } from "react";
+import { useShippingQuote } from "@/lib/shipping";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "@/router-shim";
 import { Heart, SlidersHorizontal, ChevronLeft, ChevronRight, ZoomIn } from "lucide-react";
 import { products, getProduct, money, type Product } from "@/lib/catalog";
@@ -49,7 +50,11 @@ export function Collection({
     const s = new URLSearchParams(location.search);
     setQ(s.get("q") || "");
     const requestedFlow = (s.get("flow") || "").trim().toLowerCase();
-    setFlow(["Light", "Medium", "Heavy", "Overnight"].find((value) => value.toLowerCase() === requestedFlow) || "");
+    setFlow(
+      ["Light", "Medium", "Heavy", "Overnight"].find(
+        (value) => value.toLowerCase() === requestedFlow,
+      ) || "",
+    );
     setCat(category);
   }, [category]);
   const items = (catalogProducts ?? [])
@@ -192,10 +197,14 @@ export function Collection({
           {catalogError ? (
             <div role="alert" className="space-y-3 py-8">
               <p>{catalogError}</p>
-              <Button variant="outline" onClick={retryCatalog}>Retry loading products</Button>
+              <Button variant="outline" onClick={retryCatalog}>
+                Retry loading products
+              </Button>
             </div>
           ) : catalogProducts === null ? (
-            <p role="status" className="py-8">Loading products…</p>
+            <p role="status" className="py-8">
+              Loading products…
+            </p>
           ) : items.length ? (
             <ProductGrid items={items.slice(0, limit)} layout="shop" />
           ) : (
@@ -251,7 +260,9 @@ export function Collection({
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-burgundy">
                   0{index + 1}
                 </p>
-                <h3 className="mt-2 break-words text-2xl text-brand-navy sm:text-xl xl:text-2xl">{title}</h3>
+                <h3 className="mt-2 break-words text-2xl text-brand-navy sm:text-xl xl:text-2xl">
+                  {title}
+                </h3>
                 <p className="mt-4 text-sm leading-6 text-muted-foreground">{copy}</p>
               </article>
             ))}
@@ -321,9 +332,16 @@ export function ProductDetail({ product: p }: { product: Product }) {
     [galleryPaused, setGalleryPaused] = useState(false),
     [zoom, setZoom] = useState(false),
     [pin, setPin] = useState(""),
-    [pinMessage, setPinMessage] = useState(""),
+    [checkedPin, setCheckedPin] = useState(""),
     [recent, setRecent] = useState<string[]>([]);
   const variant = p.packOptions[pack]!;
+  const delivery = useShippingQuote(
+    [{ slug: p.slug, size, flow, pack: variant.label, quantity: qty, price: variant.price }],
+    checkedPin,
+    "UPI",
+    "",
+    0,
+  );
   let touch = 0;
   useEffect(() => {
     if (galleryPaused || zoom || p.images.length < 2) return;
@@ -356,7 +374,7 @@ export function ProductDetail({ product: p }: { product: Product }) {
       pack: variant.label,
       price: variant.price,
       name: p.name,
-      image: p.images[photo] || p.images[0],
+      image: p.images[photo] || p.images[0] || "",
     });
     if (buy) {
       setCartOpen(false);
@@ -491,12 +509,7 @@ export function ProductDetail({ product: p }: { product: Product }) {
           <div className="my-4" />
           <QuantitySelector value={qty} onChange={setQty} max={Math.max(variant.stock, 99)} />
           <div className="purchase-actions mt-5 grid grid-cols-2 gap-3">
-            <Button
-              size="lg"
-              variant="coral"
-              disabled={!ready}
-              onClick={() => purchase()}
-            >
+            <Button size="lg" variant="coral" disabled={!ready} onClick={() => purchase()}>
               ADD TO CART
             </Button>
             <Button size="lg" disabled={!ready} onClick={() => purchase(true)}>
@@ -515,9 +528,7 @@ export function ProductDetail({ product: p }: { product: Product }) {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              setPinMessage(
-                "PIN format accepted. Delivery coverage and dates will be confirmed when shipping is connected.",
-              );
+              setCheckedPin(pin);
             }}
           >
             <label className="field">
@@ -526,7 +537,10 @@ export function ProductDetail({ product: p }: { product: Product }) {
                 <input
                   className="min-w-0 flex-1"
                   value={pin}
-                  onChange={(e) => setPin(e.target.value)}
+                  onChange={(e) => {
+                    setPin(e.target.value);
+                    setCheckedPin("");
+                  }}
                   inputMode="numeric"
                   pattern="[1-9][0-9]{5}"
                   maxLength={6}
@@ -539,7 +553,12 @@ export function ProductDetail({ product: p }: { product: Product }) {
               </div>
             </label>
             <p role="status" className="mt-3 text-xs">
-              {pinMessage}
+              {delivery.loading
+                ? "Checking delivery?"
+                : delivery.error ||
+                  (delivery.quote
+                    ? "Prepaid delivery is available. Final charges are confirmed at checkout."
+                    : "")}
             </p>
           </form>
         </div>

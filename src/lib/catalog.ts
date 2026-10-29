@@ -3,21 +3,58 @@ import guide from "@/assets/sherise-guide.jpg";
 import story from "@/assets/sherise-story.jpg";
 
 export type Product = {
-  id: string; slug: string; name: string; shortDescription: string; description: string;
-  category: "Sanitary Pads" | "Period Care"; categories?: string[]; images: string[]; sizes: string[];
-  flow: string[]; packOptions: { label: string; price: number; mrp: number; stock: number }[];
-  mrp: number; salePrice: number; discount: number; stock: number; sku: string;
-  rating?: number; reviewCount?: number; features: string[]; materials: string[];
-  usageInstructions: string[]; disposalInstructions: string[]; faq: { q: string; a: string }[];
-  relatedProducts: string[]; badge?: string; featured?: boolean;
+  gstPercent?: number;
+  shippingWeightG?: number | null;
+  packageLengthCm?: number | null;
+  packageWidthCm?: number | null;
+  packageHeightCm?: number | null;
+  id: string;
+  slug: string;
+  name: string;
+  shortDescription: string;
+  description: string;
+  category: "Sanitary Pads" | "Period Care";
+  categories?: string[];
+  images: string[];
+  sizes: string[];
+  flow: string[];
+  packOptions: { label: string; price: number; mrp: number; stock: number }[];
+  mrp: number;
+  salePrice: number;
+  discount: number;
+  stock: number;
+  sku: string;
+  rating?: number;
+  reviewCount?: number;
+  features: string[];
+  materials: string[];
+  usageInstructions: string[];
+  disposalInstructions: string[];
+  faq: { q: string; a: string }[];
+  relatedProducts: string[];
+  badge?: string;
+  featured?: boolean;
 };
 
 const shared = {
-  images: [flatlay, flatlay, flatlay], sizes: ["XL", "XXL", "XXXL"],
+  images: [flatlay, flatlay, flatlay],
+  sizes: ["XL", "XXL", "XXXL"],
   materials: ["Material information placeholder â€” replace with verified SheRise details."],
-  usageInstructions: ["Remove the wrapper.", "Place securely on underwear.", "Change as needed for your comfort."],
-  disposalInstructions: ["Wrap the used pad securely.", "Place in an appropriate waste bin. Do not flush."],
-  faq: [{ q: "Which size should I choose?", a: "Choose by your flow, routine and preferred coverage. See our Period Guide for a simple starting point." }],
+  usageInstructions: [
+    "Remove the wrapper.",
+    "Place securely on underwear.",
+    "Change as needed for your comfort.",
+  ],
+  disposalInstructions: [
+    "Wrap the used pad securely.",
+    "Place in an appropriate waste bin. Do not flush.",
+  ],
+  faq: [
+    {
+      q: "Which size should I choose?",
+      a: "Choose by your flow, routine and preferred coverage. See our Period Guide for a simple starting point.",
+    },
+  ],
 };
 
 export const products: Product[] = [
@@ -46,7 +83,11 @@ export const products: Product[] = [
       "Dry & Comfortable Feel",
       "Individually Wrapped for Hygiene",
     ],
-    materials: ["Organic Sanitary Pads With Anion Strip", "Soft cotton top layer", "Breathable back sheet"],
+    materials: [
+      "Organic Sanitary Pads With Anion Strip",
+      "Soft cotton top layer",
+      "Breathable back sheet",
+    ],
     usageInstructions: [
       "Peel off back paper.",
       "Place on underwear and press.",
@@ -114,7 +155,11 @@ export const products: Product[] = [
       "Dry & Comfortable Feel",
       "Individually Wrapped for Hygiene",
     ],
-    materials: ["Organic Sanitary Pads With Anion Strip", "Soft cotton top layer", "Breathable back sheet"],
+    materials: [
+      "Organic Sanitary Pads With Anion Strip",
+      "Soft cotton top layer",
+      "Breathable back sheet",
+    ],
     usageInstructions: [
       "Peel off back paper.",
       "Place on underwear and press.",
@@ -159,13 +204,62 @@ export const products: Product[] = [
   },
 ];
 
-export type BlogPost = { slug:string; title:string; excerpt:string; category:string; date:string; image:string; content:string[]; author?:string; metaTitle?:string; metaDescription?:string };
+export type BlogPost = {
+  slug: string;
+  title: string;
+  excerpt: string;
+  category: string;
+  date: string;
+  image: string;
+  content: string[];
+  author?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+};
 export const posts: BlogPost[] = [
-  {slug:"understanding-your-menstrual-cycle",title:"Understanding Your Menstrual Cycle",excerpt:"A calm, practical introduction to the phases of your cycle.",category:"Cycle Basics",date:"12 September 2026",image:guide,content:["Your menstrual cycle is a repeating pattern of changes in the body. Every personâ€™s experience can differ, and tracking your own patterns can help you understand what feels typical for you.","If pain, bleeding, or another symptom worries you, seek advice from a qualified healthcare professional."]},
-  {slug:"how-to-choose-sanitary-pad-size",title:"Choosing the Right Pad Size",excerpt:"Use flow, coverage and routine to find a comfortable starting point.",category:"Period Guide",date:"8 September 2026",image:flatlay,content:["Start with your usual flow and the activities in your day. Longer formats can offer more coverage, while a lighter format may feel more comfortable on lower-flow days.","There is no universal perfect size. Adjust as your flow changes and always follow verified product instructions."]},
-  {slug:"period-care-on-busy-days",title:"Period Care on Busy Days",excerpt:"Simple planning ideas for commutes, classes and long workdays.",category:"Everyday Care",date:"2 September 2026",image:story,content:["Keep a small period-care kit with products you already know, disposal bags if needed, and a spare pair of underwear.","Plan breaks around your own comfort and follow the productâ€™s change guidance."]},
+  {
+    slug: "understanding-your-menstrual-cycle",
+    title: "Understanding Your Menstrual Cycle",
+    excerpt: "A calm, practical introduction to the phases of your cycle.",
+    category: "Cycle Basics",
+    date: "12 September 2026",
+    image: guide,
+    content: [
+      "Your menstrual cycle is a repeating pattern of changes in the body. Every personâ€™s experience can differ, and tracking your own patterns can help you understand what feels typical for you.",
+      "If pain, bleeding, or another symptom worries you, seek advice from a qualified healthcare professional.",
+    ],
+  },
+  {
+    slug: "how-to-choose-sanitary-pad-size",
+    title: "Choosing the Right Pad Size",
+    excerpt: "Use flow, coverage and routine to find a comfortable starting point.",
+    category: "Period Guide",
+    date: "8 September 2026",
+    image: flatlay,
+    content: [
+      "Start with your usual flow and the activities in your day. Longer formats can offer more coverage, while a lighter format may feel more comfortable on lower-flow days.",
+      "There is no universal perfect size. Adjust as your flow changes and always follow verified product instructions.",
+    ],
+  },
+  {
+    slug: "period-care-on-busy-days",
+    title: "Period Care on Busy Days",
+    excerpt: "Simple planning ideas for commutes, classes and long workdays.",
+    category: "Everyday Care",
+    date: "2 September 2026",
+    image: story,
+    content: [
+      "Keep a small period-care kit with products you already know, disposal bags if needed, and a spare pair of underwear.",
+      "Plan breaks around your own comfort and follow the productâ€™s change guidance.",
+    ],
+  },
 ];
 
-export const getProduct = (slug:string) => products.find((p)=>p.slug===slug);
-export const getPost = (slug:string) => posts.find((p)=>p.slug===slug);
-export const money = (value:number) => new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0}).format(value);
+export const getProduct = (slug: string) => products.find((p) => p.slug === slug);
+export const getPost = (slug: string) => posts.find((p) => p.slug === slug);
+export const money = (value: number) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(value);

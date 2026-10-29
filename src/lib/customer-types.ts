@@ -49,8 +49,17 @@ export type CustomerOrder = {
   shippingAmount?: number;
   donationAmount?: number;
   total: number;
-  status: "preview" | "packed" | "shipped" | "delivered" | "cancelled";
+  status: "preview" | "packed" | "shipped" | "delivered" | "cancelled" | "returned";
   payment: string;
+  isPreview?: boolean;
+  codAmount?: number;
+  codFee?: number;
+  trackingNumber?: string;
+  awb?: string;
+  trackingUrl?: string;
+  shipmentStatus?: string;
+  statusAt?: string;
+  shipmentEvents?: { status: string; occurredAt: string }[];
   paymentStatus?: string;
   gatewayPaymentId?: string;
   gatewayOrderId?: string;

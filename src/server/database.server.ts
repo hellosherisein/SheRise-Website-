@@ -30,10 +30,16 @@ export function database() {
  CREATE TABLE IF NOT EXISTS reset_tokens(token_hash TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,expires_at INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS auth_limits(key TEXT PRIMARY KEY,count INTEGER NOT NULL,expires_at INTEGER NOT NULL);
  PRAGMA user_version=1;`);
-  let customerColumns = db.prepare("PRAGMA table_info(customers)").all() as Array<{ name: string; notnull: number }>;
+  let customerColumns = db.prepare("PRAGMA table_info(customers)").all() as Array<{
+    name: string;
+    notnull: number;
+  }>;
   if (!customerColumns.some((column) => column.name === "whatsapp_number")) {
     db.exec("ALTER TABLE customers ADD COLUMN whatsapp_number TEXT NOT NULL DEFAULT ''");
-    customerColumns = db.prepare("PRAGMA table_info(customers)").all() as Array<{ name: string; notnull: number }>;
+    customerColumns = db.prepare("PRAGMA table_info(customers)").all() as Array<{
+      name: string;
+      notnull: number;
+    }>;
   }
   if (customerColumns.some((column) => column.name === "phone" && column.notnull === 1)) {
     db.exec(`PRAGMA foreign_keys=OFF;

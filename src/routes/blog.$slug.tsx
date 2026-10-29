@@ -6,9 +6,9 @@ import { seo, siteUrl } from "@/lib/seo";
 
 export const Route = createFileRoute("/blog/$slug")({
   loader: async ({ params }) => {
-    const response = await fetch(`/api/content/blogs/${encodeURIComponent(params.slug)}`);
+    const response = await fetch(`/api/content/blogs/${encodeURIComponent(params["slug"] || "")}`);
     if (!response.ok) throw new Error("Could not load this blog post. Please try again.");
-    const live = await response.json() as { post?: BlogPost; related?: BlogPost[] };
+    const live = (await response.json()) as { post?: BlogPost; related?: BlogPost[] };
     const post = live.post;
     if (!post) throw notFound();
     return { post, related: live.related || [] };
@@ -30,7 +30,9 @@ export const Route = createFileRoute("/blog/$slug")({
               "@type": "Article",
               headline: p.title,
               description: p.excerpt,
-              datePublished: Number.isNaN(parsedDate.getTime()) ? undefined : parsedDate.toISOString(),
+              datePublished: Number.isNaN(parsedDate.getTime())
+                ? undefined
+                : parsedDate.toISOString(),
               author: { "@type": "Organization", name: p.author || "SheRise" },
               image: new URL(p.image, siteUrl).href,
             }),

@@ -58,7 +58,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       if (version === generation.current) {
         // A network/server error is not evidence that the session ended.
-        setError(error instanceof Error ? error.message : "Could not refresh your account. Please try again.");
+        setError(
+          error instanceof Error
+            ? error.message
+            : "Could not refresh your account. Please try again.",
+        );
       }
     } finally {
       if (version === generation.current) setLoading(false);
@@ -97,8 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const merged = validCart(readLocal("sherise-cart-v2:" + next.user.id, []), []);
       for (const item of guestCart) {
         const current = merged.find((other) => cartKey(other) === cartKey(item));
-        if (current)
-          current.quantity = Math.min(99, current.quantity + item.quantity);
+        if (current) current.quantity = Math.min(99, current.quantity + item.quantity);
         else merged.push(item);
       }
       if (saveLocal("sherise-cart-v2:" + next.user.id, merged))
@@ -113,7 +116,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
       }
-      if (wishlistSlugs.length) saveLocal("sherise-guest-wishlist", wishlistSlugs.filter((slug) => !next.wishlist.includes(slug)));
+      if (wishlistSlugs.length)
+        saveLocal(
+          "sherise-guest-wishlist",
+          wishlistSlugs.filter((slug) => !next.wishlist.includes(slug)),
+        );
     }
     setData(next);
     setError("");

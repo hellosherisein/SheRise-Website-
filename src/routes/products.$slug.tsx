@@ -7,16 +7,20 @@ export const Route = createFileRoute("/products/$slug")({
   loader: async ({ params }) => {
     let payload: { products?: Product[] };
     try {
-      const response = await fetch(`/api/catalog/products?slug=${encodeURIComponent(params.slug!)}&t=${Date.now()}`, {
-        cache: "no-store", signal: AbortSignal.timeout(15000),
-      });
+      const response = await fetch(
+        `/api/catalog/products?slug=${encodeURIComponent(params["slug"] || "")}&t=${Date.now()}`,
+        {
+          cache: "no-store",
+          signal: AbortSignal.timeout(15000),
+        },
+      );
       if (!response.ok) throw new Error("Product service unavailable");
       payload = await response.json();
       if (!Array.isArray(payload.products)) throw new Error("Invalid product response");
     } catch {
       throw new Error("Product details could not be loaded. Please try again.");
     }
-    const p = payload.products!.find((product) => product.slug === params.slug);
+    const p = payload.products!.find((product) => product.slug === (params["slug"] || ""));
     if (!p) throw notFound();
     return p;
   },

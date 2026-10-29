@@ -1,3 +1,6 @@
+import { shipmentLabel } from "../_ekart-shipments.mjs";
+import { shipmentPayload, shippingAdminAction } from "../_shipping-admin.mjs";
+import { commerceSettingsPayload, saveCommerceConfig } from "../_commerce.mjs";
 import { createPool } from "mysql2/promise";
 
 import { assertAdminRequest } from "../_admin-session.mjs";
@@ -42,6 +45,46 @@ export default async function handler(req, res) {
     assertAdminRequest(req);
 
     const moduleName = Array.isArray(req.query.module) ? req.query.module[0] : req.query.module;
+    if (moduleName === "shipping-label") {
+      if (req.method !== "GET") {
+        res.status(405).json({ error: "Method not allowed." });
+        return;
+      }
+      const number =
+        req.query.order || new URL(req.url || "/", "https://localhost").searchParams.get("order");
+      const bytes = await shipmentLabel(queryRows, String(number || ""));
+      res.status(200);
+      res.setHeader("content-type", "application/pdf");
+      res.setHeader("content-disposition", 'attachment; filename="shipping-label.pdf"');
+      res.setHeader("cache-control", "no-store");
+      res.end(bytes);
+      return;
+    }
+    if (moduleName === "shipping-orders") {
+      if (req.method === "POST") {
+        const input = await readJsonBody(req);
+        await shippingAdminAction(orderTransaction, input);
+        res.status(200).json({ saved: true });
+        return;
+      }
+      if (req.method !== "GET") {
+        res.status(405).json({ error: "Method not allowed." });
+        return;
+      }
+      const orderNumber =
+        req.query.order || new URL(req.url || "/", "https://localhost").searchParams.get("order");
+      res.status(200).json(await shipmentPayload(queryRows, String(orderNumber || "")));
+      return;
+    }
+    if (moduleName === "shipping-settings") {
+      if (req.method === "POST") await saveCommerceConfig(executeSql, await readJsonBody(req));
+      else if (req.method !== "GET") {
+        res.status(405).json({ error: "Method not allowed." });
+        return;
+      }
+      res.status(200).json(await commerceSettingsPayload(queryRows));
+      return;
+    }
     if (moduleName === "categories") await ensureProductSchema();
     if (req.method === "GET" && moduleName === "product-image") {
       const imageId = String(req.query.id || "");
@@ -49,8 +92,12 @@ export default async function handler(req, res) {
         res.status(400).end();
         return;
       }
-      const image = (await queryRows("SELECT image_url FROM product_images WHERE id = ? LIMIT 1", [imageId]))[0];
-      const match = String(image?.image_url || "").match(/^data:(image\/(?:png|jpeg|webp|gif));base64,([A-Za-z0-9+/\r\n]+={0,2})$/i);
+      const image = (
+        await queryRows("SELECT image_url FROM product_images WHERE id = ? LIMIT 1", [imageId])
+      )[0];
+      const match = String(image?.image_url || "").match(
+        /^data:(image\/(?:png|jpeg|webp|gif));base64,([A-Za-z0-9+/\r\n]+={0,2})$/i,
+      );
       if (!match) {
         res.status(404).end();
         return;
@@ -162,7 +209,13 @@ export default async function handler(req, res) {
 
     res.status(200).json(emptyPayload(moduleName || "admin"));
   } catch (error) {
-    console.error("Admin MySQL API failed:", req.method, req.query?.module, error?.code || "", error instanceof Error ? error.message : "Unknown error");
+    console.error(
+      "Admin MySQL API failed:",
+      req.method,
+      req.query?.module,
+      error?.code || "",
+      error instanceof Error ? error.message : "Unknown error",
+    );
     const failure = adminErrorResponse(error);
     res.status(failure.status).json(failure.body);
   }
@@ -238,6 +291,7 @@ async function ensureProductCategoryAssignments() {
 }
 
 async function createProduct(input) {
+  validateShippingMeasurements(input);
   const name = cleanText(input.title, 200);
   if (!name) throw new Error("Product name is required.");
   const slug = slugify(cleanText(input.slug, 220) || name);
@@ -246,12 +300,19 @@ async function createProduct(input) {
   const categoryId = categoryIds[0];
   const mrp = moneyValue(input.mrp);
   const sellingPrice = moneyValue(input.sellingPrice);
-  const discountPercent = mrp > 0 ? Math.max(0, Math.round((1 - sellingPrice / mrp) * 10000) / 100) : 0;
+  const discountPercent =
+    mrp > 0 ? Math.max(0, Math.round((1 - sellingPrice / mrp) * 10000) / 100) : 0;
   const gstPercent = moneyValue(cleanText(input.gstPercent, 16) || "0");
   const rawStatus = cleanText(input.status, 20);
-  const stock = rawStatus === "OUT OF STOCK" ? 0 : Math.max(0, Number.parseInt(cleanText(input.stock, 8) || "0", 10));
+  const stock =
+    rawStatus === "OUT OF STOCK"
+      ? 0
+      : Math.max(0, Number.parseInt(cleanText(input.stock, 8) || "0", 10));
   const packQuantity = cleanText(input.packQuantity, 80) || null;
-  const imageUrls = imageList(input.imageUrls, cleanImageText(input.imageUrl) || `/uploads/products/${slug}.jpg`);
+  const imageUrls = imageList(
+    input.imageUrls,
+    cleanImageText(input.imageUrl) || `/uploads/products/${slug}.jpg`,
+  );
   const status = productStatusValue(rawStatus);
   const features = csvJson(input.features);
   const usage = csvJson(input.usageInstructions);
@@ -315,6 +376,7 @@ async function createProduct(input) {
   );
 
   const productId = productResult.insertId;
+  await saveShippingMeasurements(productId, input);
   await saveProductCategories(productId, categoryIds);
   await saveProductImages(productId, name, imageUrls);
   await executeSql(
@@ -341,20 +403,26 @@ async function createProduct(input) {
       INSERT INTO inventory (product_id, variant_id, inventory_level, current_stock, low_stock_threshold)
       VALUES (?, NULL, 'PRODUCT', ?, ?)
     `,
-    [productId, stock, Math.max(1, Number.parseInt(cleanText(input.lowStockThreshold, 8) || "5", 10))],
+    [
+      productId,
+      stock,
+      Math.max(1, Number.parseInt(cleanText(input.lowStockThreshold, 8) || "5", 10)),
+    ],
   );
 }
 
 async function updateProduct(input) {
+  validateShippingMeasurements(input);
   const originalSku = cleanText(input.originalSku, 100).toUpperCase();
   if (!originalSku) throw new Error("Product SKU is required.");
   const existing = (
     await queryRows(
       `
         SELECT
-          p.id, p.category_id, p.name, p.slug, p.sku, p.short_description, p.description,
+          p.id, p.shipping_weight_g, p.package_length_cm, p.package_width_cm, p.package_height_cm, p.category_id, p.name, p.slug, p.sku, p.short_description, p.description,
           p.mrp, p.selling_price, p.gst_percent, p.pack_quantity, p.flow_type,
-          p.material_composition, p.product_dimensions, p.pad_length, p.front_pack_content,
+          p.material_composition, p.shipping_weight_g, p.package_length_cm, p.package_width_cm, p.package_height_cm,
+          p.product_dimensions, p.pad_length, p.front_pack_content,
           p.anion_strip_notes, p.brand_message, p.storage_instruction, p.features,
           p.usage_instructions, p.disposal_instructions, p.safety_information,
           p.manufacturer_details, p.marketer_details, p.product_contact, p.product_email,
@@ -384,38 +452,57 @@ async function updateProduct(input) {
   const categoryIds = [categoryId, ...selectedCategoryIds.filter((id) => id !== categoryId)];
   const mrp = optionalMoneyValue(input.mrp, Number(existing.mrp));
   const sellingPrice = optionalMoneyValue(input.sellingPrice, Number(existing.selling_price));
-  const discountPercent = mrp > 0 ? Math.max(0, Math.round((1 - sellingPrice / mrp) * 10000) / 100) : 0;
+  const discountPercent =
+    mrp > 0 ? Math.max(0, Math.round((1 - sellingPrice / mrp) * 10000) / 100) : 0;
   const gstPercent = optionalMoneyValue(input.gstPercent, Number(existing.gst_percent || 0));
   const rawStatus = cleanText(input.status, 20);
   const stockText = cleanText(input.stock, 8);
-  const stock = rawStatus === "OUT OF STOCK" ? 0 : stockText ? Math.max(0, Number.parseInt(stockText, 10)) : Number(existing.stock);
+  const stock =
+    rawStatus === "OUT OF STOCK"
+      ? 0
+      : stockText
+        ? Math.max(0, Number.parseInt(stockText, 10))
+        : Number(existing.stock);
   const status = productStatusValue(rawStatus || existing.status);
   const imageUrls = imageList(input.imageUrls, cleanImageText(input.imageUrl));
-  const storedImageUrls = await Promise.all(imageUrls.map((url) => resolveAdminImageUrl(url, productId)));
+  const storedImageUrls = await Promise.all(
+    imageUrls.map((url) => resolveAdminImageUrl(url, productId)),
+  );
   const shortDescription = cleanText(input.shortDescription, 500) || existing.short_description;
   const description = cleanText(input.description, 5000) || existing.description;
   const materials = cleanText(input.materials, 1000) || existing.material_composition;
   const features = jsonListOrExisting(input.features, existing.features);
-  const usageInstructions = jsonListOrExisting(input.usageInstructions, existing.usage_instructions);
-  const disposalInstructions = jsonListOrExisting(input.disposalInstructions, existing.disposal_instructions);
+  const usageInstructions = jsonListOrExisting(
+    input.usageInstructions,
+    existing.usage_instructions,
+  );
+  const disposalInstructions = jsonListOrExisting(
+    input.disposalInstructions,
+    existing.disposal_instructions,
+  );
   const safetyInformation = packagingSafetyText(input) || existing.safety_information;
   const productDimensions = cleanText(input.productDimensions, 120) || existing.product_dimensions;
   const padLength = cleanText(input.padLength, 80) || existing.pad_length;
   const frontPackContent = cleanText(input.frontPackContent, 2000) || existing.front_pack_content;
   const anionStripNotes = cleanText(input.anionStripNotes, 2000) || existing.anion_strip_notes;
   const brandMessage = cleanText(input.brandMessage, 2000) || existing.brand_message;
-  const storageInstruction = cleanText(input.storageInstruction, 200) || existing.storage_instruction;
-  const manufacturerDetails = cleanText(input.manufacturerDetails, 1000) || existing.manufacturer_details;
+  const storageInstruction =
+    cleanText(input.storageInstruction, 200) || existing.storage_instruction;
+  const manufacturerDetails =
+    cleanText(input.manufacturerDetails, 1000) || existing.manufacturer_details;
   const marketerDetails = cleanText(input.marketerDetails, 1000) || existing.marketer_details;
   const productContact = cleanText(input.productContact, 80) || existing.product_contact;
   const productEmail = cleanText(input.productEmail, 254) || existing.product_email;
   const productWebsite = cleanText(input.productWebsite, 200) || existing.product_website;
   const shelfLife = cleanText(input.shelfLife, 120) || existing.shelf_life;
   const metaTitle = cleanText(input.metaTitle, 180) || existing.meta_title || name;
-  const metaDescription = cleanText(input.metaDescription, 300) || existing.meta_description || shortDescription;
+  const metaDescription =
+    cleanText(input.metaDescription, 300) || existing.meta_description || shortDescription;
   const metaKeywords = cleanText(input.metaKeywords, 300) || existing.meta_keywords;
   const packQuantity = cleanText(input.packQuantity, 80) || existing.pack_quantity;
-  const flowType = cleanText(input.flow, 120) ? flowSet(input.flow) : existing.flow_type || "MEDIUM";
+  const flowType = cleanText(input.flow, 120)
+    ? flowSet(input.flow)
+    : existing.flow_type || "MEDIUM";
 
   await executeSql(
     `
@@ -466,7 +553,9 @@ async function updateProduct(input) {
       metaDescription || null,
       metaKeywords || null,
       cleanText(input.isFeatured, 12) ? checkboxValue(input.isFeatured) : existing.is_featured,
-      cleanText(input.isBestseller, 12) ? checkboxValue(input.isBestseller) : existing.is_bestseller,
+      cleanText(input.isBestseller, 12)
+        ? checkboxValue(input.isBestseller)
+        : existing.is_bestseller,
       status,
       productId,
     ],
@@ -475,27 +564,34 @@ async function updateProduct(input) {
   await saveProductCategories(productId, categoryIds);
 
   await executeSql(
-    "UPDATE inventory SET current_stock = ? WHERE product_id = ? AND inventory_level = 'PRODUCT'",
-    [stock, productId],
+    "UPDATE inventory SET current_stock = ? WHERE product_id = ? AND inventory_level = 'PRODUCT' AND reserved_stock <= ?",
+    [stock, productId, stock],
   );
+  await saveShippingMeasurements(productId, input);
   if (storedImageUrls.length > 0) await replaceProductImages(productId, name, storedImageUrls);
 }
 
 async function resolveAdminImageUrl(imageUrl, productId) {
   const match = imageUrl.match(/^\/api\/admin\/product-image\?id=([1-9]\d{0,14})$/);
   if (!match) return imageUrl;
-  const row = (await queryRows(
-    "SELECT image_url FROM product_images WHERE id = ? AND product_id = ? LIMIT 1",
-    [match[1], productId],
-  ))[0];
-  if (!row?.image_url) throw new Error("The saved product image could not be loaded. Please refresh and try again.");
+  const row = (
+    await queryRows(
+      "SELECT image_url FROM product_images WHERE id = ? AND product_id = ? LIMIT 1",
+      [match[1], productId],
+    )
+  )[0];
+  if (!row?.image_url)
+    throw new Error("The saved product image could not be loaded. Please refresh and try again.");
   return row.image_url;
 }
 
 async function deleteProduct(input) {
   const originalSku = cleanText(input.originalSku, 100).toUpperCase();
   if (!originalSku) throw new Error("Product SKU is required.");
-  await executeSql("UPDATE products SET deleted_at = NOW(), status = 'INACTIVE' WHERE sku = ? AND deleted_at IS NULL", [originalSku]);
+  await executeSql(
+    "UPDATE products SET deleted_at = NOW(), status = 'INACTIVE' WHERE sku = ? AND deleted_at IS NULL",
+    [originalSku],
+  );
 }
 
 async function updateInventoryStock(input) {
@@ -509,15 +605,21 @@ async function updateInventoryStock(input) {
   )[0];
   if (!product) throw new Error("Product SKU not found.");
   const existing = (
-    await queryRows("SELECT id FROM inventory WHERE product_id = ? AND inventory_level = 'PRODUCT' LIMIT 1", [product.id])
+    await queryRows(
+      "SELECT id FROM inventory WHERE product_id = ? AND inventory_level = 'PRODUCT' LIMIT 1",
+      [product.id],
+    )
   )[0];
 
   if (existing) {
-    await executeSql("UPDATE inventory SET current_stock = ?, low_stock_threshold = ? WHERE id = ?", [
-      stock,
-      threshold,
-      existing.id,
-    ]);
+    const updated = await executeSql(
+      "UPDATE inventory SET current_stock = ?, low_stock_threshold = ? WHERE id = ? AND reserved_stock <= ?",
+      [stock, threshold, existing.id, stock],
+    );
+    if (!updated.affectedRows)
+      throw Object.assign(new Error("Stock cannot be reduced below reserved quantities."), {
+        statusCode: 409,
+      });
   } else {
     await executeSql(
       "INSERT INTO inventory (product_id, variant_id, inventory_level, current_stock, reserved_stock, low_stock_threshold) VALUES (?, NULL, 'PRODUCT', ?, 0, ?)",
@@ -528,7 +630,10 @@ async function updateInventoryStock(input) {
 
 async function resolveCategoryId(category) {
   const categorySlug = slugify(category || "Sanitary Pads");
-  const rows = await queryRows("SELECT id FROM product_categories WHERE slug = ? OR name = ? LIMIT 1", [categorySlug, category]);
+  const rows = await queryRows(
+    "SELECT id FROM product_categories WHERE slug = ? OR name = ? LIMIT 1",
+    [categorySlug, category],
+  );
   if (rows[0]) return rows[0].id;
   const result = await executeSql(
     `
@@ -543,7 +648,14 @@ async function resolveCategoryId(category) {
 
 function productCategoryNames(value) {
   const values = Array.isArray(value) ? value : [value];
-  return [...new Set(values.flatMap((item) => String(item ?? "").split(",")).map((item) => item.trim()).filter(Boolean))];
+  return [
+    ...new Set(
+      values
+        .flatMap((item) => String(item ?? "").split(","))
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ];
 }
 
 async function resolveProductCategoryIds(value) {
@@ -578,7 +690,14 @@ async function saveProductImages(productId, name, imageUrls) {
         INSERT INTO product_images (product_id, image_type, image_url, alt_text, sort_order, is_featured)
         VALUES (?, ?, ?, ?, ?, ?)
       `,
-      [productId, index === 0 ? "FEATURED" : "OTHER", normalizedImageUrl, name, (index + 1) * 10, index === 0 ? 1 : 0],
+      [
+        productId,
+        index === 0 ? "FEATURED" : "OTHER",
+        normalizedImageUrl,
+        name,
+        (index + 1) * 10,
+        index === 0 ? 1 : 0,
+      ],
     );
   }
 }
@@ -586,7 +705,7 @@ async function saveProductImages(productId, name, imageUrls) {
 async function productsPayload() {
   const rows = await queryRows(`
     SELECT
-      p.id,
+      p.id, p.shipping_weight_g, p.package_length_cm, p.package_width_cm, p.package_height_cm,
       p.name,
       p.slug,
       p.sku,
@@ -638,11 +757,24 @@ async function productsPayload() {
       value(row.flow_type, "-"),
       value(row.status, "ACTIVE"),
       value(row.slug),
+      ...["shipping_weight_g", "package_length_cm", "package_width_cm", "package_height_cm"].map(
+        (key) => String(row[key] ?? ""),
+      ),
     ]),
     metrics: [
-      { label: "Total Products", value: String(rows.length), trend: `${draft} draft`, tone: draft ? "warn" : "up" },
+      {
+        label: "Total Products",
+        value: String(rows.length),
+        trend: `${draft} draft`,
+        tone: draft ? "warn" : "up",
+      },
       { label: "Active Products", value: String(active), trend: "Store visible", tone: "up" },
-      { label: "Low Stock", value: String(lowStock), trend: "Needs restock", tone: lowStock ? "warn" : "up" },
+      {
+        label: "Low Stock",
+        value: String(lowStock),
+        trend: "Needs restock",
+        tone: lowStock ? "warn" : "up",
+      },
       {
         label: "Out of Stock",
         value: String(outOfStock),
@@ -693,7 +825,12 @@ async function categoriesPayload() {
     metrics: [
       { label: "Categories", value: String(rows.length), trend: `${active} active`, tone: "up" },
       { label: "Menu Items", value: String(visible), trend: "Visible", tone: "neutral" },
-      { label: "SEO Missing", value: String(seoMissing), trend: seoMissing ? "Review" : "Clean", tone: seoMissing ? "warn" : "up" },
+      {
+        label: "SEO Missing",
+        value: String(seoMissing),
+        trend: seoMissing ? "Review" : "Clean",
+        tone: seoMissing ? "warn" : "up",
+      },
       {
         label: "Inactive",
         value: String(rows.length - active),
@@ -708,7 +845,7 @@ async function categoriesPayload() {
 async function inventoryPayload() {
   const rows = await queryRows(`
     SELECT
-      p.id,
+      p.id, p.shipping_weight_g, p.package_length_cm, p.package_width_cm, p.package_height_cm,
       p.name,
       p.sku,
       p.pack_quantity,
@@ -722,7 +859,9 @@ async function inventoryPayload() {
     ORDER BY p.created_at DESC, p.id DESC
   `);
 
-  const lowStock = rows.filter((row) => Number(row.stock) > 0 && Number(row.stock) <= Number(row.low_stock_threshold || 5));
+  const lowStock = rows.filter(
+    (row) => Number(row.stock) > 0 && Number(row.stock) <= Number(row.low_stock_threshold || 5),
+  );
   const outOfStock = rows.filter((row) => Number(row.stock) === 0);
   const totalStock = rows.reduce((sum, row) => sum + Number(row.stock || 0), 0);
 
@@ -744,7 +883,12 @@ async function inventoryPayload() {
     metrics: [
       { label: "SKUs", value: String(rows.length), trend: "Catalog items", tone: "neutral" },
       { label: "Current Stock", value: String(totalStock), trend: "Live MySQL stock", tone: "up" },
-      { label: "Low Stock", value: String(lowStock.length), trend: "Needs restock", tone: lowStock.length ? "warn" : "up" },
+      {
+        label: "Low Stock",
+        value: String(lowStock.length),
+        trend: "Needs restock",
+        tone: lowStock.length ? "warn" : "up",
+      },
       {
         label: "Out of Stock",
         value: String(outOfStock.length),
@@ -794,9 +938,24 @@ async function customersPayload() {
       value(row.status, "ACTIVE"),
     ]),
     metrics: [
-      { label: "Customers", value: String(rows.length), trend: `${active} active`, tone: rows.length ? "up" : "neutral" },
-      { label: "With Orders", value: String(withOrders), trend: "Order history", tone: withOrders ? "up" : "neutral" },
-      { label: "Blocked", value: String(blocked), trend: blocked ? "Review" : "Clean", tone: blocked ? "warn" : "up" },
+      {
+        label: "Customers",
+        value: String(rows.length),
+        trend: `${active} active`,
+        tone: rows.length ? "up" : "neutral",
+      },
+      {
+        label: "With Orders",
+        value: String(withOrders),
+        trend: "Order history",
+        tone: withOrders ? "up" : "neutral",
+      },
+      {
+        label: "Blocked",
+        value: String(blocked),
+        trend: blocked ? "Review" : "Clean",
+        tone: blocked ? "warn" : "up",
+      },
       { label: "Source", value: "MySQL", trend: "Live accounts", tone: "up" },
     ],
     source: "mysql",
@@ -824,7 +983,16 @@ async function couponsPayload() {
   return {
     title: "Coupons",
     action: "Create Coupon",
-    columns: ["Code", "Type", "Discount", "Min Order", "Usage Limit", "Starts", "Expires", "Status"],
+    columns: [
+      "Code",
+      "Type",
+      "Discount",
+      "Min Order",
+      "Usage Limit",
+      "Starts",
+      "Expires",
+      "Status",
+    ],
     rows: rows.map((row) => [
       value(row.code),
       value(row.discount_type),
@@ -832,16 +1000,33 @@ async function couponsPayload() {
         ? `Rs.${Number(row.discount_value || 0).toLocaleString("en-IN")}`
         : `${Number(row.discount_value || 0).toLocaleString("en-IN")}%`,
       `Rs.${Number(row.minimum_order_amount || 0).toLocaleString("en-IN")}`,
-      row.usage_limit === null || row.usage_limit === undefined ? "Unlimited" : String(row.usage_limit),
+      row.usage_limit === null || row.usage_limit === undefined
+        ? "Unlimited"
+        : String(row.usage_limit),
       dateOnly(row.starts_at),
       dateOnly(row.expires_at),
       value(row.status, "ACTIVE"),
     ]),
     metrics: [
       { label: "Coupons", value: String(rows.length), trend: "Live MySQL rows", tone: "neutral" },
-      { label: "Active", value: String(activeCount), trend: "Currently usable", tone: activeCount ? "up" : "neutral" },
-      { label: "Ending Soon", value: String(expiringSoon), trend: "Next 7 days", tone: expiringSoon ? "warn" : "up" },
-      { label: "Expired", value: String(rows.filter((row) => row.status === "EXPIRED").length), trend: "Needs review", tone: "neutral" },
+      {
+        label: "Active",
+        value: String(activeCount),
+        trend: "Currently usable",
+        tone: activeCount ? "up" : "neutral",
+      },
+      {
+        label: "Ending Soon",
+        value: String(expiringSoon),
+        trend: "Next 7 days",
+        tone: expiringSoon ? "warn" : "up",
+      },
+      {
+        label: "Expired",
+        value: String(rows.filter((row) => row.status === "EXPIRED").length),
+        trend: "Needs review",
+        tone: "neutral",
+      },
     ],
     source: "mysql",
   };
@@ -912,7 +1097,10 @@ async function deleteCoupon(input) {
     error.statusCode = 400;
     throw error;
   }
-  await executeSql("UPDATE coupons SET deleted_at = NOW(), status = 'INACTIVE' WHERE code = ? AND deleted_at IS NULL", [code]);
+  await executeSql(
+    "UPDATE coupons SET deleted_at = NOW(), status = 'INACTIVE' WHERE code = ? AND deleted_at IS NULL",
+    [code],
+  );
 }
 
 function couponInput(input) {
@@ -941,7 +1129,9 @@ function couponInput(input) {
     usageLimit: optionalPositiveInt(input.usageLimit),
     usageLimitPerCustomer: optionalPositiveInt(input.usageLimitPerCustomer),
     firstOrderOnly: input.firstOrderOnly ? 1 : 0,
-    status: ["ACTIVE", "INACTIVE", "EXPIRED"].includes(String(input.status)) ? String(input.status) : "ACTIVE",
+    status: ["ACTIVE", "INACTIVE", "EXPIRED"].includes(String(input.status))
+      ? String(input.status)
+      : "ACTIVE",
   };
 }
 
@@ -974,12 +1164,22 @@ function normalizeImagePath(imageUrl) {
   const fallbackProductUploadImage = "/uploads/products/1790248547777-eabeac00-product.png";
   const fileName = basename(trimmed).toLowerCase();
   if (fileName === "pad.jpg" || fileName === "product.jpg") return fallbackProductUploadImage;
-  if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith("/uploads/") || trimmed.startsWith("data:image/")) return trimmed;
+  if (
+    /^https?:\/\//i.test(trimmed) ||
+    trimmed.startsWith("/uploads/") ||
+    trimmed.startsWith("data:image/")
+  )
+    return trimmed;
   return `/uploads/products/${basename(trimmed)}`;
 }
 
 function basename(input) {
-  return String(input || "").split(/[\\/]/).filter(Boolean).pop() || "";
+  return (
+    String(input || "")
+      .split(/[\\/]/)
+      .filter(Boolean)
+      .pop() || ""
+  );
 }
 
 function titleFromSlug(slug) {
@@ -1003,7 +1203,9 @@ async function readJsonBody(req) {
 }
 
 function cleanText(input, maxLength) {
-  return String(input ?? "").trim().slice(0, maxLength);
+  return String(input ?? "")
+    .trim()
+    .slice(0, maxLength);
 }
 
 function cleanImageText(input) {
@@ -1097,5 +1299,42 @@ function slugify(input) {
 }
 
 function packagingSafetyText(input) {
-  return [cleanText(input.safetyInformation, 1000), cleanText(input.anionStripNotes, 2000)].filter(Boolean).join("\n\n");
+  return [cleanText(input.safetyInformation, 1000), cleanText(input.anionStripNotes, 2000)]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function validateShippingMeasurements(input) {
+  const names = ["shippingWeightG", "packageLengthCm", "packageWidthCm", "packageHeightCm"];
+  if (!names.some((name) => Object.hasOwn(input, name))) return null;
+  const values = names.map((name) => {
+    const raw = input[name];
+    if (raw === "" || raw == null) return null;
+    const value = Number(raw);
+    const factor = name === "shippingWeightG" ? 1000 : 100;
+    if (Math.abs(value * factor - Math.round(value * factor)) > 0.000001)
+      throw Object.assign(
+        new Error("Use at most three decimals for grams and two decimals for centimeters."),
+        { statusCode: 400 },
+      );
+    if (!Number.isFinite(value) || value <= 0 || value > 1000000)
+      throw Object.assign(
+        new Error("Shipping measurements must be positive numbers, or blank if not configured."),
+        { statusCode: 400 },
+      );
+    return value;
+  });
+  if (values.some((value) => value === null) && values.some((value) => value !== null))
+    throw Object.assign(new Error("Configure all four shipping measurements together."), {
+      statusCode: 400,
+    });
+  return values;
+}
+async function saveShippingMeasurements(productId, input) {
+  const values = validateShippingMeasurements(input);
+  if (!values) return;
+  await executeSql(
+    "UPDATE products SET shipping_weight_g = ?, package_length_cm = ?, package_width_cm = ?, package_height_cm = ? WHERE id = ?",
+    [...values, productId],
+  );
 }

@@ -1,4 +1,5 @@
-﻿import { Link, Outlet, createFileRoute, useNavigate, useRouterState } from "@/router-shim";
+import { ShippingSettingsEditor, ShippingOrderPanel } from "@/features/shipping-admin";
+import { Link, Outlet, createFileRoute, useNavigate, useRouterState } from "@/router-shim";
 import {
   Bell,
   Boxes,
@@ -107,6 +108,10 @@ type ActionFormData = {
   lowStockThreshold?: string;
   packQuantity?: string;
   sizes?: string;
+  shippingWeightG?: string;
+  packageLengthCm?: string;
+  packageWidthCm?: string;
+  packageHeightCm?: string;
   productDimensions?: string;
   padLength?: string;
   frontPackContent?: string;
@@ -319,10 +324,42 @@ const moduleConfig: Record<string, ModuleConfig> = {
     action: "Add Banner",
     columns: ["Banner", "Desktop Image", "Mobile Image", "CTA", "Schedule", "Sort", "Status"],
     rows: [
-      ["Release Renew Rise", "hero-desktop.jpg", "hero-mobile.jpg", "Shop Pads", "Always On", "10", "ACTIVE"],
-      ["Period Care Essentials", "period-care.jpg", "period-care-mobile.jpg", "Explore", "1 Oct - 15 Oct", "20", "ACTIVE"],
-      ["Night Comfort Promo", "night-comfort.jpg", "night-comfort-mobile.jpg", "Buy Combo", "Scheduled", "30", "INACTIVE"],
-      ["Trial Pack Offer", "trial-pack.jpg", "trial-pack-mobile.jpg", "Try Now", "Ends 30 Sep", "40", "ACTIVE"],
+      [
+        "Release Renew Rise",
+        "hero-desktop.jpg",
+        "hero-mobile.jpg",
+        "Shop Pads",
+        "Always On",
+        "10",
+        "ACTIVE",
+      ],
+      [
+        "Period Care Essentials",
+        "period-care.jpg",
+        "period-care-mobile.jpg",
+        "Explore",
+        "1 Oct - 15 Oct",
+        "20",
+        "ACTIVE",
+      ],
+      [
+        "Night Comfort Promo",
+        "night-comfort.jpg",
+        "night-comfort-mobile.jpg",
+        "Buy Combo",
+        "Scheduled",
+        "30",
+        "INACTIVE",
+      ],
+      [
+        "Trial Pack Offer",
+        "trial-pack.jpg",
+        "trial-pack-mobile.jpg",
+        "Try Now",
+        "Ends 30 Sep",
+        "40",
+        "ACTIVE",
+      ],
     ],
     metrics: [
       { label: "Total Banners", value: "4", trend: "3 active", tone: "up" },
@@ -442,10 +479,12 @@ const fallbackModule: ModuleConfig = {
   ],
 };
 
-const adminApiUnavailableMessage =
-  "Admin API is not available in this deployment.";
+const adminApiUnavailableMessage = "Admin API is not available in this deployment.";
 
-async function parseApiJson<T>(response: Response, fallbackMessage = adminApiUnavailableMessage): Promise<ApiPayload<T>> {
+async function parseApiJson<T>(
+  response: Response,
+  fallbackMessage = adminApiUnavailableMessage,
+): Promise<ApiPayload<T>> {
   const contentType = response.headers.get("content-type") || "";
   if (!contentType.toLowerCase().includes("application/json")) {
     await response.text().catch(() => "");
@@ -503,9 +542,27 @@ const orders = [
 ];
 
 const lowStock = [
-  { product: "SheRise 20 Count Organic Sanitary Pads", sku: "SR-ANION-20", variant: "20 Count", stock: 12, min: 5 },
-  { product: "SheRise 9 Count Organic Sanitary Pads", sku: "SR-ANION-09", variant: "9 Count Medium", stock: 14, min: 5 },
-  { product: "SheRise 7 Count Organic Sanitary Pads", sku: "SR-ANION-07", variant: "7 Count Medium", stock: 15, min: 5 },
+  {
+    product: "SheRise 20 Count Organic Sanitary Pads",
+    sku: "SR-ANION-20",
+    variant: "20 Count",
+    stock: 12,
+    min: 5,
+  },
+  {
+    product: "SheRise 9 Count Organic Sanitary Pads",
+    sku: "SR-ANION-09",
+    variant: "9 Count Medium",
+    stock: 14,
+    min: 5,
+  },
+  {
+    product: "SheRise 7 Count Organic Sanitary Pads",
+    sku: "SR-ANION-07",
+    variant: "7 Count Medium",
+    stock: 15,
+    min: 5,
+  },
 ];
 
 const enquiries = [
@@ -537,8 +594,8 @@ export function AdminConsole() {
   const pageTitle =
     activeSection === "dashboard"
       ? "Dashboard"
-      : navGroups.flatMap((group) => group.items).find((item) => item.to === pathname)?.label ??
-        titleFromSlug(activeSection);
+      : (navGroups.flatMap((group) => group.items).find((item) => item.to === pathname)?.label ??
+        titleFromSlug(activeSection));
 
   useEffect(() => {
     if (pathname === "/admin/login") {
@@ -572,9 +629,13 @@ export function AdminConsole() {
         .then(([ordersPayload, customersPayload, reviewsPayload, leadsPayload]) => {
           const orders = ordersPayload.rows.filter((row) => {
             const status = (row[5] || "").toUpperCase();
-            return row[0] !== "No frontend orders yet" && !["DELIVERED", "CANCELLED"].includes(status);
+            return (
+              row[0] !== "No frontend orders yet" && !["DELIVERED", "CANCELLED"].includes(status)
+            );
           });
-          const customers = customersPayload.rows.filter((row) => row[0] !== "No frontend customers yet");
+          const customers = customersPayload.rows.filter(
+            (row) => row[0] !== "No frontend customers yet",
+          );
           const pendingReviews = Number(
             reviewsPayload.metrics.find((metric) => metric.label === "Pending")?.value || 0,
           );
@@ -657,7 +718,10 @@ export function AdminConsole() {
             {activeSection === "dashboard" ? (
               <DashboardView />
             ) : (
-              <ModuleView section={activeSection} config={moduleConfig[activeSection] ?? fallbackModule} />
+              <ModuleView
+                section={activeSection}
+                config={moduleConfig[activeSection] ?? fallbackModule}
+              />
             )}
           </main>
         </div>
@@ -744,9 +808,7 @@ function AdminHeader({ title, onMenuClick }: { title: string; onMenuClick: () =>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onSelect={handleLogout}
-              >
+              <DropdownMenuItem onSelect={handleLogout}>
                 <LogOut />
                 Logout
               </DropdownMenuItem>
@@ -918,7 +980,9 @@ function DashboardView() {
 function ModuleView({ section, config }: { section: string; config: ModuleConfig }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ActionFormData | null>(null);
-  const [editingRow, setEditingRow] = useState<{ row: string[]; data: ActionFormData } | null>(null);
+  const [editingRow, setEditingRow] = useState<{ row: string[]; data: ActionFormData } | null>(
+    null,
+  );
   const [savedMessage, setSavedMessage] = useState("");
   const [liveConfig, setLiveConfig] = useState<ModuleConfig | null>(null);
   const [loadingLiveData, setLoadingLiveData] = useState(false);
@@ -973,29 +1037,37 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
 
     setLoadingLiveData(true);
     setConnectionError("");
-    const refresh = () => fetchAdminPayload<ModuleConfig>(section)
-      .then((payload) => {
-        if (!cancelled) {
-          setLiveConfig(payload);
-          setConnectionError("");
-          if (section === "popup-leads" && document.visibilityState === "visible") {
-            markLeadsSeen(payload.notificationIds ?? []);
+    const refresh = () =>
+      fetchAdminPayload<ModuleConfig>(section)
+        .then((payload) => {
+          if (!cancelled) {
+            setLiveConfig(payload);
+            setConnectionError("");
+            if (section === "popup-leads" && document.visibilityState === "visible") {
+              markLeadsSeen(payload.notificationIds ?? []);
+            }
           }
-        }
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) {
-          setLiveConfig(null);
-          setConnectionError(error instanceof Error ? error.message : "Admin data could not be loaded.");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingLiveData(false);
-      });
+        })
+        .catch((error: unknown) => {
+          if (!cancelled) {
+            setLiveConfig(null);
+            setConnectionError(
+              error instanceof Error ? error.message : "Admin data could not be loaded.",
+            );
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setLoadingLiveData(false);
+        });
     void refresh();
-    const refreshOrders = () => { void refresh(); };
-    const interval = ["orders", "reviews", "popup-leads", "newsletter"].includes(section) ? window.setInterval(refreshOrders, 20000) : undefined;
-    if (["orders", "reviews", "popup-leads", "newsletter"].includes(section)) window.addEventListener("focus", refreshOrders);
+    const refreshOrders = () => {
+      void refresh();
+    };
+    const interval = ["orders", "reviews", "popup-leads", "newsletter"].includes(section)
+      ? window.setInterval(refreshOrders, 20000)
+      : undefined;
+    if (["orders", "reviews", "popup-leads", "newsletter"].includes(section))
+      window.addEventListener("focus", refreshOrders);
 
     return () => {
       cancelled = true;
@@ -1051,7 +1123,9 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
     });
     setDialogOpen(false);
     setEditingRow(null);
-    setSavedMessage(`${formData.title || displayConfig.title} ${editingRow ? "updated" : "added"}.`);
+    setSavedMessage(
+      `${formData.title || displayConfig.title} ${editingRow ? "updated" : "added"}.`,
+    );
     toast.success(`${displayConfig.title} ${editingRow ? "updated" : "added"}.`);
   };
 
@@ -1065,7 +1139,7 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
       const payloadData = {
         ...formData,
         adminAction: "update" as const,
-        originalSku: editingProduct.originalSku,
+        originalSku: editingProduct.originalSku || "",
       };
       if (displayConfig.source !== "mysql") {
         updateProductRowLocally(payloadData);
@@ -1095,21 +1169,27 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
     }
 
     if (isContentSection) {
-      const payload = await fetchAdminPayload<ModuleConfig>(section, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        signal: AbortSignal.timeout(20000),
-        body: JSON.stringify({
-          ...formData,
-          adminAction: editingRow ? "update" : "create",
-          originalKey: editingRow?.data.originalKey,
-        }),
-      }, `Could not confirm the ${displayConfig.title.toLowerCase()} save. Check the list before retrying.`);
+      const payload = await fetchAdminPayload<ModuleConfig>(
+        section,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          signal: AbortSignal.timeout(20000),
+          body: JSON.stringify({
+            ...formData,
+            adminAction: editingRow ? "update" : "create",
+            originalKey: editingRow?.data.originalKey,
+          }),
+        },
+        `Could not confirm the ${displayConfig.title.toLowerCase()} save. Check the list before retrying.`,
+      );
       setLiveConfig(payload);
       setReloadKey((value) => value + 1);
       setDialogOpen(false);
       setEditingRow(null);
-      setSavedMessage(`${formData.title || displayConfig.title} ${editingRow ? "updated" : "saved"} to database.`);
+      setSavedMessage(
+        `${formData.title || displayConfig.title} ${editingRow ? "updated" : "saved"} to database.`,
+      );
       toast.success(`${displayConfig.title} ${editingRow ? "updated" : "saved"}.`);
       return;
     }
@@ -1157,7 +1237,9 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
       setReloadKey((value) => value + 1);
       setDialogOpen(false);
       setEditingRow(null);
-      setSavedMessage(`${formData.code || formData.title || "Coupon"} ${editingRow ? "updated" : "saved"} to MySQL.`);
+      setSavedMessage(
+        `${formData.code || formData.title || "Coupon"} ${editingRow ? "updated" : "saved"} to MySQL.`,
+      );
       toast.success(`Coupon ${editingRow ? "updated" : "saved"}.`);
       return;
     }
@@ -1169,7 +1251,9 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
 
     if (!canSaveSection) {
       setDialogOpen(false);
-      setSavedMessage(`${displayConfig.action} form submitted. This module is currently a frontend mirror.`);
+      setSavedMessage(
+        `${displayConfig.action} form submitted. This module is currently a frontend mirror.`,
+      );
       return;
     }
 
@@ -1244,7 +1328,11 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
       const response = await fetch(`/api/admin/${section}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ adminAction: "delete", originalKey: data.originalKey, code: data.code }),
+        body: JSON.stringify({
+          adminAction: "delete",
+          originalKey: data.originalKey,
+          code: data.code,
+        }),
       });
       const payload = (await response.json()) as ModuleConfig & { error?: string };
       if (!response.ok) {
@@ -1262,7 +1350,13 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
       const response = await fetch(`/api/admin/${section}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ adminAction: "delete", originalKey: data.originalKey, title: data.title, slug: data.slug, code: data.code }),
+        body: JSON.stringify({
+          adminAction: "delete",
+          originalKey: data.originalKey,
+          title: data.title,
+          slug: data.slug,
+          code: data.code,
+        }),
       });
       const payload = (await response.json()) as ModuleConfig & { error?: string };
       if (!response.ok) {
@@ -1283,7 +1377,9 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
     toast.success(`${title} deleted.`);
   };
 
-  const handleOrderStatus = async (status: "preview" | "packed" | "shipped" | "delivered" | "cancelled") => {
+  const handleOrderStatus = async (
+    status: "preview" | "packed" | "shipped" | "delivered" | "cancelled",
+  ) => {
     if (!selectedOrder) return;
     const response = await fetch("/api/admin/orders", {
       method: "POST",
@@ -1322,7 +1418,12 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
       return;
     }
     setLiveConfig(payload);
-    const updated = payload.rows.find((row) => selectedReview[5] ? row[5] === selectedReview[5] : row[4] === selectedReview[4] && row[1] === selectedReview[1]) ?? null;
+    const updated =
+      payload.rows.find((row) =>
+        selectedReview[5]
+          ? row[5] === selectedReview[5]
+          : row[4] === selectedReview[4] && row[1] === selectedReview[1],
+      ) ?? null;
     setSelectedReview(updated);
     setReloadKey((value) => value + 1);
     window.dispatchEvent(new Event("sherise-admin-orders-updated"));
@@ -1353,6 +1454,7 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
           setDialogOpen(true);
         }}
       >
+        {section === "shipping-settings" ? <ShippingSettingsEditor /> : null}
         {loadingLiveData ? (
           <div className="mb-4 border border-[#eadbd2] bg-[#fffaf6] px-3 py-2 text-sm font-medium text-brand-navy">
             Connecting to MySQL data...
@@ -1382,7 +1484,7 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
               ? "Showing website content saved in the local database."
               : isInventorySection
                 ? "Showing inventory saved in the local database while MySQL is unavailable."
-              : "Showing frontend account database records from the local preview app."}
+                : "Showing frontend account database records from the local preview app."}
           </div>
         ) : null}
         {connectionError ? (
@@ -1403,12 +1505,24 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
               className="w-full bg-transparent text-sm outline-none"
               placeholder={`Search ${displayConfig.title.toLowerCase()}`}
               value={section === "orders" ? orderSearch : undefined}
-              onChange={(event) => { if (section === "orders") setOrderSearch(event.target.value); }}
+              onChange={(event) => {
+                if (section === "orders") setOrderSearch(event.target.value);
+              }}
             />
           </div>
-          {section === "orders" ? <select aria-label="Filter payment status" className="border border-[#e4d5cc] bg-white px-3 py-2 text-sm" value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value)}>
-            <option value="">All payments</option>{["PENDING", "SUCCESS", "FAILED", "REFUNDED"].map((status) => <option key={status}>{status}</option>)}
-          </select> : null}
+          {section === "orders" ? (
+            <select
+              aria-label="Filter payment status"
+              className="border border-[#e4d5cc] bg-white px-3 py-2 text-sm"
+              value={paymentFilter}
+              onChange={(event) => setPaymentFilter(event.target.value)}
+            >
+              <option value="">All payments</option>
+              {["PENDING", "SUCCESS", "FAILED", "REFUNDED"].map((status) => (
+                <option key={status}>{status}</option>
+              ))}
+            </select>
+          ) : null}
           <Button variant="outline" className="gap-2 bg-white" onClick={handleExport}>
             <Download className="size-4" />
             Export
@@ -1416,9 +1530,23 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
         </div>
         <DataTable
           columns={displayConfig.columns}
-          rows={section === "orders" ? displayConfig.rows.filter((row) => (!paymentFilter || row[6] === paymentFilter) && row.join(" ").toLowerCase().includes(orderSearch.toLowerCase())) : displayConfig.rows}
+          rows={
+            section === "orders"
+              ? displayConfig.rows.filter(
+                  (row) =>
+                    (!paymentFilter || row[6] === paymentFilter) &&
+                    row.join(" ").toLowerCase().includes(orderSearch.toLowerCase()),
+                )
+              : displayConfig.rows
+          }
           subtleHeaders={section === "blogs"}
-          onRowClick={section === "orders" ? setSelectedOrder : section === "reviews" ? setSelectedReview : undefined}
+          onRowClick={
+            section === "orders"
+              ? setSelectedOrder
+              : section === "reviews"
+                ? setSelectedReview
+                : undefined
+          }
           renderActions={
             isProductSection
               ? (row) => (
@@ -1472,90 +1600,90 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
                       </Button>
                     </div>
                   )
-              : isCouponSection
-                ? (row) => (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="size-8 bg-white"
-                        title="Edit coupon"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          handleEditLocalRow(row);
-                        }}
-                      >
-                        <Pencil className="size-4" />
-                        <span className="sr-only">Edit coupon</span>
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="size-8 bg-white text-red-700 hover:text-red-800"
-                        title="Delete coupon"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          void handleDeleteLocalRow(row);
-                        }}
-                      >
-                        <Trash2 className="size-4" />
-                        <span className="sr-only">Delete coupon</span>
-                      </Button>
-                    </div>
-                  )
-              : hasLocalRowActions
-                ? (row) => (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="size-8 bg-white"
-                        title={`Edit ${displayConfig.title.toLowerCase()}`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          handleEditLocalRow(row);
-                        }}
-                      >
-                        <Pencil className="size-4" />
-                        <span className="sr-only">Edit</span>
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="size-8 bg-white text-red-700 hover:text-red-800"
-                        title={`Delete ${displayConfig.title.toLowerCase()}`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          void handleDeleteLocalRow(row);
-                        }}
-                      >
-                        <Trash2 className="size-4" />
-                        <span className="sr-only">Delete</span>
-                      </Button>
-                    </div>
-                  )
-              : isPopupLeadSection || isNewsletterSection
-                ? (row) => (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-8 gap-2 bg-white px-3 text-xs font-semibold"
-                      title={isNewsletterSection ? "View subscriber" : "View enquiry"}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        if (isNewsletterSection) setSelectedSubscriber(row);
-                        else setSelectedLead(row);
-                      }}
-                    >
-                      <Eye className="size-4" />
-                      View
-                    </Button>
-                  )
-              : undefined
+                : isCouponSection
+                  ? (row) => (
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="size-8 bg-white"
+                          title="Edit coupon"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleEditLocalRow(row);
+                          }}
+                        >
+                          <Pencil className="size-4" />
+                          <span className="sr-only">Edit coupon</span>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="size-8 bg-white text-red-700 hover:text-red-800"
+                          title="Delete coupon"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void handleDeleteLocalRow(row);
+                          }}
+                        >
+                          <Trash2 className="size-4" />
+                          <span className="sr-only">Delete coupon</span>
+                        </Button>
+                      </div>
+                    )
+                  : hasLocalRowActions
+                    ? (row) => (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="size-8 bg-white"
+                            title={`Edit ${displayConfig.title.toLowerCase()}`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              handleEditLocalRow(row);
+                            }}
+                          >
+                            <Pencil className="size-4" />
+                            <span className="sr-only">Edit</span>
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="size-8 bg-white text-red-700 hover:text-red-800"
+                            title={`Delete ${displayConfig.title.toLowerCase()}`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void handleDeleteLocalRow(row);
+                            }}
+                          >
+                            <Trash2 className="size-4" />
+                            <span className="sr-only">Delete</span>
+                          </Button>
+                        </div>
+                      )
+                    : isPopupLeadSection || isNewsletterSection
+                      ? (row) => (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-8 gap-2 bg-white px-3 text-xs font-semibold"
+                            title={isNewsletterSection ? "View subscriber" : "View enquiry"}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (isNewsletterSection) setSelectedSubscriber(row);
+                              else setSelectedLead(row);
+                            }}
+                          >
+                            <Eye className="size-4" />
+                            View
+                          </Button>
+                        )
+                      : undefined
           }
         />
       </Panel>
@@ -1596,7 +1724,13 @@ function ModuleView({ section, config }: { section: string; config: ModuleConfig
           if (!open) setEditingProduct(null);
           if (!open) setEditingRow(null);
         }}
-        title={editingProduct ? "Edit Product" : editingRow ? `Edit ${displayConfig.title}` : displayConfig.action}
+        title={
+          editingProduct
+            ? "Edit Product"
+            : editingRow
+              ? `Edit ${displayConfig.title}`
+              : displayConfig.action
+        }
         moduleTitle={displayConfig.title}
         section={section}
         initialData={editingProduct ?? editingRow?.data ?? null}
@@ -1621,9 +1755,7 @@ function AdminSidebar({
         <Link to="/admin" className="font-display text-3xl leading-none">
           She<span className="text-brand-coral">Rise</span>
         </Link>
-        <p className="mt-2 text-[10px] font-bold uppercase text-muted-foreground">
-          Commerce Admin
-        </p>
+        <p className="mt-2 text-[10px] font-bold uppercase text-muted-foreground">Commerce Admin</p>
       </div>
       <nav className="flex-1 overflow-auto px-3 py-4">
         {navGroups.map((group) => (
@@ -1642,9 +1774,7 @@ function AdminSidebar({
                     to={item.to}
                     onClick={onNavigate}
                     className={`flex w-full items-center gap-3 px-3 py-3 text-left text-sm transition-colors ${
-                      active
-                        ? "bg-brand-blush font-bold text-brand-navy"
-                        : "hover:bg-brand-cream"
+                      active ? "bg-brand-blush font-bold text-brand-navy" : "hover:bg-brand-cream"
                     }`}
                   >
                     <Icon className="size-4" />
@@ -1668,6 +1798,10 @@ function AdminSidebar({
 function productRowToFormData(row: string[]): ActionFormData {
   const price = row[4]?.replace(/[^\d.]/g, "") || "";
   return {
+    shippingWeightG: row[9] || "",
+    packageLengthCm: row[10] || "",
+    packageWidthCm: row[11] || "",
+    packageHeightCm: row[12] || "",
     originalSku: row[2] || "",
     title: row[0] || "",
     code: row[2] || "",
@@ -1680,7 +1814,10 @@ function productRowToFormData(row: string[]): ActionFormData {
     sellingPrice: price,
     stock: row[5] || "0",
     flow: normalizeFlowValues(row[6] || ""),
-    imageUrl: row[1] && row[1] !== "Frontend asset" && row[1] !== "No Image" ? productImagePath(row[1]) : "",
+    imageUrl:
+      row[1] && row[1] !== "Frontend asset" && row[1] !== "No Image"
+        ? productImagePath(row[1])
+        : "",
   };
 }
 
@@ -1697,7 +1834,9 @@ function productFormToRow(formData: ActionFormData, fallback: ActionFormData | n
     String(Number.isFinite(stock) ? Math.max(0, stock) : 0),
     displayFlowValues(formData.flow || fallback?.flow || "MEDIUM"),
     stock === 0 ? "OUT OF STOCK" : status,
-    formData.slug || fallback?.slug || slugFromTitle(formData.title || fallback?.title || "Product"),
+    formData.slug ||
+      fallback?.slug ||
+      slugFromTitle(formData.title || fallback?.title || "Product"),
   ];
 }
 
@@ -1714,6 +1853,7 @@ function localRowToFormData(section: string, row: string[]): ActionFormData {
   if (section === "faqs") {
     return {
       title: row[0] || "",
+      code: "",
       notes: row[1] || "",
       status: row.at(-1) || "ACTIVE",
       originalKey: row[0] || "",
@@ -1776,7 +1916,11 @@ function localRowToFormData(section: string, row: string[]): ActionFormData {
   };
 }
 
-function localFormDataToRow(section: string, formData: ActionFormData, fallback?: string[]): string[] {
+function localFormDataToRow(
+  section: string,
+  formData: ActionFormData,
+  fallback?: string[],
+): string[] {
   if (section === "homepage") {
     return [
       formData.title || fallback?.[0] || "New Section",
@@ -1794,7 +1938,11 @@ function localFormDataToRow(section: string, formData: ActionFormData, fallback?
     ];
   }
   if (section === "blogs") {
-    const slug = formData.slug || formData.code || fallback?.[1] || slugFromTitle(formData.title || fallback?.[0] || "new-blog-post");
+    const slug =
+      formData.slug ||
+      formData.code ||
+      fallback?.[1] ||
+      slugFromTitle(formData.title || fallback?.[0] || "new-blog-post");
     return [
       formData.title || fallback?.[0] || "New Blog Post",
       slug,
@@ -1901,7 +2049,7 @@ function KpiCard({
   tone,
 }: {
   label: string;
-  value: string;
+  value: string | undefined;
   trend: string;
   tone: string;
 }) {
@@ -1985,7 +2133,7 @@ function ActionDialog({
   title: string;
   moduleTitle: string;
   section: string;
-  initialData?: ActionFormData | null;
+  initialData?: ActionFormData | null | undefined;
   onSave: (formData: ActionFormData) => void | Promise<void>;
 }) {
   const [imagePreview, setImagePreview] = useState("");
@@ -2002,7 +2150,9 @@ function ActionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`max-h-[90vh] overflow-y-auto border-[#eadbd2] bg-white ${isProduct ? "sm:max-w-6xl" : isBlog ? "sm:max-w-4xl" : "sm:max-w-xl"}`}>
+      <DialogContent
+        className={`max-h-[90vh] overflow-y-auto border-[#eadbd2] bg-white ${isProduct ? "sm:max-w-6xl" : isBlog ? "sm:max-w-4xl" : "sm:max-w-xl"}`}
+      >
         <DialogHeader>
           <DialogTitle className="font-display text-2xl text-brand-navy">{title}</DialogTitle>
           <DialogDescription>
@@ -2017,7 +2167,8 @@ function ActionDialog({
           className="grid gap-4"
           onInvalid={(event) => {
             event.preventDefault();
-            const field = event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+            const field = event.target as
+              HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
             field.focus();
             toast.error(field.validationMessage || "Please fill the required product details.");
           }}
@@ -2031,12 +2182,21 @@ function ActionDialog({
                 .map((value) => String(value ?? ""))
                 .join("\n");
               if (new Blob([imagePayload]).size > 4 * 1024 * 1024) {
-                toast.error("Product images are too large to save together. Choose fewer or smaller images.");
+                toast.error(
+                  "Product images are too large to save together. Choose fewer or smaller images.",
+                );
                 return;
               }
             }
-            if (isBlog && ["uploading", "error"].includes(String(formData.get("imageUploadState")))) {
-              toast.error(formData.get("imageUploadState") === "uploading" ? "Wait for the blog image upload to finish." : "Retry the image upload or enter an image URL before saving.");
+            if (
+              isBlog &&
+              ["uploading", "error"].includes(String(formData.get("imageUploadState")))
+            ) {
+              toast.error(
+                formData.get("imageUploadState") === "uploading"
+                  ? "Wait for the blog image upload to finish."
+                  : "Retry the image upload or enter an image URL before saving.",
+              );
               return;
             }
             setSaving(true);
@@ -2060,6 +2220,11 @@ function ActionDialog({
                 lowStockThreshold: String(formData.get("lowStockThreshold") ?? ""),
                 packQuantity: String(formData.get("packQuantity") ?? ""),
                 sizes: String(formData.get("sizes") ?? ""),
+                ...Object.fromEntries(
+                  ["shippingWeightG", "packageLengthCm", "packageWidthCm", "packageHeightCm"].map(
+                    (key) => [key, String(formData.get(key) ?? "")],
+                  ),
+                ),
                 productDimensions: String(formData.get("productDimensions") ?? ""),
                 padLength: String(formData.get("padLength") ?? ""),
                 frontPackContent: String(formData.get("frontPackContent") ?? ""),
@@ -2095,24 +2260,48 @@ function ActionDialog({
                 usageLimitPerCustomer: String(formData.get("usageLimitPerCustomer") ?? ""),
                 firstOrderOnly: String(formData.get("firstOrderOnly") ?? ""),
               }),
-            ).catch((error) => {
-              const timedOut = error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name);
-              const message = timedOut || error instanceof TypeError
-                ? "Save confirmation timed out or the connection was lost. Check the list before retrying; your changes may already be saved."
-                : error instanceof Error ? error.message : "Could not confirm the save. Check the list before retrying.";
-              setSaveError(message);
-              toast.error(message);
-            }).finally(() => setSaving(false));
+            )
+              .catch((error) => {
+                const timedOut =
+                  error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name);
+                const message =
+                  timedOut || error instanceof TypeError
+                    ? "Save confirmation timed out or the connection was lost. Check the list before retrying; your changes may already be saved."
+                    : error instanceof Error
+                      ? error.message
+                      : "Could not confirm the save. Check the list before retrying.";
+                setSaveError(message);
+                toast.error(message);
+              })
+              .finally(() => setSaving(false));
           }}
         >
           {isProduct ? (
-            <ProductFormFields initialData={initialData} imagePreview={imagePreview} setImagePreview={setImagePreview} />
+            <ProductFormFields
+              initialData={initialData}
+              imagePreview={imagePreview}
+              setImagePreview={setImagePreview}
+            />
           ) : (
-            <BasicFormFields moduleTitle={moduleTitle} section={section} initialData={initialData} />
+            <BasicFormFields
+              moduleTitle={moduleTitle}
+              section={section}
+              initialData={initialData}
+            />
           )}
-          {saveError && <p role="alert" className="text-sm text-red-700">{saveError}</p>}
+          {saveError && (
+            <p role="alert" className="text-sm text-red-700">
+              {saveError}
+            </p>
+          )}
           <DialogFooter>
-            <Button type="button" variant="outline" className="bg-white" disabled={saving} onClick={() => onOpenChange(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              className="bg-white"
+              disabled={saving}
+              onClick={() => onOpenChange(false)}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={saving}>
@@ -2132,7 +2321,7 @@ function BasicFormFields({
 }: {
   moduleTitle: string;
   section: string;
-  initialData?: ActionFormData | null;
+  initialData?: ActionFormData | null | undefined;
 }) {
   const isHomepage = section === "homepage";
   const isFaq = section === "faqs";
@@ -2285,14 +2474,16 @@ function BasicFormFields({
           name="notes"
           defaultValue={initialData?.notes || ""}
           className="min-h-24 border border-[#e4d5cc] bg-[#fffaf6] px-3 py-2 outline-none focus:border-brand-coral"
-          placeholder={isHomepage ? "Section text or content source" : "Description, subtitle or image URL"}
+          placeholder={
+            isHomepage ? "Section text or content source" : "Description, subtitle or image URL"
+          }
         />
       </label>
     </>
   );
 }
 
-function CouponFormFields({ initialData }: { initialData?: ActionFormData | null }) {
+function CouponFormFields({ initialData }: { initialData?: ActionFormData | null | undefined }) {
   return (
     <>
       <label className="grid gap-1 text-sm font-medium">
@@ -2309,7 +2500,9 @@ function CouponFormFields({ initialData }: { initialData?: ActionFormData | null
         Description
         <input
           name="title"
-          defaultValue={initialData?.title && initialData.title !== initialData.code ? initialData.title : ""}
+          defaultValue={
+            initialData?.title && initialData.title !== initialData.code ? initialData.title : ""
+          }
           className="admin-input"
           placeholder="Launch offer, festive sale, first order offer"
         />
@@ -2412,13 +2605,16 @@ function CouponFormFields({ initialData }: { initialData?: ActionFormData | null
           />
           First order only
         </label>
-        <StatusField defaultValue={initialData?.status} options={["ACTIVE", "INACTIVE", "EXPIRED"]} />
+        <StatusField
+          defaultValue={initialData?.status}
+          options={["ACTIVE", "INACTIVE", "EXPIRED"]}
+        />
       </div>
     </>
   );
 }
 
-function BlogFormFields({ initialData }: { initialData?: ActionFormData | null }) {
+function BlogFormFields({ initialData }: { initialData?: ActionFormData | null | undefined }) {
   const [imageUrl, setImageUrl] = useState(initialData?.imageUrl || "");
   const [imagePreview, setImagePreview] = useState(initialData?.imageUrl || "");
   const [uploadedFileName, setUploadedFileName] = useState("");
@@ -2431,12 +2627,20 @@ function BlogFormFields({ initialData }: { initialData?: ActionFormData | null }
     setUploadedFileName("");
     setUploadError("");
   }, [initialData]);
-  useEffect(() => () => { if (imagePreview.startsWith("blob:")) URL.revokeObjectURL(imagePreview); }, [imagePreview]);
+  useEffect(
+    () => () => {
+      if (imagePreview.startsWith("blob:")) URL.revokeObjectURL(imagePreview);
+    },
+    [imagePreview],
+  );
 
   const uploadBlogImage = async (files: FileList | null) => {
     const file = files?.[0];
     if (!file) return;
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
+    if (
+      !["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
+      file.size > 5 * 1024 * 1024
+    ) {
       setUploadError("Choose a JPG, PNG or WebP image under 5 MB.");
       return;
     }
@@ -2449,15 +2653,24 @@ function BlogFormFields({ initialData }: { initialData?: ActionFormData | null }
     uploadData.append("images", file);
     try {
       const response = await fetch("/api/admin/upload-blog-image", {
-        method: "POST", body: uploadData, credentials: "same-origin", signal: AbortSignal.timeout(30000),
+        method: "POST",
+        body: uploadData,
+        credentials: "same-origin",
+        signal: AbortSignal.timeout(30000),
       });
       let payload: { urls?: string[]; error?: string };
-      try { payload = await response.json(); } catch { throw new Error("Image upload service is unavailable. Choose the image again to retry."); }
-      if (!response.ok || !payload.urls?.[0]) throw new Error(payload.error || "Could not upload blog image.");
+      try {
+        payload = await response.json();
+      } catch {
+        throw new Error("Image upload service is unavailable. Choose the image again to retry.");
+      }
+      if (!response.ok || !payload.urls?.[0])
+        throw new Error(payload.error || "Could not upload blog image.");
       setImageUrl(payload.urls[0]);
       toast.success("Blog image uploaded. Save the blog to use it.");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not upload blog image. Please retry.";
+      const message =
+        error instanceof Error ? error.message : "Could not upload blog image. Please retry.";
       setUploadError(message);
       toast.error(message);
     } finally {
@@ -2467,7 +2680,11 @@ function BlogFormFields({ initialData }: { initialData?: ActionFormData | null }
 
   return (
     <div className="grid gap-4">
-      <input type="hidden" name="imageUploadState" value={uploading ? "uploading" : uploadError ? "error" : "ready"} />
+      <input
+        type="hidden"
+        name="imageUploadState"
+        value={uploading ? "uploading" : uploadError ? "error" : "ready"}
+      />
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-1 text-sm font-medium sm:col-span-2">
           Blog Title
@@ -2515,7 +2732,12 @@ function BlogFormFields({ initialData }: { initialData?: ActionFormData | null }
             className="admin-input"
           />
         </label>
-        <StatusField defaultValue={initialData?.status === "ACTIVE" ? "PUBLISHED" : initialData?.status || "DRAFT"} options={["DRAFT", "PUBLISHED"]} />
+        <StatusField
+          defaultValue={
+            initialData?.status === "ACTIVE" ? "PUBLISHED" : initialData?.status || "DRAFT"
+          }
+          options={["DRAFT", "PUBLISHED"]}
+        />
       </div>
 
       <div className="grid gap-4 md:grid-cols-[260px_1fr]">
@@ -2566,8 +2788,16 @@ function BlogFormFields({ initialData }: { initialData?: ActionFormData | null }
               {uploadedFileName || "No file chosen"}
             </span>
           </label>
-          {uploading && <p role="status" className="mt-2 text-xs">Uploading blog image…</p>}
-          {uploadError && <p role="alert" className="mt-2 text-xs text-red-700">{uploadError}</p>}
+          {uploading && (
+            <p role="status" className="mt-2 text-xs">
+              Uploading blog image…
+            </p>
+          )}
+          {uploadError && (
+            <p role="alert" className="mt-2 text-xs text-red-700">
+              {uploadError}
+            </p>
+          )}
         </div>
 
         <div className="grid content-start gap-4">
@@ -2595,11 +2825,21 @@ function BlogFormFields({ initialData }: { initialData?: ActionFormData | null }
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-1 text-sm font-medium">
           Meta Title
-          <input name="metaTitle" defaultValue={initialData?.metaTitle || ""} className="admin-input" placeholder="SEO title" />
+          <input
+            name="metaTitle"
+            defaultValue={initialData?.metaTitle || ""}
+            className="admin-input"
+            placeholder="SEO title"
+          />
         </label>
         <label className="grid gap-1 text-sm font-medium">
           Meta Keywords
-          <input name="metaKeywords" defaultValue={initialData?.metaKeywords || ""} className="admin-input" placeholder="period care, hygiene" />
+          <input
+            name="metaKeywords"
+            defaultValue={initialData?.metaKeywords || ""}
+            className="admin-input"
+            placeholder="period care, hygiene"
+          />
         </label>
         <label className="grid gap-1 text-sm font-medium sm:col-span-2">
           Meta Description
@@ -2628,17 +2868,21 @@ function ProductFormFields({
   imagePreview,
   setImagePreview,
 }: {
-  initialData?: ActionFormData | null;
+  initialData?: ActionFormData | null | undefined;
   imagePreview: string;
   setImagePreview: (value: string) => void;
 }) {
-  const selectedFlow = new Set((initialData?.flow || "").split(",").map((item) => item.trim().toUpperCase()));
+  const selectedFlow = new Set(
+    (initialData?.flow || "").split(",").map((item) => item.trim().toUpperCase()),
+  );
   const selectedCategories = new Set(
     (initialData?.category || "Sanitary Pads").split(",").map((item) => item.trim()),
   );
   const [imageUrl, setImageUrl] = useState(initialData?.imageUrl || "");
   const [uploadedFileName, setUploadedFileName] = useState("");
-  const [galleryImages, setGalleryImages] = useState<Array<{ url: string; preview: string; name: string }>>([]);
+  const [galleryImages, setGalleryImages] = useState<
+    Array<{ url: string; preview: string; name: string }>
+  >([]);
   const orderedGalleryImages = [
     ...galleryImages.filter((item) => item.url === imageUrl),
     ...galleryImages.filter((item) => item.url !== imageUrl),
@@ -2648,7 +2892,11 @@ function ProductFormFields({
     const nextImageUrl = productImagePath(initialData?.imageUrl || "");
     setImageUrl(nextImageUrl);
     setImagePreview(nextImageUrl);
-    setGalleryImages(nextImageUrl ? [{ url: nextImageUrl, preview: nextImageUrl, name: basenameFromPath(nextImageUrl) }] : []);
+    setGalleryImages(
+      nextImageUrl
+        ? [{ url: nextImageUrl, preview: nextImageUrl, name: basenameFromPath(nextImageUrl) }]
+        : [],
+    );
     setUploadedFileName("");
   }, [initialData, setImagePreview]);
 
@@ -2658,7 +2906,10 @@ function ProductFormFields({
     setImagePreview(preview || normalizedUrl);
   };
 
-  const addGalleryFiles = async (files: FileList | null, options: { makePrimary?: boolean } = {}) => {
+  const addGalleryFiles = async (
+    files: FileList | null,
+    options: { makePrimary?: boolean } = {},
+  ) => {
     if (!files?.length) return;
     const selectedFiles = Array.from(files);
     const oversized = selectedFiles.find((file) => file.size > 5 * 1024 * 1024);
@@ -2667,7 +2918,11 @@ function ProductFormFields({
       return;
     }
     const dataImages = await Promise.all(selectedFiles.map(fileToDataUrl));
-    setUploadedFileName(selectedFiles.length === 1 ? selectedFiles[0]!.name : `${selectedFiles.length} images selected`);
+    setUploadedFileName(
+      selectedFiles.length === 1
+        ? selectedFiles[0]!.name
+        : `${selectedFiles.length} images selected`,
+    );
     const nextImages = dataImages.map((url, index) => ({
       url,
       preview: url,
@@ -2675,10 +2930,13 @@ function ProductFormFields({
     }));
     setGalleryImages((current) => {
       const merged = options.makePrimary ? nextImages : [...current, ...nextImages];
-      const unique = merged.filter((item, index, items) => items.findIndex((entry) => entry.url === item.url) === index);
+      const unique = merged.filter(
+        (item, index, items) => items.findIndex((entry) => entry.url === item.url) === index,
+      );
       return unique;
     });
-    if (options.makePrimary || !imageUrl) setPrimaryImage(nextImages[0]!.url, nextImages[0]!.preview);
+    if (options.makePrimary || !imageUrl)
+      setPrimaryImage(nextImages[0]!.url, nextImages[0]!.preview);
     toast.success("Image ready to save in database.");
   };
 
@@ -2768,42 +3026,119 @@ function ProductFormFields({
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <label className="grid gap-1 text-sm font-medium">
             MRP
-            <input name="mrp" type="number" min="0" step="0.01" defaultValue={initialData?.mrp || ""} className="admin-input" placeholder="270" />
+            <input
+              name="mrp"
+              type="number"
+              min="0"
+              step="0.01"
+              defaultValue={initialData?.mrp || ""}
+              className="admin-input"
+              placeholder="270"
+            />
           </label>
           <label className="grid gap-1 text-sm font-medium">
             Selling Price
-            <input name="sellingPrice" type="number" min="0" step="0.01" defaultValue={initialData?.sellingPrice || ""} className="admin-input" placeholder="219" />
+            <input
+              name="sellingPrice"
+              type="number"
+              min="0"
+              step="0.01"
+              defaultValue={initialData?.sellingPrice || ""}
+              className="admin-input"
+              placeholder="219"
+            />
           </label>
           <label className="grid gap-1 text-sm font-medium">
             GST %
-            <input name="gstPercent" type="number" min="0" step="0.01" defaultValue="0" className="admin-input" placeholder="0" />
+            <input
+              name="gstPercent"
+              type="number"
+              min="0"
+              step="0.01"
+              defaultValue="0"
+              className="admin-input"
+              placeholder="0"
+            />
           </label>
           <label className="grid gap-1 text-sm font-medium">
             Stock
-            <input name="stock" type="number" min="0" defaultValue={initialData?.stock || ""} className="admin-input" placeholder="25" />
+            <input
+              name="stock"
+              type="number"
+              min="0"
+              defaultValue={initialData?.stock || ""}
+              className="admin-input"
+              placeholder="25"
+            />
           </label>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <label className="grid gap-1 text-sm font-medium">
             Pack Quantity
-            <input name="packQuantity" defaultValue={initialData?.packQuantity || ""} className="admin-input" placeholder="Pack of 14" />
+            <input
+              name="packQuantity"
+              defaultValue={initialData?.packQuantity || ""}
+              className="admin-input"
+              placeholder="Pack of 14"
+            />
           </label>
           <label className="grid gap-1 text-sm font-medium">
             Sizes
-            <input name="sizes" defaultValue={initialData?.sizes || ""} className="admin-input" placeholder="XL, XXL, XXXL" />
+            <input
+              name="sizes"
+              defaultValue={initialData?.sizes || ""}
+              className="admin-input"
+              placeholder="XL, XXL, XXXL"
+            />
           </label>
+          {[
+            ["shippingWeightG", "Shipping weight (g)"],
+            ["packageLengthCm", "Parcel length (cm)"],
+            ["packageWidthCm", "Parcel width (cm)"],
+            ["packageHeightCm", "Parcel height (cm)"],
+          ].map(([key, label]) => (
+            <label className="field" key={key}>
+              {label}
+              <input
+                type="number"
+                min="0.001"
+                step="0.001"
+                name={key}
+                defaultValue={initialData?.[key as keyof ActionFormData] || ""}
+                className="admin-input"
+                placeholder="Requires admin configuration"
+              />
+            </label>
+          ))}
           <label className="grid gap-1 text-sm font-medium">
             Product Dimensions
-            <input name="productDimensions" defaultValue={initialData?.productDimensions || ""} className="admin-input" placeholder="12 Regular + 8 XXL, total 20 count" />
+            <input
+              name="productDimensions"
+              defaultValue={initialData?.productDimensions || ""}
+              className="admin-input"
+              placeholder="12 Regular + 8 XXL, total 20 count"
+            />
           </label>
           <label className="grid gap-1 text-sm font-medium">
             Pad Length
-            <input name="padLength" defaultValue={initialData?.padLength || ""} className="admin-input" placeholder="Regular 290 mm, XXL 320 mm" />
+            <input
+              name="padLength"
+              defaultValue={initialData?.padLength || ""}
+              className="admin-input"
+              placeholder="Regular 290 mm, XXL 320 mm"
+            />
           </label>
           <label className="grid gap-1 text-sm font-medium">
             Low Stock Alert
-            <input name="lowStockThreshold" type="number" min="1" defaultValue={initialData?.lowStockThreshold || ""} className="admin-input" placeholder="5" />
+            <input
+              name="lowStockThreshold"
+              type="number"
+              min="1"
+              defaultValue={initialData?.lowStockThreshold || ""}
+              className="admin-input"
+              placeholder="5"
+            />
           </label>
         </div>
 
@@ -2812,7 +3147,12 @@ function ProductFormFields({
           <div className="mt-2 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
             {["LIGHT", "MEDIUM", "HEAVY", "OVERNIGHT"].map((flow) => (
               <label key={flow} className="flex min-w-0 items-center gap-2 whitespace-nowrap">
-                <input name="flow" type="checkbox" value={flow} defaultChecked={selectedFlow.has(flow)} />
+                <input
+                  name="flow"
+                  type="checkbox"
+                  value={flow}
+                  defaultChecked={selectedFlow.has(flow)}
+                />
                 {flow}
               </label>
             ))}
@@ -2849,71 +3189,147 @@ function ProductFormFields({
           </label>
           <label className="grid gap-1 text-sm font-medium">
             Features
-            <textarea name="features" defaultValue={initialData?.features || ""} className="admin-textarea" placeholder="One feature per line or comma separated" />
+            <textarea
+              name="features"
+              defaultValue={initialData?.features || ""}
+              className="admin-textarea"
+              placeholder="One feature per line or comma separated"
+            />
           </label>
           <label className="grid gap-1 text-sm font-medium">
             Materials
-            <textarea name="materials" defaultValue={initialData?.materials || ""} className="admin-textarea" placeholder="Cotton soft top sheet, leak guard..." />
+            <textarea
+              name="materials"
+              defaultValue={initialData?.materials || ""}
+              className="admin-textarea"
+              placeholder="Cotton soft top sheet, leak guard..."
+            />
           </label>
           <label className="grid gap-1 text-sm font-medium">
             Usage Instructions
-            <textarea name="usageInstructions" defaultValue={initialData?.usageInstructions || ""} className="admin-textarea" placeholder="Remove wrapper, place securely..." />
+            <textarea
+              name="usageInstructions"
+              defaultValue={initialData?.usageInstructions || ""}
+              className="admin-textarea"
+              placeholder="Remove wrapper, place securely..."
+            />
           </label>
           <label className="grid gap-1 text-sm font-medium">
             Disposal Instructions
-            <textarea name="disposalInstructions" defaultValue={initialData?.disposalInstructions || ""} className="admin-textarea" placeholder="Wrap and dispose responsibly..." />
+            <textarea
+              name="disposalInstructions"
+              defaultValue={initialData?.disposalInstructions || ""}
+              className="admin-textarea"
+              placeholder="Wrap and dispose responsibly..."
+            />
           </label>
         </div>
 
         <label className="grid gap-1 text-sm font-medium">
           Safety Information
-          <textarea name="safetyInformation" defaultValue={initialData?.safetyInformation || ""} className="admin-textarea" placeholder="Safety notes shown on product page" />
+          <textarea
+            name="safetyInformation"
+            defaultValue={initialData?.safetyInformation || ""}
+            className="admin-textarea"
+            placeholder="Safety notes shown on product page"
+          />
         </label>
 
         <fieldset className="grid gap-4 border border-[#eadbd2] bg-[#fffaf6] p-4 sm:grid-cols-2">
           <legend className="px-1 text-sm font-bold">Manufacturer, Storage & Pack Details</legend>
           <label className="grid gap-1 text-sm font-medium">
             Storage Instruction
-            <input name="storageInstruction" defaultValue={initialData?.storageInstruction || ""} className="admin-input" placeholder="Store in a clean, dry and sealed place." />
+            <input
+              name="storageInstruction"
+              defaultValue={initialData?.storageInstruction || ""}
+              className="admin-input"
+              placeholder="Store in a clean, dry and sealed place."
+            />
           </label>
           <label className="grid gap-1 text-sm font-medium">
             Best Before / Shelf Life
-            <input name="shelfLife" defaultValue={initialData?.shelfLife || ""} className="admin-input" placeholder="36 Months from DOM" />
+            <input
+              name="shelfLife"
+              defaultValue={initialData?.shelfLife || ""}
+              className="admin-input"
+              placeholder="36 Months from DOM"
+            />
           </label>
           <label className="grid gap-1 text-sm font-medium">
             Manufactured By
-            <input name="manufacturerDetails" defaultValue={initialData?.manufacturerDetails || ""} className="admin-input" placeholder="Kollisto Hygiene Pvt Ltd" />
+            <input
+              name="manufacturerDetails"
+              defaultValue={initialData?.manufacturerDetails || ""}
+              className="admin-input"
+              placeholder="Kollisto Hygiene Pvt Ltd"
+            />
           </label>
           <label className="grid gap-1 text-sm font-medium">
             Marketed By
-            <input name="marketerDetails" defaultValue={initialData?.marketerDetails || ""} className="admin-input" placeholder="S3 Enterprises, Prabhadevi, Mumbai 400 013" />
+            <input
+              name="marketerDetails"
+              defaultValue={initialData?.marketerDetails || ""}
+              className="admin-input"
+              placeholder="S3 Enterprises, Prabhadevi, Mumbai 400 013"
+            />
           </label>
           <label className="grid gap-1 text-sm font-medium">
             Contact
-            <input name="productContact" defaultValue={initialData?.productContact || ""} className="admin-input" placeholder="95942 41666" />
+            <input
+              name="productContact"
+              defaultValue={initialData?.productContact || ""}
+              className="admin-input"
+              placeholder="95942 41666"
+            />
           </label>
           <label className="grid gap-1 text-sm font-medium">
             Product Email
-            <input name="productEmail" type="email" defaultValue={initialData?.productEmail || ""} className="admin-input" placeholder="hellosherise.in@gmail.com" />
+            <input
+              name="productEmail"
+              type="email"
+              defaultValue={initialData?.productEmail || ""}
+              className="admin-input"
+              placeholder="hellosherise.in@gmail.com"
+            />
           </label>
           <label className="grid gap-1 text-sm font-medium sm:col-span-2">
             Product Website
-            <input name="productWebsite" defaultValue={initialData?.productWebsite || ""} className="admin-input" placeholder="hellosherise.com" />
+            <input
+              name="productWebsite"
+              defaultValue={initialData?.productWebsite || ""}
+              className="admin-input"
+              placeholder="hellosherise.com"
+            />
           </label>
         </fieldset>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="grid gap-1 text-sm font-medium">
             SEO Title
-            <input name="metaTitle" defaultValue={initialData?.metaTitle || ""} className="admin-input" placeholder="Buy SheRise 20 Count Organic Sanitary Pads" />
+            <input
+              name="metaTitle"
+              defaultValue={initialData?.metaTitle || ""}
+              className="admin-input"
+              placeholder="Buy SheRise 20 Count Organic Sanitary Pads"
+            />
           </label>
           <label className="grid gap-1 text-sm font-medium">
             SEO Keywords
-            <input name="metaKeywords" defaultValue={initialData?.metaKeywords || ""} className="admin-input" placeholder="sanitary pads, overnight pads" />
+            <input
+              name="metaKeywords"
+              defaultValue={initialData?.metaKeywords || ""}
+              className="admin-input"
+              placeholder="sanitary pads, overnight pads"
+            />
           </label>
           <label className="grid gap-1 text-sm font-medium sm:col-span-2">
             SEO Description
-            <input name="metaDescription" defaultValue={initialData?.metaDescription || ""} className="admin-input" placeholder="Short search result description" />
+            <input
+              name="metaDescription"
+              defaultValue={initialData?.metaDescription || ""}
+              className="admin-input"
+              placeholder="Short search result description"
+            />
           </label>
         </div>
       </div>
@@ -2947,7 +3363,10 @@ function ProductFormFields({
                 setPrimaryImage(nextValue);
                 setGalleryImages((current) =>
                   nextValue && !current.some((item) => item.url === nextValue)
-                    ? [{ url: nextValue, preview: nextValue, name: basenameFromPath(nextValue) }, ...current]
+                    ? [
+                        { url: nextValue, preview: nextValue, name: basenameFromPath(nextValue) },
+                        ...current,
+                      ]
                     : current,
                 );
               }}
@@ -2977,13 +3396,13 @@ function ProductFormFields({
             type="hidden"
             name="imageUrls"
             value={orderedGalleryImages
-                .filter(
-                  (item) =>
-                    item.url !== imageUrl &&
-                    (item.url.startsWith("data:image/") || item.url.startsWith("http")),
-                )
-                .map((item) => item.url)
-                .join("\n")}
+              .filter(
+                (item) =>
+                  item.url !== imageUrl &&
+                  (item.url.startsWith("data:image/") || item.url.startsWith("http")),
+              )
+              .map((item) => item.url)
+              .join("\n")}
           />
         </div>
 
@@ -3016,7 +3435,11 @@ function ProductFormFields({
                     }`}
                     onClick={() => setPrimaryImage(item.url, item.preview)}
                   >
-                    <img src={item.preview} alt={`${item.name} preview`} className="h-full w-full object-cover" />
+                    <img
+                      src={item.preview}
+                      alt={`${item.name} preview`}
+                      className="h-full w-full object-cover"
+                    />
                     <span className="absolute left-1 top-1 bg-white/90 px-1.5 py-0.5 text-[10px] font-bold text-brand-navy">
                       {item.url === imageUrl ? "Main" : index + 1}
                     </span>
@@ -3062,11 +3485,23 @@ function ProductFormFields({
           <div className="border border-[#eadbd2] bg-white p-4">
             <p className="text-sm font-bold">Store Visibility</p>
             <label className="mt-3 flex items-center gap-2 text-sm">
-              <input name="isFeatured" type="checkbox" defaultChecked={initialData?.isFeatured === "true" || initialData?.isFeatured === "1"} />
+              <input
+                name="isFeatured"
+                type="checkbox"
+                defaultChecked={
+                  initialData?.isFeatured === "true" || initialData?.isFeatured === "1"
+                }
+              />
               Featured product
             </label>
             <label className="mt-3 flex items-center gap-2 text-sm">
-              <input name="isBestseller" type="checkbox" defaultChecked={initialData?.isBestseller === "true" || initialData?.isBestseller === "1"} />
+              <input
+                name="isBestseller"
+                type="checkbox"
+                defaultChecked={
+                  initialData?.isBestseller === "true" || initialData?.isBestseller === "1"
+                }
+              />
               Bestseller
             </label>
           </div>
@@ -3113,11 +3548,16 @@ function StatusField({
   includeOutOfStock = false,
   options,
 }: {
-  defaultValue?: string;
+  defaultValue?: string | undefined;
   includeOutOfStock?: boolean;
   options?: string[];
 }) {
-  const statusOptions = options || ["ACTIVE", "DRAFT", ...(includeOutOfStock ? ["OUT OF STOCK"] : []), "INACTIVE"];
+  const statusOptions = options || [
+    "ACTIVE",
+    "DRAFT",
+    ...(includeOutOfStock ? ["OUT OF STOCK"] : []),
+    "INACTIVE",
+  ];
   return (
     <label className="grid gap-1 text-sm font-medium">
       Status
@@ -3144,13 +3584,15 @@ function DataTable({
   columns: string[];
   rows: string[][];
   subtleHeaders?: boolean;
-  onRowClick?: (row: string[]) => void;
-  renderActions?: (row: string[]) => ReactNode;
+  onRowClick?: ((row: string[]) => void) | undefined;
+  renderActions?: ((row: string[]) => ReactNode) | undefined;
 }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[760px] text-left text-sm">
-        <thead className={`border-b border-[#eadbd2] text-xs text-muted-foreground ${subtleHeaders ? "normal-case [&_th]:font-normal" : "uppercase"}`}>
+        <thead
+          className={`border-b border-[#eadbd2] text-xs text-muted-foreground ${subtleHeaders ? "normal-case [&_th]:font-normal" : "uppercase"}`}
+        >
           <tr>
             {columns.map((column) => (
               <th key={column} className={column === "Image" ? "w-24 py-3 pr-4" : "py-3 pr-4"}>
@@ -3168,12 +3610,26 @@ function DataTable({
           {rows.map((row, rowIndex) => (
             <tr
               key={`${row[0] || "row"}-${row[2] || rowIndex}`}
-              className={onRowClick ? "cursor-pointer transition-colors hover:bg-brand-cream/70" : undefined}
+              className={
+                onRowClick ? "cursor-pointer transition-colors hover:bg-brand-cream/70" : undefined
+              }
               onClick={() => onRowClick?.(row)}
             >
               {row.slice(0, columns.length).map((cell, index) => (
-                <td key={`${index}-${cell.slice(0, 24)}`} className={columns[index] === "Image" ? "w-24 py-4 pr-4" : "max-w-[260px] py-4 pr-4 align-middle"}>
-                  <TableCellContent cell={cell} column={columns[index] || ""} isFirst={index === 0} onRowClick={Boolean(onRowClick)} />
+                <td
+                  key={`${index}-${cell.slice(0, 24)}`}
+                  className={
+                    columns[index] === "Image"
+                      ? "w-24 py-4 pr-4"
+                      : "max-w-[260px] py-4 pr-4 align-middle"
+                  }
+                >
+                  <TableCellContent
+                    cell={cell}
+                    column={columns[index] || ""}
+                    isFirst={index === 0}
+                    onRowClick={Boolean(onRowClick)}
+                  />
                 </td>
               ))}
               {renderActions ? (
@@ -3238,8 +3694,16 @@ function TableCellContent({
 }
 
 function reviewPhotoList(value: string | undefined): string[] {
-  try { const photos = JSON.parse(value || "[]"); return Array.isArray(photos) ? photos.filter((photo) => typeof photo === "string" && photo.startsWith("/api/reviews/image?")).slice(0, 3) : []; }
-  catch { return []; }
+  try {
+    const photos = JSON.parse(value || "[]");
+    return Array.isArray(photos)
+      ? photos
+          .filter((photo) => typeof photo === "string" && photo.startsWith("/api/reviews/image?"))
+          .slice(0, 3)
+      : [];
+  } catch {
+    return [];
+  }
 }
 
 function ReviewModerationDialog({
@@ -3260,21 +3724,34 @@ function ReviewModerationDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="border-[#eadbd2] bg-white sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle className="font-display text-2xl text-brand-navy">Moderate Review</DialogTitle>
+          <DialogTitle className="font-display text-2xl text-brand-navy">
+            Moderate Review
+          </DialogTitle>
           <DialogDescription>
-            Approve reviews and their photos to show them on the matching product page. Rejected reviews stay hidden.
+            Approve reviews and their photos to show them on the matching product page. Rejected
+            reviews stay hidden.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="border border-[#eadbd2] bg-[#fffaf6] p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs font-bold uppercase text-muted-foreground">Order {orderId}</p>
-              <StatusBadge tone={statusTone(status)}>{status}</StatusBadge>
+              <StatusBadge tone={statusTone(status || "")}>{status}</StatusBadge>
             </div>
             <p className="font-semibold text-brand-navy">{product}</p>
             <p className="mt-1 text-xs text-muted-foreground">Customer {customer}</p>
             <p className="mt-4 leading-6">{text}</p>
-            <div className="mt-3 flex flex-wrap gap-2">{reviewPhotoList(review[6]).map((photo, index) => <a key={photo} href={photo} target="_blank" rel="noreferrer"><img src={photo} alt={`Customer product photo ${index + 1}`} className="size-28 rounded border object-cover" /></a>)}</div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {reviewPhotoList(review[6]).map((photo, index) => (
+                <a key={photo} href={photo} target="_blank" rel="noreferrer">
+                  <img
+                    src={photo}
+                    alt={`Customer product photo ${index + 1}`}
+                    className="size-28 rounded border object-cover"
+                  />
+                </a>
+              ))}
+            </div>
           </div>
         </div>
         <DialogFooter className="flex-wrap gap-2 sm:justify-between">
@@ -3282,7 +3759,11 @@ function ReviewModerationDialog({
             Keep Pending
           </Button>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" className="bg-white text-red-700" onClick={() => onStatusChange("REJECTED")}>
+            <Button
+              variant="outline"
+              className="bg-white text-red-700"
+              onClick={() => onStatusChange("REJECTED")}
+            >
               Reject
             </Button>
             <Button onClick={() => onStatusChange("APPROVED")}>Approve & Show on Website</Button>
@@ -3360,9 +3841,7 @@ function NewsletterSubscriberDialog({
           <DialogTitle className="font-display text-2xl text-brand-navy">
             Newsletter Subscriber
           </DialogTitle>
-          <DialogDescription>
-            Email collected from the website JOIN US form.
-          </DialogDescription>
+          <DialogDescription>Email collected from the website JOIN US form.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 border border-[#eadbd2] bg-[#fffaf6] p-4 text-sm sm:grid-cols-2">
           <PreviewField label="Email" value={email} />
@@ -3397,11 +3876,9 @@ function OrderPreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="border-[#eadbd2] bg-white sm:max-w-2xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto border-[#eadbd2] bg-white sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="font-display text-2xl text-brand-navy">
-            Order Details
-          </DialogTitle>
+          <DialogTitle className="font-display text-2xl text-brand-navy">Order Details</DialogTitle>
           <DialogDescription>
             Update this order's status. Customer tracking will reflect this change.
           </DialogDescription>
@@ -3414,13 +3891,16 @@ function OrderPreviewDialog({
           <PreviewField label="Payment" value={order[4]} />
           <PreviewField label="Current Status" value={status} />
           {order[6] ? <PreviewField label="Payment Status" value={order[6]} /> : null}
-          {order[7] && order[7] !== "-" ? <PreviewField label="Razorpay Payment ID" value={order[7]} /> : null}
-          {order[8] && order[8] !== "-" ? <PreviewField label="Transaction Date" value={order[8]} /> : null}
+          {order[7] && order[7] !== "-" ? (
+            <PreviewField label="Razorpay Payment ID" value={order[7]} />
+          ) : null}
+          {order[8] && order[8] !== "-" ? (
+            <PreviewField label="Transaction Date" value={order[8]} />
+          ) : null}
         </div>
         <div>
-          <p className="mb-3 text-xs font-bold uppercase text-muted-foreground">
-            Tracking Status
-          </p>
+          <ShippingOrderPanel orderId={order[0] || ""} />
+          <p className="mb-3 text-xs font-bold uppercase text-muted-foreground">Tracking Status</p>
           <div className="grid gap-2 sm:grid-cols-5">
             {(["preview", "packed", "shipped", "delivered", "cancelled"] as const).map((item) => (
               <Button
@@ -3445,7 +3925,7 @@ function OrderPreviewDialog({
   );
 }
 
-function PreviewField({ label, value }: { label: string; value: string }) {
+function PreviewField({ label, value }: { label: string; value: string | undefined }) {
   return (
     <div>
       <p className="text-xs font-bold uppercase text-muted-foreground">{label}</p>
@@ -3567,17 +4047,14 @@ function isStatus(value: string) {
 
 function statusTone(value: string): Tone {
   if (["OUT OF STOCK", "REJECTED", "FAILED"].includes(value)) return "danger";
-  if (["NEW", "LOW STOCK", "PENDING", "PROCESSING", "INACTIVE", "DRAFT"].includes(value)) return "warn";
+  if (["NEW", "LOW STOCK", "PENDING", "PROCESSING", "INACTIVE", "DRAFT"].includes(value))
+    return "warn";
   return "ok";
 }
 
 function downloadCsv(title: string, columns: string[], rows: string[][]) {
   const csv = [columns, ...rows.map((row) => row.slice(0, columns.length))]
-    .map((row) =>
-      row
-        .map((cell) => `"${cell.replaceAll('"', '""')}"`)
-        .join(","),
-    )
+    .map((row) => row.map((cell) => `"${cell.replaceAll('"', '""')}"`).join(","))
     .join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);

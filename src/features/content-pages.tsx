@@ -25,7 +25,12 @@ import {
   Newsletter,
 } from "@/components/commerce";
 import { Button } from "@/components/ui/button";
-import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/components/ui/carousel";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  type CarouselApi,
+} from "@/components/ui/carousel";
 import { posts, type BlogPost } from "@/lib/catalog";
 import disposeSafelyImage from "@/assets/period guide/Dispose safely.png";
 import markItImage from "@/assets/period guide/Mark it.png";
@@ -267,7 +272,10 @@ function PolicyList({ items }: { items: { q: string; a: string }[] }) {
   return (
     <div className="max-w-4xl border-y border-[#eadbd2]">
       {items.map((item, index) => (
-        <section key={item.q} className="grid gap-4 border-b border-[#eadbd2] py-6 last:border-b-0 sm:grid-cols-[72px_minmax(0,1fr)]">
+        <section
+          key={item.q}
+          className="grid gap-4 border-b border-[#eadbd2] py-6 last:border-b-0 sm:grid-cols-[72px_minmax(0,1fr)]"
+        >
           <span className="font-display text-2xl leading-none text-brand-coral">
             {String(index + 1).padStart(2, "0")}
           </span>
@@ -337,7 +345,9 @@ function ComfortCarousel({ children }: { children: ReactNode }) {
             onClick={() => api?.scrollTo(index)}
             className="flex size-7 items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-navy"
           >
-            <span className={`h-1.5 rounded-full transition-all ${selected === index ? "w-4 bg-brand-navy" : "w-1.5 bg-brand-navy/25"}`} />
+            <span
+              className={`h-1.5 rounded-full transition-all ${selected === index ? "w-4 bg-brand-navy" : "w-1.5 bg-brand-navy/25"}`}
+            />
           </button>
         ))}
       </div>
@@ -355,7 +365,11 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
     <>
       <div
         className={`${kind === "about" ? "about-page " : ""}container-shell ${
-          kind === "period-guide" || kind === "why-sherise" || kind === "about" ? "py-8 md:py-10" : policies[kind] ? "pt-8 pb-12 md:pt-10 md:pb-16" : "pt-8 pb-12 md:pt-10 md:pb-16"
+          kind === "period-guide" || kind === "why-sherise" || kind === "about"
+            ? "py-8 md:py-10"
+            : policies[kind]
+              ? "pt-8 pb-12 md:pt-10 md:pb-16"
+              : "pt-8 pb-12 md:pt-10 md:pb-16"
         }`}
       >
         {kind !== "period-guide" && kind !== "why-sherise" && kind !== "about" && (
@@ -395,31 +409,40 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                 </h2>
                 <address className="mt-6 text-sm not-italic">
                   <dl className="grid gap-5">
-                  <div>
-                    <dt className="font-bold uppercase text-brand-burgundy">Address</dt>
-                    <dd className="mt-1 leading-6 text-muted-foreground">
-                      S3 Enterprises, Prabhadevi, Mumbai 400 013
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="font-bold uppercase text-brand-burgundy">Phone</dt>
-                    <dd className="mt-1 leading-6 text-muted-foreground">
-                      <a href="tel:+919594241666" className="underline underline-offset-4 hover:text-brand-burgundy">
-                        +91 95942 41666
-                      </a>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="font-bold uppercase text-brand-burgundy">Email</dt>
-                    <dd className="mt-1 break-words leading-6 text-muted-foreground">
-                      <a href="mailto:hellosherise.in@gmail.com" className="underline underline-offset-4 hover:text-brand-burgundy">
-                        hellosherise.in@gmail.com
-                      </a>
-                    </dd>
-                  </div>
+                    <div>
+                      <dt className="font-bold uppercase text-brand-burgundy">Address</dt>
+                      <dd className="mt-1 leading-6 text-muted-foreground">
+                        S3 Enterprises, Prabhadevi, Mumbai 400 013
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="font-bold uppercase text-brand-burgundy">Phone</dt>
+                      <dd className="mt-1 leading-6 text-muted-foreground">
+                        <a
+                          href="tel:+919594241666"
+                          className="underline underline-offset-4 hover:text-brand-burgundy"
+                        >
+                          +91 95942 41666
+                        </a>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="font-bold uppercase text-brand-burgundy">Email</dt>
+                      <dd className="mt-1 break-words leading-6 text-muted-foreground">
+                        <a
+                          href="mailto:hellosherise.in@gmail.com"
+                          className="underline underline-offset-4 hover:text-brand-burgundy"
+                        >
+                          hellosherise.in@gmail.com
+                        </a>
+                      </dd>
+                    </div>
                   </dl>
                 </address>
-                <Link to="/faq" className="mt-6 inline-flex font-semibold text-brand-navy underline underline-offset-4">
+                <Link
+                  to="/faq"
+                  className="mt-6 inline-flex font-semibold text-brand-navy underline underline-offset-4"
+                >
                   View FAQs
                 </Link>
               </div>
@@ -446,7 +469,11 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                   setSent(true);
                   form.reset();
                 } catch (error) {
-                  setEnquiryError(error instanceof Error ? error.message : "Could not send your enquiry. Please try again.");
+                  setEnquiryError(
+                    error instanceof Error
+                      ? error.message
+                      : "Could not send your enquiry. Please try again.",
+                  );
                 } finally {
                   setSending(false);
                 }
@@ -454,7 +481,9 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
             >
               <div className="mb-6">
                 <p className="eyebrow">SEND A MESSAGE</p>
-                <h2 className="font-display text-3xl leading-tight text-brand-navy">Contact SheRise</h2>
+                <h2 className="font-display text-3xl leading-tight text-brand-navy">
+                  Contact SheRise
+                </h2>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
                   Share your question and we will help you with the next step.
                 </p>
@@ -462,17 +491,38 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
               <div className="grid gap-5">
                 <label className="field">
                   Name
-                  <input name="name" required maxLength={120} autoComplete="name" placeholder="Your full name" />
+                  <input
+                    name="name"
+                    required
+                    maxLength={120}
+                    autoComplete="name"
+                    placeholder="Your full name"
+                  />
                 </label>
                 <label className="field">
                   Email
-                  <input name="email" required type="email" maxLength={254} autoComplete="email" placeholder="you@example.com" />
+                  <input
+                    name="email"
+                    required
+                    type="email"
+                    maxLength={254}
+                    autoComplete="email"
+                    placeholder="you@example.com"
+                  />
                 </label>
                 <label className="field">
                   Phone number (optional)
-                  <input name="mobile" type="tel" minLength={10} maxLength={10} pattern="[0-9]{10}"
-                    inputMode="numeric" autoComplete="tel-national" title="Enter exactly 10 digits, without +91 or spaces."
-                    placeholder="10-digit mobile number" />
+                  <input
+                    name="mobile"
+                    type="tel"
+                    minLength={10}
+                    maxLength={10}
+                    pattern="[0-9]{10}"
+                    inputMode="numeric"
+                    autoComplete="tel-national"
+                    title="Enter exactly 10 digits, without +91 or spaces."
+                    placeholder="10-digit mobile number"
+                  />
                 </label>
                 <label className="field">
                   Topic
@@ -489,7 +539,14 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                 </label>
                 <label className="field">
                   Your message
-                  <textarea name="message" required rows={5} minLength={10} maxLength={1000} placeholder="Write your message here" />
+                  <textarea
+                    name="message"
+                    required
+                    rows={5}
+                    minLength={10}
+                    maxLength={1000}
+                    placeholder="Write your message here"
+                  />
                 </label>
               </div>
               <div className="mt-6 flex flex-wrap items-center gap-4">
@@ -497,18 +554,28 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                   {sending ? "Sending..." : "Submit message"}
                 </Button>
                 <p className="text-sm font-medium text-green-700" role="status">
-                  {sent ? "Your message has been sent. The SheRise team will get back to you soon." : ""}
+                  {sent
+                    ? "Your message has been sent. The SheRise team will get back to you soon."
+                    : ""}
                 </p>
               </div>
-              {enquiryError ? <p role="alert" className="mt-3 text-sm text-red-700">{enquiryError}</p> : null}
+              {enquiryError ? (
+                <p role="alert" className="mt-3 text-sm text-red-700">
+                  {enquiryError}
+                </p>
+              ) : null}
             </form>
           </section>
         ) : kind === "period-guide" ? (
           <>
-            <section id="period-guide-overview" className="scroll-mt-28 grid gap-6 md:grid-cols-[1.05fr_0.95fr] md:gap-8">
+            <section
+              id="period-guide-overview"
+              className="scroll-mt-28 grid gap-6 md:grid-cols-[1.05fr_0.95fr] md:gap-8"
+            >
               <div className="flex flex-col justify-center">
                 <h2 className="font-display text-3xl leading-tight text-brand-navy md:text-4xl">
-                  Menstrual wellness &amp; <span className="text-brand-coral">mindful self-care</span>
+                  Menstrual wellness &amp;{" "}
+                  <span className="text-brand-coral">mindful self-care</span>
                 </h2>
                 <div className="mt-6 leading-7 text-muted-foreground">
                   <p className="text-justify">
@@ -524,7 +591,10 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                       "Track pain, heavy bleeding or unusual changes and ask a doctor if worried.",
                     ].map((item) => (
                       <li key={item} className="flex gap-3">
-                        <span aria-hidden="true" className="mt-2 size-2 shrink-0 rounded-full bg-brand-coral" />
+                        <span
+                          aria-hidden="true"
+                          className="mt-2 size-2 shrink-0 rounded-full bg-brand-coral"
+                        />
                         <span>{item}</span>
                       </li>
                     ))}
@@ -543,14 +613,14 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
             <section id="wellness-tips" className="mt-14 scroll-mt-28 md:mt-16">
               <div className="grid gap-7 lg:grid-cols-[1fr_1fr] lg:gap-12">
                 <div className="relative order-2 aspect-square w-full self-start overflow-hidden lg:order-1">
-                <img
-                  src={wellnessTipsImage}
-                  alt="Period care essentials arranged for daily comfort"
-                  width="700"
-                  height="520"
-                  loading="lazy"
-                  className="absolute inset-0 h-full w-full object-contain"
-                />
+                  <img
+                    src={wellnessTipsImage}
+                    alt="Period care essentials arranged for daily comfort"
+                    width="700"
+                    height="520"
+                    loading="lazy"
+                    className="absolute inset-0 h-full w-full object-contain"
+                  />
                 </div>
                 <div className="order-1 self-center py-1 lg:order-2">
                   <h3 className="max-w-lg font-display text-3xl leading-tight text-brand-navy md:text-4xl">
@@ -597,7 +667,10 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
               </div>
             </section>
 
-            <section id="red-dot-method" className="mt-14 scroll-mt-28 overflow-hidden border border-brand-coral/20 bg-white shadow-sm md:mt-16">
+            <section
+              id="red-dot-method"
+              className="mt-14 scroll-mt-28 overflow-hidden border border-brand-coral/20 bg-white shadow-sm md:mt-16"
+            >
               <div className="bg-brand-navy p-6 text-white md:p-8 lg:p-10">
                 <div className="grid gap-6 lg:grid-cols-[0.7fr_1fr] lg:items-end">
                   <div>
@@ -607,8 +680,8 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                     </h2>
                     <p className="mt-4 text-justify leading-7 text-white/80">
                       The Red Dot Method is a simple public-health practice for safely disposing of
-                      used sanitary pads. A visible red dot on the wrapped waste helps waste handlers
-                      identify menstrual waste without opening it.
+                      used sanitary pads. A visible red dot on the wrapped waste helps waste
+                      handlers identify menstrual waste without opening it.
                     </p>
                   </div>
                   <div className="border-t border-white/20 pt-5 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
@@ -623,55 +696,55 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
               </div>
               <div className="bg-brand-blush/50 p-4 md:p-6 lg:p-8">
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                    {[
-                      {
-                        image: rollOrFoldImage,
-                        title: "Roll or fold",
-                        copy: "Roll the used pad inward so the soiled area is covered securely.",
-                      },
-                      {
-                        image: wrapItImage,
-                        title: "Wrap it",
-                        copy: "Wrap it tightly in newspaper, a paper disposal bag, or an eco-friendly disposal pouch.",
-                      },
-                      {
-                        image: markItImage,
-                        title: "Mark it",
-                        copy: "Draw or stick a clear red dot on the outside of the wrapped paper or bag.",
-                      },
-                      {
-                        image: disposeSafelyImage,
-                        title: "Dispose safely",
-                        copy: "Place it in a lidded dry-waste or sanitary-waste bin. Never flush pads.",
-                      },
-                    ].map((item, index) => (
-                      <article
-                        key={item.title}
-                        className="group overflow-hidden border border-[#eadbd2] bg-white shadow-sm transition-transform hover:-translate-y-0.5 hover:border-brand-coral/40 hover:shadow-md"
-                      >
-                        <div className="relative">
-                          <img
-                            src={item.image}
-                            alt={`${item.title} step for the Red Dot Method`}
-                            width="512"
-                            height="512"
-                            loading="lazy"
-                            className="aspect-square w-full object-cover"
-                          />
-                          <span className="absolute left-4 top-4 inline-flex size-10 items-center justify-center rounded-full bg-brand-coral text-sm font-bold text-white shadow-sm">
-                            {index + 1}
-                          </span>
-                        </div>
-                        <div className="p-4 md:p-5">
-                          <h3 className="font-display text-2xl leading-tight text-brand-navy">
-                            {item.title}
-                          </h3>
-                          <p className="mt-2 text-sm font-semibold leading-6 text-muted-foreground">
-                            {item.copy}
-                          </p>
-                        </div>
-                      </article>
-                    ))}
+                  {[
+                    {
+                      image: rollOrFoldImage,
+                      title: "Roll or fold",
+                      copy: "Roll the used pad inward so the soiled area is covered securely.",
+                    },
+                    {
+                      image: wrapItImage,
+                      title: "Wrap it",
+                      copy: "Wrap it tightly in newspaper, a paper disposal bag, or an eco-friendly disposal pouch.",
+                    },
+                    {
+                      image: markItImage,
+                      title: "Mark it",
+                      copy: "Draw or stick a clear red dot on the outside of the wrapped paper or bag.",
+                    },
+                    {
+                      image: disposeSafelyImage,
+                      title: "Dispose safely",
+                      copy: "Place it in a lidded dry-waste or sanitary-waste bin. Never flush pads.",
+                    },
+                  ].map((item, index) => (
+                    <article
+                      key={item.title}
+                      className="group overflow-hidden border border-[#eadbd2] bg-white shadow-sm transition-transform hover:-translate-y-0.5 hover:border-brand-coral/40 hover:shadow-md"
+                    >
+                      <div className="relative">
+                        <img
+                          src={item.image}
+                          alt={`${item.title} step for the Red Dot Method`}
+                          width="512"
+                          height="512"
+                          loading="lazy"
+                          className="aspect-square w-full object-cover"
+                        />
+                        <span className="absolute left-4 top-4 inline-flex size-10 items-center justify-center rounded-full bg-brand-coral text-sm font-bold text-white shadow-sm">
+                          {index + 1}
+                        </span>
+                      </div>
+                      <div className="p-4 md:p-5">
+                        <h3 className="font-display text-2xl leading-tight text-brand-navy">
+                          {item.title}
+                        </h3>
+                        <p className="mt-2 text-sm font-semibold leading-6 text-muted-foreground">
+                          {item.copy}
+                        </p>
+                      </div>
+                    </article>
+                  ))}
                 </div>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   <div className="flex gap-3 border border-[#eadbd2] bg-white p-4">
@@ -702,7 +775,10 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
               </div>
             </section>
 
-            <section id="wellness-essence" className="mt-14 scroll-mt-28 grid gap-6 bg-brand-blush/60 p-6 md:mt-16 md:grid-cols-[0.8fr_1.2fr] md:p-8">
+            <section
+              id="wellness-essence"
+              className="mt-14 scroll-mt-28 grid gap-6 bg-brand-blush/60 p-6 md:mt-16 md:grid-cols-[0.8fr_1.2fr] md:p-8"
+            >
               <div>
                 <p className="eyebrow">OUR ESSENCE</p>
                 <h2 className="font-display text-3xl leading-tight text-brand-navy md:text-4xl">
@@ -726,7 +802,10 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                   "Feminine without stereotypes",
                   "Calm and positive",
                 ].map((value) => (
-                  <span key={value} className="flex items-center gap-3 border-b border-brand-coral/20 pb-2">
+                  <span
+                    key={value}
+                    className="flex items-center gap-3 border-b border-brand-coral/20 pb-2"
+                  >
                     <span className="size-2 shrink-0 rounded-full bg-brand-coral" />
                     {value}
                   </span>
@@ -734,7 +813,10 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
               </div>
             </section>
 
-            <section className="mt-14 overflow-hidden pb-4 md:mt-16 md:pb-6" aria-label="Menstrual wellness pillars">
+            <section
+              className="mt-14 overflow-hidden pb-4 md:mt-16 md:pb-6"
+              aria-label="Menstrual wellness pillars"
+            >
               <div className="wellness-carousel-track flex gap-4">
                 {[
                   {
@@ -795,7 +877,10 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
               </div>
             </section>
 
-            <section id="during-period" className="mt-14 scroll-mt-28 grid gap-5 md:mt-16 md:grid-cols-2">
+            <section
+              id="during-period"
+              className="mt-14 scroll-mt-28 grid gap-5 md:mt-16 md:grid-cols-2"
+            >
               <div className="bg-brand-blush p-5 md:p-6">
                 <Moon className="mb-3 size-7 text-brand-coral" />
                 <h3 className="font-display text-3xl">During your period</h3>
@@ -835,14 +920,25 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                 </ul>
               </div>
             </section>
-
           </>
         ) : (
           <>
             <div className="editorial-grid mb-14">
               <img
-                src={kind === "about" ? philosophyImage : kind === "why-sherise" ? whyPhilosophyImage : story}
-                alt={kind === "about" ? "Women sharing a conversation about SheRise period-care essentials" : kind === "why-sherise" ? "SheRise sanitary pads, pink packaging and individually wrapped pads on a table" : "Everyday comfort and a moment of pause"}
+                src={
+                  kind === "about"
+                    ? philosophyImage
+                    : kind === "why-sherise"
+                      ? whyPhilosophyImage
+                      : story
+                }
+                alt={
+                  kind === "about"
+                    ? "Women sharing a conversation about SheRise period-care essentials"
+                    : kind === "why-sherise"
+                      ? "SheRise sanitary pads, pink packaging and individually wrapped pads on a table"
+                      : "Everyday comfort and a moment of pause"
+                }
                 width={kind === "about" ? 1500 : kind === "why-sherise" ? 1407 : 800}
                 height={kind === "about" ? 1000 : kind === "why-sherise" ? 768 : 800}
               />
@@ -856,13 +952,14 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                       <p>
                         From busy mornings to slower evenings, your period care should fit into your
                         life. SheRise brings together a soft cotton top layer, an absorbent core and
-                        a breathable back sheet to help you feel comfortable through your daily routine.
+                        a breathable back sheet to help you feel comfortable through your daily
+                        routine.
                       </p>
                       <p>
-                        A soft feel against your skin and added leak guards give you practical reasons
-                        to choose SheRise. Different sizes and pack options let you pick what suits
-                        your flow, while individual wrappers make it easy to keep a spare in your bag
-                        for work, college or days out.
+                        A soft feel against your skin and added leak guards give you practical
+                        reasons to choose SheRise. Different sizes and pack options let you pick
+                        what suits your flow, while individual wrappers make it easy to keep a spare
+                        in your bag for work, college or days out.
                       </p>
                       <p>
                         Whether you are choosing your first pack or stocking up for your next cycle,
@@ -881,19 +978,22 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                     </h2>
                     <div className="my-6 space-y-5 text-justify leading-8">
                       <p>
-                        Period care should feel like part of your day. A little simpler. A little more
-                        considered. SheRise is a space for thoughtful essentials and open conversations,
-                        with room for every kind of routine.
+                        Period care should feel like part of your day. A little simpler. A little
+                        more considered. SheRise is a space for thoughtful essentials and open
+                        conversations, with room for every kind of routine.
                       </p>
                       <p>
-                        We believe in clear information, personal choice and care without pressure. Our
-                        preview collection is a first look at that direction.
+                        We believe in clear information, personal choice and care without pressure.
+                        Our preview collection is a first look at that direction.
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
                       <Action to="/shop">Explore SheRise</Action>
                       {kind === "about" && (
-                        <Link to="/about/meet-the-founder" className="inline-flex min-h-11 items-center font-semibold text-brand-burgundy underline underline-offset-8">
+                        <Link
+                          to="/about/meet-the-founder"
+                          className="inline-flex min-h-11 items-center font-semibold text-brand-burgundy underline underline-offset-8"
+                        >
                           Meet our founder
                         </Link>
                       )}
@@ -908,29 +1008,65 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                 aria-labelledby="comfort-heading"
                 className="mb-14 scroll-mt-28 pt-8 md:pt-12"
               >
-                <h2 id="comfort-heading" className="text-center font-display text-3xl text-brand-navy md:text-4xl">
+                <h2
+                  id="comfort-heading"
+                  className="text-center font-display text-3xl text-brand-navy md:text-4xl"
+                >
                   Designed for <span className="text-brand-coral">Your Comfort</span>
                 </h2>
                 <ComfortCarousel>
                   {[
-                    { title: "Soft Cotton Top Layer", copy: "A soft surface for comfort against your skin.", image: softCottonImage, alt: "Soft cotton top layer" },
-                    { title: "Super Absorbent Core", copy: "Absorbs menstrual flow to help keep you dry.", image: absorbentCoreImage, alt: "Super absorbent core" },
-                    { title: "Breathable Back Sheet", copy: "Breathable care for everyday wear.", image: breathableSheetImage, alt: "Breathable back sheet" },
-                    { title: "Leak Guard Protection", copy: "Added protection to help guard against leaks.", image: leakGuardImage, alt: "Leak guard protection" },
-                    { title: "Dry & Comfortable Feel", copy: "Comfort that fits into your daily routine.", image: dryComfortImage, alt: "Dry and comfortable everyday care" },
-                    { title: "Individually Wrapped for Hygiene", copy: "Easy to carry and kept wrapped until use.", image: wrappedHygieneImage, alt: "Individually wrapped pads for hygiene" },
+                    {
+                      title: "Soft Cotton Top Layer",
+                      copy: "A soft surface for comfort against your skin.",
+                      image: softCottonImage,
+                      alt: "Soft cotton top layer",
+                    },
+                    {
+                      title: "Super Absorbent Core",
+                      copy: "Absorbs menstrual flow to help keep you dry.",
+                      image: absorbentCoreImage,
+                      alt: "Super absorbent core",
+                    },
+                    {
+                      title: "Breathable Back Sheet",
+                      copy: "Breathable care for everyday wear.",
+                      image: breathableSheetImage,
+                      alt: "Breathable back sheet",
+                    },
+                    {
+                      title: "Leak Guard Protection",
+                      copy: "Added protection to help guard against leaks.",
+                      image: leakGuardImage,
+                      alt: "Leak guard protection",
+                    },
+                    {
+                      title: "Dry & Comfortable Feel",
+                      copy: "Comfort that fits into your daily routine.",
+                      image: dryComfortImage,
+                      alt: "Dry and comfortable everyday care",
+                    },
+                    {
+                      title: "Individually Wrapped for Hygiene",
+                      copy: "Easy to carry and kept wrapped until use.",
+                      image: wrappedHygieneImage,
+                      alt: "Individually wrapped pads for hygiene",
+                    },
                   ].map(({ title, image, alt }) => (
-                    <CarouselItem key={title} className="basis-[85%] pl-4 sm:basis-1/2 lg:basis-1/3 xl:basis-1/4">
-                    <article className="h-full overflow-hidden rounded-none border border-brand-coral/15 bg-white">
-                      <img
-                        src={image}
-                        alt={alt}
-                        width={432}
-                        height={360}
-                        loading="lazy"
-                        className="aspect-[4/3] w-full object-cover"
-                      />
-                    </article>
+                    <CarouselItem
+                      key={title}
+                      className="basis-[85%] pl-4 sm:basis-1/2 lg:basis-1/3 xl:basis-1/4"
+                    >
+                      <article className="h-full overflow-hidden rounded-none border border-brand-coral/15 bg-white">
+                        <img
+                          src={image}
+                          alt={alt}
+                          width={432}
+                          height={360}
+                          loading="lazy"
+                          className="aspect-[4/3] w-full object-cover"
+                        />
+                      </article>
                     </CarouselItem>
                   ))}
                 </ComfortCarousel>
@@ -940,7 +1076,10 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
             {kind === "about" && <FounderSection />}
             {kind === "why-sherise" && (
               <>
-                <section id="anion-strip" className="mt-12 grid scroll-mt-28 items-center gap-8 border-y border-brand-coral/20 py-8 md:grid-cols-2 md:gap-12">
+                <section
+                  id="anion-strip"
+                  className="mt-12 grid scroll-mt-28 items-center gap-8 border-y border-brand-coral/20 py-8 md:grid-cols-2 md:gap-12"
+                >
                   <img
                     src={anionStripImage}
                     alt="SheRise sanitary pad with a visible anion strip alongside its packaging"
@@ -951,7 +1090,8 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                   />
                   <div>
                     <h2 className="font-display text-3xl text-brand-navy">
-                      What to know about <span className="text-brand-coral">Anion Strip Technology*</span>
+                      What to know about{" "}
+                      <span className="text-brand-coral">Anion Strip Technology*</span>
                     </h2>
                     <div className="mt-4 max-w-3xl space-y-4 text-justify [text-justify:inter-word] leading-7 text-muted-foreground">
                       <p>
@@ -962,11 +1102,13 @@ export function InfoPage({ kind, items }: { kind: string; items?: { q: string; a
                       <p>
                         We have not verified clinical evidence showing that the strip in SheRise
                         pads provides those effects, so we describe it as a design feature rather
-                        than a health benefit. For the pad&apos;s softness, absorbency, breathability,
-                        and individual wrapping, see Designed for Your Comfort above.
+                        than a health benefit. For the pad&apos;s softness, absorbency,
+                        breathability, and individual wrapping, see Designed for Your Comfort above.
                       </p>
                     </div>
-                    <div className="mt-5"><Action to="/shop">Explore our pads</Action></div>
+                    <div className="mt-5">
+                      <Action to="/shop">Explore our pads</Action>
+                    </div>
                   </div>
                 </section>
                 <SheRiseInitiative />
@@ -990,7 +1132,13 @@ export function BlogListing({ items = posts }: { items?: BlogPost[] }) {
     </div>
   );
 }
-export function BlogDetail({ post, relatedPosts = posts }: { post: BlogPost; relatedPosts?: BlogPost[] }) {
+export function BlogDetail({
+  post,
+  relatedPosts = posts,
+}: {
+  post: BlogPost;
+  relatedPosts?: BlogPost[];
+}) {
   return (
     <div className="container-shell section-space">
       <div className="mx-auto max-w-3xl">

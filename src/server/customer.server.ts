@@ -1,4 +1,85 @@
-﻿import { scrypt, randomBytes, createHash, timingSafeEqual, randomUUID } from "node:crypto";
+import type { RowDataPacket } from "mysql2/promise";
+type CommerceDbRow = RowDataPacket & {
+  id: number;
+  password_hash: string;
+  name: string;
+  email: string;
+  phone: string;
+  whatsapp_number: string;
+  created_at: string;
+  recipient_name: string;
+  mobile: string;
+  address_line1: string;
+  address_line2: string;
+  city: string;
+  state: string;
+  pincode: string;
+  label: string;
+  is_default: number;
+  slug: string;
+  product_id: number;
+  customer_id: number;
+  deleted_at: string;
+  customer_note: string;
+  order_number: string;
+  shipping_name: string;
+  shipping_mobile: string;
+  shipping_address_line1: string;
+  shipping_address_line2: string;
+  shipping_city: string;
+  shipping_state: string;
+  shipping_pincode: string;
+  order_id: number;
+  product_slug: string;
+  product_name: string;
+  product_image_url: string;
+  size: string;
+  pack_quantity: string;
+  variant_name: string;
+  quantity: number;
+  unit_price: string;
+  subtotal_amount: string;
+  discount_amount: string;
+  shipping_amount: string;
+  tax_amount: string;
+  grand_total: string;
+  payment_method: string;
+  payment_status: string;
+  tracking_id: string;
+  tracking_url: string;
+  order_status: string;
+  cancelled_at: string;
+  rating: number;
+  review_text: string;
+  updated_at: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  moderated_at: string;
+  price: string;
+  pin: string;
+  product: string;
+  flow: string;
+  pack: string;
+  data: string;
+  isDefault: string;
+  cancellationReason: string;
+  cancelledAt: string;
+  items: string;
+  reviews: string;
+  attempt_count: number;
+};
+import { codEligibility } from "../lib/checkout-rules";
+import {
+  readCommerceConfig,
+  validateCoupon,
+  productTax,
+  reserveStock,
+  transitionStock,
+  queueShipment,
+  jsonValue,
+  selectPackage,
+} from "../../api/_commerce.mjs";
+import { quoteFingerprint } from "./quote-input.server";
+import { scrypt, randomBytes, createHash, timingSafeEqual, randomUUID } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { z } from "zod";
@@ -7,9 +88,13 @@ import { getProduct } from "../lib/catalog";
 import { calculateOrderTotals, type CouponDiscount } from "../lib/pricing";
 import { resolveCartSelection } from "../lib/cart-selection";
 import type { Address, Customer, CustomerOrder, OrderItem } from "../lib/customer-types";
-import { reviewPhotoUrls, storedReviewPhotos, validateReviewPhotos } from "../../api/_review-photos.mjs";
+import {
+  reviewPhotoUrls,
+  storedReviewPhotos,
+  validateReviewPhotos,
+} from "../../api/_review-photos.mjs";
 const cookieName = "sherise_session";
-const COD_MINIMUM_TOTAL = 1000;
+
 const password = z
   .string()
   .min(10, "Use at least 10 characters.")
@@ -142,19 +227,22 @@ function json(body: unknown, status = 200, cookie?: string) {
   return new Response(JSON.stringify(body), { status, headers });
 }
 function hasMysqlCustomerStore() {
-  return Boolean(process.env["MYSQL_HOST"] && process.env["MYSQL_USER"] && process.env["MYSQL_DATABASE"]);
+  return Boolean(
+    process.env["MYSQL_HOST"] && process.env["MYSQL_USER"] && process.env["MYSQL_DATABASE"],
+  );
 }
 async function mysqlCustomerData(user: MysqlCustomerRow) {
   const { queryRows } = await import("./mysql.server");
-  const addresses = await queryRows<any>(
+  const addresses = await queryRows<CommerceDbRow>(
     `SELECT id, recipient_name, mobile, address_line1, address_line2, city, state, pincode, label, is_default
      FROM customer_addresses WHERE customer_id = ? AND deleted_at IS NULL
      ORDER BY is_default DESC, id ASC`,
     [user.id],
   );
-  const wishlist = await queryRows<any>(
+  const wishlist = await queryRows<CommerceDbRow>(
     `SELECT p.slug FROM customer_wishlists w JOIN products p ON p.id = w.product_id
-     WHERE w.customer_id = ? AND p.deleted_at IS NULL`, [user.id],
+     WHERE w.customer_id = ? AND p.deleted_at IS NULL`,
+    [user.id],
   );
   return {
     user: {
@@ -189,42 +277,129 @@ function isoDate(value: string | Date) {
 
 async function mysqlOrders(customerId: string | number): Promise<CustomerOrder[]> {
   const { queryRows } = await import("./mysql.server");
-  const orders = await queryRows<any>(
+  const orders = await queryRows<CommerceDbRow>(
     "SELECT * FROM orders WHERE customer_id = ? AND deleted_at IS NULL ORDER BY created_at DESC, id DESC",
     [customerId],
   );
   if (!orders.length) return [];
-  const items = await queryRows<any>(
+  const items = await queryRows<CommerceDbRow>(
     `SELECT i.* FROM order_items i JOIN orders o ON o.id = i.order_id
-     WHERE o.customer_id = ? AND o.deleted_at IS NULL`, [customerId],
+     WHERE o.customer_id = ? AND o.deleted_at IS NULL`,
+    [customerId],
   );
-  const reviews = await queryRows<any>(
+  const reviews = await queryRows<CommerceDbRow>(
     `SELECT r.*, p.slug FROM reviews r JOIN products p ON p.id = r.product_id
-     WHERE r.customer_id = ? AND r.deleted_at IS NULL`, [customerId],
+     WHERE r.customer_id = ? AND r.deleted_at IS NULL`,
+    [customerId],
   );
+  let shipments: import("mysql2/promise").RowDataPacket[] = [],
+    shipmentEvents: import("mysql2/promise").RowDataPacket[] = [];
+  try {
+    shipments = await queryRows(
+      "SELECT s.* FROM ekart_shipments s JOIN orders o ON o.id = s.order_id WHERE o.customer_id = ? AND o.deleted_at IS NULL",
+      [customerId],
+    );
+    shipmentEvents = await queryRows(
+      "SELECT e.* FROM ekart_shipment_events e JOIN orders o ON o.id = e.order_id WHERE o.customer_id = ? AND o.deleted_at IS NULL ORDER BY e.occurred_at, e.id",
+      [customerId],
+    );
+  } catch (error) {
+    if ((error as { code?: string }).code !== "ER_NO_SUCH_TABLE") throw error;
+  }
   return orders.map((order): CustomerOrder => {
-    let metadata: { donationAmount?: number; cancellationReason?: string; gatewayPaymentId?: string; gatewayOrderId?: string; paidAt?: string; paymentState?: string } = {};
-    try { metadata = JSON.parse(order.customer_note || "{}"); } catch { /* Older orders contain plain notes. */ }
+    const shipment = shipments.find((s) => String(s["order_id"]) === String(order.id));
+    let metadata: {
+      preview?: boolean;
+      commerceVersion?: number;
+      shippingQuote?: { codFee?: number; carrierCost?: number };
+      codAmount?: number;
+      donationAmount?: number;
+      cancellationReason?: string;
+      gatewayPaymentId?: string;
+      gatewayOrderId?: string;
+      paidAt?: string;
+      paymentState?: string;
+    } = {};
+    try {
+      metadata = JSON.parse(order.customer_note || "{}");
+    } catch {
+      /* Older orders contain plain notes. */
+    }
     const statuses: Record<string, CustomerOrder["status"]> = {
-      PACKED: "packed", SHIPPED: "shipped", OUT_FOR_DELIVERY: "shipped", DELIVERED: "delivered",
-      CANCELLED: "cancelled", RETURNED: "cancelled", REFUNDED: "cancelled",
+      PACKED: "packed",
+      SHIPPED: "shipped",
+      OUT_FOR_DELIVERY: "shipped",
+      DELIVERED: "delivered",
+      CANCELLED: "cancelled",
+      RETURNED: "returned",
+      REFUNDED: "cancelled",
     };
-    const payments: Record<string, string> = { CARD: "Cards", NET_BANKING: "Net Banking", WALLET: "Wallet", COD: "Cash on Delivery" };
+    const payments: Record<string, string> = {
+      CARD: "Cards",
+      NET_BANKING: "Net Banking",
+      WALLET: "Wallet",
+      COD: "Cash on Delivery",
+    };
     return {
-      id: order.order_number, createdAt: isoDate(order.created_at),
-      address: { id: String(order.id), name: order.shipping_name, phone: order.shipping_mobile,
-        line1: order.shipping_address_line1, line2: order.shipping_address_line2 || "", city: order.shipping_city,
-        state: order.shipping_state, pin: order.shipping_pincode, label: "Home", isDefault: false },
-      items: items.filter((item) => String(item.order_id) === String(order.id)).map((item) => ({
-        slug: item.product_slug || "", name: item.product_name, image: item.product_image_url || "",
-        size: item.size || "", pack: item.pack_quantity || "", flow: item.variant_name || "",
-        quantity: Number(item.quantity), price: Number(item.unit_price),
-      })),
-      subtotal: Number(order.subtotal_amount), discount: Number(order.discount_amount),
-      shippingAmount: Number(order.shipping_amount), gstAmount: Number(order.tax_amount),
-      donationAmount: Number(metadata?.donationAmount || 0), total: Number(order.grand_total),
+      id: order.order_number,
+      createdAt: isoDate(order.created_at),
+      address: {
+        id: String(order.id),
+        name: order.shipping_name,
+        phone: order.shipping_mobile,
+        line1: order.shipping_address_line1,
+        line2: order.shipping_address_line2 || "",
+        city: order.shipping_city,
+        state: order.shipping_state,
+        pin: order.shipping_pincode,
+        label: "Home",
+        isDefault: false,
+      },
+      items: items
+        .filter((item) => String(item.order_id) === String(order.id))
+        .map((item) => ({
+          slug: item.product_slug || "",
+          name: item.product_name,
+          image: item.product_image_url || "",
+          size: item.size || "",
+          pack: item.pack_quantity || "",
+          flow: item.variant_name || "",
+          quantity: Number(item.quantity),
+          price: Number(item.unit_price),
+        })),
+      subtotal: Number(order.subtotal_amount),
+      discount: Number(order.discount_amount),
+      shippingAmount: Number(order.shipping_amount),
+      gstAmount: Number(order.tax_amount),
+      donationAmount: Number(metadata?.donationAmount || 0),
+      total: Number(order.grand_total),
       payment: payments[order.payment_method] || order.payment_method,
       paymentStatus: order.payment_status,
+      isPreview: metadata.preview === true,
+      codAmount: Number(metadata.codAmount || 0),
+      codFee: Number(metadata.shippingQuote?.codFee || 0),
+      statusAt:
+        order.order_status === "DELIVERED" && order["delivered_at"]
+          ? isoDate(order["delivered_at"])
+          : order.order_status === "SHIPPED" && order["dispatched_at"]
+            ? isoDate(order["dispatched_at"])
+            : order.order_status === "RETURNED"
+              ? isoDate(
+                  shipmentEvents
+                    .filter(
+                      (e) =>
+                        String(e["order_id"]) === String(order.id) && e["status"] === "Returned",
+                    )
+                    .at(-1)?.["occurred_at"] || "",
+                )
+              : "",
+      shipmentStatus: String(shipment?.["carrier_status"] || shipment?.["status"] || ""),
+      shipmentEvents: shipmentEvents
+        .filter((e) => String(e["order_id"]) === String(order.id))
+        .map((e) => ({ status: String(e["status"]), occurredAt: isoDate(e["occurred_at"]) })),
+      trackingNumber: String(shipment?.["shipment_id"] || order.tracking_id || ""),
+      awb: String(shipment?.["awb"] || ""),
+      trackingUrl: String(shipment?.["tracking_url"] || order.tracking_url || ""),
       gatewayPaymentId: metadata.gatewayPaymentId || "",
       gatewayOrderId: metadata.gatewayOrderId || "",
       paymentState: metadata.paymentState || "",
@@ -232,28 +407,57 @@ async function mysqlOrders(customerId: string | number): Promise<CustomerOrder[]
       status: statuses[order.order_status] || "preview",
       ...(metadata?.cancellationReason ? { cancellationReason: metadata.cancellationReason } : {}),
       ...(order.cancelled_at ? { cancelledAt: isoDate(order.cancelled_at) } : {}),
-      reviews: reviews.filter((review) => String(review.order_id) === String(order.id)).map((review) => ({
-        slug: review.slug, rating: Number(review.rating), reviewText: review.review_text,
-        reviewedAt: isoDate(review.updated_at || review.created_at), status: review.status,
-        ...(reviewPhotoUrls(review).length ? { photos: reviewPhotoUrls(review) } : {}),
-        ...(review.moderated_at ? { moderatedAt: isoDate(review.moderated_at) } : {}),
-      })),
+      reviews: reviews
+        .filter((review) => String(review.order_id) === String(order.id))
+        .map((review) => ({
+          slug: review.slug,
+          rating: Number(review.rating),
+          reviewText: review.review_text,
+          reviewedAt: isoDate(review.updated_at || review.created_at),
+          status: review.status,
+          ...(reviewPhotoUrls(review).length ? { photos: reviewPhotoUrls(review) } : {}),
+          ...(review.moderated_at ? { moderatedAt: isoDate(review.moderated_at) } : {}),
+        })),
     };
   });
 }
 
-export async function mysqlCreateOrder(user: MysqlCustomerRow, input: unknown, mode: "preview" | "payment" | "cod" = "preview") {
-  const data = z.object({
-    requestId: z.string().uuid(),
-    address: addressSchema.extend({ id: z.string().max(64).optional() }),
-    items: z.array(z.object({
-      slug: z.string().max(220), size: z.string().max(50), flow: z.string().max(150),
-      pack: z.string().max(80), quantity: z.number().int().min(1).max(99),
-    })).min(1).max(50),
-    coupon: z.string().trim().max(50).default(""),
-    donationAmount: z.union([z.literal(0), z.literal(10), z.literal(20), z.literal(50), z.literal(80), z.literal(100)]).default(0),
-    payment: z.enum(["UPI", "Cards", "Net Banking", "Wallet", "Cash on Delivery"]),
-  }).parse(input);
+export async function mysqlCreateOrder(
+  user: MysqlCustomerRow,
+  input: unknown,
+  mode: "preview" | "payment" | "cod" = "preview",
+) {
+  const data = z
+    .object({
+      requestId: z.string().uuid(),
+      quoteId: z.string().uuid(),
+      address: addressSchema.extend({ id: z.string().max(64).optional() }),
+      items: z
+        .array(
+          z.object({
+            slug: z.string().max(220),
+            size: z.string().max(50),
+            flow: z.string().max(150),
+            pack: z.string().max(80),
+            quantity: z.number().int().min(1).max(99),
+          }),
+        )
+        .min(1)
+        .max(50),
+      coupon: z.string().trim().max(50).default(""),
+      donationAmount: z
+        .union([
+          z.literal(0),
+          z.literal(10),
+          z.literal(20),
+          z.literal(50),
+          z.literal(80),
+          z.literal(100),
+        ])
+        .default(0),
+      payment: z.enum(["UPI", "Cards", "Net Banking", "Wallet", "Cash on Delivery"]),
+    })
+    .parse(input);
   const { mysqlTransaction } = await import("./mysql.server");
   const { loadCatalogProducts } = await import("./catalog.server");
   // Keep the previous deterministic key for retries of orders placed before short numbers.
@@ -262,20 +466,29 @@ export async function mysqlCreateOrder(user: MysqlCustomerRow, input: unknown, m
   const catalog = await loadCatalogProducts();
   const created = await mysqlTransaction(async (connection) => {
     await connection.query("SELECT id FROM customers WHERE id = ? FOR UPDATE", [user.id]);
-    const [existing] = await connection.query<any[]>(
+    const [existing] = await connection.query<CommerceDbRow[]>(
       `SELECT id, order_number, customer_note, payment_method, order_status FROM orders
        WHERE customer_id = ? AND (order_number = ? OR
          JSON_UNQUOTE(JSON_EXTRACT(IF(JSON_VALID(customer_note), customer_note, '{}'), '$.requestId')) = ?)
-       LIMIT 1`, [user.id, legacyOrderNumber, data.requestId],
+       LIMIT 1`,
+      [user.id, legacyOrderNumber, data.requestId],
     );
-    if (existing.length) {
+    if (existing[0]) {
       orderNumber = existing[0].order_number;
       if (mode !== "preview") {
         let metadata: { checkoutFingerprint?: string; checkoutMode?: string } = {};
-        try { metadata = JSON.parse(existing[0].customer_note || "{}"); } catch { /* Old preview order. */ }
-        if (metadata.checkoutMode !== mode || metadata.checkoutFingerprint !== hash(JSON.stringify(data)))
+        try {
+          metadata = JSON.parse(existing[0].customer_note || "{}");
+        } catch {
+          /* Old preview order. */
+        }
+        if (
+          metadata.checkoutMode !== mode ||
+          metadata.checkoutFingerprint !== hash(JSON.stringify({ ...data, quoteId: undefined }))
+        )
           throw new ApiError(409, "Your checkout changed. Refresh and place the order again.");
-        if (existing[0].order_status === "CANCELLED") throw new ApiError(409, "This order was cancelled. Start a new checkout.");
+        if (existing[0].order_status === "CANCELLED")
+          throw new ApiError(409, "This order was cancelled. Start a new checkout.");
       }
       return false;
     }
@@ -284,23 +497,72 @@ export async function mysqlCreateOrder(user: MysqlCustomerRow, input: unknown, m
       const product = catalog.find((product) => product.slug === item.slug);
       const selection = resolveCartSelection({ ...item, price: 0 }, product);
       if (!product || !selection.optionsMatch)
-        throw new ApiError(400, `${product?.name || item.slug}: ${selection.issues.join(". ")}. Please review the options in your bag.`);
+        throw new ApiError(
+          400,
+          `${product?.name || item.slug}: ${selection.issues.join(". ")}. Please review the options in your bag.`,
+        );
       const quantity = (quantities.get(item.slug) || 0) + item.quantity;
       quantities.set(item.slug, quantity);
-      if (quantity > product.stock) throw new ApiError(409, `${product.name} does not have enough stock.`);
+      if (quantity > product.stock)
+        throw new ApiError(409, `${product.name} does not have enough stock.`);
       return { ...selection.item, product, name: product.name };
     });
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const couponDiscount = await activeCouponDiscount(data.coupon, subtotal);
-    if (data.coupon && !couponDiscount) throw new ApiError(400, "This coupon is no longer eligible. Remove it or apply another code.");
+    const coupon = await validateCoupon(connection, data.coupon, user.id, items);
+    const couponDiscount = coupon
+      ? { discountType: "FIXED" as const, discountValue: coupon.discount }
+      : null;
     const totals = calculateOrderTotals(subtotal, couponDiscount, data.donationAmount);
-    if (totals.total >= COD_MINIMUM_TOTAL && data.payment !== "Cash on Delivery")
-      throw new ApiError(400, "Orders of ₹1,000 and above are Cash on Delivery only.");
-    if (totals.total < COD_MINIMUM_TOTAL && data.payment === "Cash on Delivery")
-      throw new ApiError(400, "Cash on Delivery is available only on orders of ₹1,000 and above.");
-    if (mode === "payment" && data.payment === "Cash on Delivery") throw new ApiError(400, "Choose an online payment method.");
-    if (mode === "cod" && data.payment !== "Cash on Delivery") throw new ApiError(400, "Use the secure online checkout to pay.");
-    const payment = mode === "payment" ? "RAZORPAY" : { UPI: "UPI", Cards: "CARD", "Net Banking": "NET_BANKING", Wallet: "WALLET", "Cash on Delivery": "COD" }[data.payment];
+    totals.gstAmount = productTax(items, coupon);
+    const config = await readCommerceConfig(async (sql, params) => {
+      const [rows] = await connection.query(sql, params);
+      return rows as import("mysql2/promise").RowDataPacket[];
+    });
+    const [quotes] = await connection.query<import("mysql2/promise").RowDataPacket[]>(
+      "SELECT * FROM shipping_quotes WHERE id = ? AND customer_id = ? AND expires_at > NOW() AND order_id IS NULL FOR UPDATE",
+      [data.quoteId, user.id],
+    );
+    const savedQuote = quotes[0];
+    if (
+      !savedQuote ||
+      savedQuote["fingerprint"] !== quoteFingerprint({ ...data, pin: data.address.pin })
+    )
+      throw new ApiError(409, "Delivery quote expired or checkout changed. Check delivery again.");
+    const quote = jsonValue(savedQuote["quote"]);
+    if (JSON.stringify(selectPackage(items, config.packages)) !== JSON.stringify(quote["parcel"]))
+      throw new ApiError(409, "Package measurements changed. Check delivery again.");
+    if (
+      JSON.stringify(quote["config"]) !== JSON.stringify(config) ||
+      quote["subtotal"] !== totals.subtotal ||
+      quote["discountAmount"] !== totals.discountAmount ||
+      quote["gstAmount"] !== totals.gstAmount
+    )
+      throw new ApiError(409, "Prices or shipping settings changed. Check delivery again.");
+    if (quote["prepaidAvailable"] !== true)
+      throw new ApiError(400, "Delivery could not be verified.");
+    totals.shippingAmount = Number(quote["shippingAmount"]);
+    totals.total = Number(quote["total"]);
+    if (!Number.isFinite(totals.total) || totals.total <= 0)
+      throw new ApiError(400, "Invalid shipping quote.");
+    const cod = codEligibility(totals.taxableAmount, totals.total, quote["codAvailable"] === true, {
+      minimum: config.codMinimum,
+      maximumCollectible: config.codMaximum,
+    });
+    if (data.payment === "Cash on Delivery" && !cod.eligible) throw new ApiError(400, cod.reason);
+    if (mode === "payment" && data.payment === "Cash on Delivery")
+      throw new ApiError(400, "Choose an online payment method.");
+    if (mode === "cod" && data.payment !== "Cash on Delivery")
+      throw new ApiError(400, "Use the secure online checkout to pay.");
+    const payment =
+      mode === "payment"
+        ? "RAZORPAY"
+        : {
+            UPI: "UPI",
+            Cards: "CARD",
+            "Net Banking": "NET_BANKING",
+            Wallet: "WALLET",
+            "Cash on Delivery": "COD",
+          }[data.payment];
     const a = data.address;
     const [result] = await connection.execute<import("mysql2/promise").ResultSetHeader>(
       `INSERT INTO orders (order_number, customer_id, customer_name, customer_email, customer_mobile,
@@ -308,28 +570,103 @@ export async function mysqlCreateOrder(user: MysqlCustomerRow, input: unknown, m
        shipping_state, shipping_pincode, subtotal_amount, discount_amount, coupon_discount_amount,
        shipping_amount, tax_amount, grand_total, payment_method, customer_note)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [orderNumber, user.id, user.name, user.email, user.phone || a.phone, a.name, a.phone, a.line1, a.line2,
-        a.city, a.state, a.pin, totals.subtotal, totals.discountAmount, totals.discountAmount,
-        totals.shippingAmount, totals.gstAmount, totals.total, payment,
-        JSON.stringify({ requestId: data.requestId, donationAmount: data.donationAmount, coupon: data.coupon, preview: mode === "preview", checkoutMode: mode, checkoutFingerprint: hash(JSON.stringify(data)) })],
+      [
+        orderNumber,
+        user.id,
+        user.name,
+        user.email,
+        user.phone || a.phone,
+        a.name,
+        a.phone,
+        a.line1,
+        a.line2,
+        a.city,
+        a.state,
+        a.pin,
+        totals.subtotal,
+        totals.discountAmount,
+        totals.discountAmount,
+        totals.shippingAmount,
+        totals.gstAmount,
+        totals.total,
+        payment,
+        JSON.stringify({
+          commerceVersion: 1,
+          shippingQuote: quote,
+          codAmount: mode === "cod" ? totals.total : 0,
+          requestId: data.requestId,
+          donationAmount: data.donationAmount,
+          coupon: data.coupon,
+          preview: mode === "preview",
+          checkoutMode: mode,
+          checkoutFingerprint: hash(JSON.stringify({ ...data, quoteId: undefined })),
+        }),
+      ],
     );
+    await reserveStock(connection, result.insertId, items, mode === "payment");
+    await connection.execute("UPDATE shipping_quotes SET order_id = ? WHERE id = ?", [
+      result.insertId,
+      data.quoteId,
+    ]);
+    if (coupon) {
+      await connection.execute("UPDATE orders SET coupon_id = ? WHERE id = ?", [
+        coupon.id,
+        result.insertId,
+      ]);
+      await connection.execute(
+        "INSERT INTO coupon_usage (coupon_id, customer_id, order_id, discount_amount) VALUES (?, ?, ?, ?)",
+        [coupon.id, user.id, result.insertId, coupon.discount],
+      );
+    }
     // The auto-increment primary key allocates unique numbers across customers and servers.
     // Replace the temporary retry key inside this transaction, before the order is exposed.
     orderNumber = `SR-${BigInt(result.insertId) + 1000n}`;
-    await connection.execute("UPDATE orders SET order_number = ? WHERE id = ?", [orderNumber, result.insertId]);
+    await connection.execute("UPDATE orders SET order_number = ? WHERE id = ?", [
+      orderNumber,
+      result.insertId,
+    ]);
     for (const item of items) {
       await connection.execute(
         `INSERT INTO order_items (order_id, product_id, product_name, product_slug, sku, variant_name,
          size, pack_quantity, product_image_url, quantity, unit_price, unit_mrp, line_total)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [result.insertId, item.product.id, item.name, item.slug, item.product.sku, item.flow, item.size,
-          item.pack, item.product.images.find((image) => image.length <= 500) || "", item.quantity, item.price, item.product.mrp, item.quantity * item.price],
+        [
+          result.insertId,
+          item.product.id,
+          item.name,
+          item.slug,
+          item.product.sku,
+          item.flow,
+          item.size,
+          item.pack,
+          item.product.images.find((image) => image.length <= 500) || "",
+          item.quantity,
+          item.price,
+          item.product.mrp,
+          item.quantity * item.price,
+        ],
       );
     }
     await connection.execute(
       "INSERT INTO order_status_history (order_id, new_status, note) VALUES (?, 'NEW', ?)",
-      [result.insertId, mode === "preview" ? "Preview order saved by customer. No payment or shipment processed." : mode === "payment" ? "Online order created. Awaiting verified payment." : "Cash on Delivery order placed."],
+      [
+        result.insertId,
+        mode === "preview"
+          ? "Preview order saved by customer. No payment or shipment processed."
+          : mode === "payment"
+            ? "Online order created. Awaiting verified payment."
+            : "Cash on Delivery order placed.",
+      ],
     );
+    if (mode === "cod")
+      await queueShipment(connection, {
+        id: result.insertId,
+        order_number: orderNumber,
+        payment_method: "COD",
+        payment_status: "PENDING",
+        order_status: "NEW",
+        grand_total: totals.total,
+      } as import("mysql2/promise").RowDataPacket);
     return true;
   });
   const order = (await mysqlOrders(user.id)).find((order) => order.id === orderNumber);
@@ -337,8 +674,9 @@ export async function mysqlCreateOrder(user: MysqlCustomerRow, input: unknown, m
   return json({ order }, created ? 201 : 200);
 }
 export async function mysqlSessionUser(request: Request) {
+  if (!token(request)) return undefined;
   const { queryRows } = await import("./mysql.server");
-  const rows = await queryRows<any>(
+  const rows = await queryRows<CommerceDbRow>(
     `SELECT c.id, c.name, c.email, c.mobile AS phone, c.whatsapp_number, c.password_hash, c.created_at
      FROM customers c
      JOIN customer_sessions s ON s.customer_id = c.id
@@ -355,11 +693,10 @@ async function mysqlNewSession(userId: string | number, remember: boolean, reque
   const { executeSql } = await import("./mysql.server");
   const t = randomBytes(32).toString("hex");
   const seconds = (remember ? 30 : 1) * 86400;
-  await executeSql("INSERT INTO customer_sessions (token_hash, customer_id, expires_at) VALUES (?, ?, ?)", [
-    hash(t),
-    userId,
-    mysqlDateTime(new Date(Date.now() + seconds * 1000)),
-  ]);
+  await executeSql(
+    "INSERT INTO customer_sessions (token_hash, customer_id, expires_at) VALUES (?, ?, ?)",
+    [hash(t), userId, mysqlDateTime(new Date(Date.now() + seconds * 1000))],
+  );
   await executeSql("DELETE FROM customer_sessions WHERE expires_at <= NOW()");
   return setCookie(t, seconds, request);
 }
@@ -368,16 +705,28 @@ async function handleMysqlCustomerRequest(request: Request, action: string) {
   if (request.method === "GET") {
     if (action !== "session") throw new ApiError(404, "Not found.");
     const user = await mysqlSessionUser(request);
-    return json(user ? await mysqlCustomerData(user) : { user: null, addresses: [], wishlist: [], orders: [] });
+    return json(
+      user
+        ? await mysqlCustomerData(user)
+        : { user: null, addresses: [], wishlist: [], orders: [] },
+    );
   }
   if (request.method !== "POST") throw new ApiError(405, "Method not allowed.");
   guardOrigin(request);
   const input = await readBody(request, action === "order-review" ? 1300000 : 32768);
-  if (["register", "login", "forgot-password", "reset-password"].includes(action)) await mysqlLimit("global-auth", 200);
+  if (["register", "login", "forgot-password", "reset-password"].includes(action))
+    await mysqlLimit("global-auth", 200);
 
   if (action === "register") {
     const data = z
-      .object({ name, email, phone: optionalPhone, whatsappNumber, password, remember: z.boolean().default(false) })
+      .object({
+        name,
+        email,
+        phone: optionalPhone,
+        whatsappNumber,
+        password,
+        remember: z.boolean().default(false),
+      })
       .parse(input);
     await mysqlLimit("register:" + data.email, 5);
     const passwordHash = await hashPassword(data.password);
@@ -387,12 +736,16 @@ async function handleMysqlCustomerRequest(request: Request, action: string) {
          VALUES (?, ?, ?, ?, ?, 'ACTIVE')`,
         [data.name, data.email, data.phone, data.whatsappNumber, passwordHash],
       );
-      const rows = await queryRows<any>(
+      const rows = await queryRows<CommerceDbRow>(
         "SELECT id, name, email, mobile AS phone, whatsapp_number, password_hash, created_at FROM customers WHERE id = ?",
         [result.insertId],
       );
       const user = rows[0] as MysqlCustomerRow;
-      return json(await mysqlCustomerData(user), 201, await mysqlNewSession(user.id, data.remember, request));
+      return json(
+        await mysqlCustomerData(user),
+        201,
+        await mysqlNewSession(user.id, data.remember, request),
+      );
     } catch (error) {
       if (String(error).includes("Duplicate") || String(error).includes("uq_customers"))
         throw new ApiError(
@@ -412,7 +765,7 @@ async function handleMysqlCustomerRequest(request: Request, action: string) {
       })
       .parse(input);
     await mysqlLimit("login:" + data.identifier, 10);
-    const rows = await queryRows<any>(
+    const rows = await queryRows<CommerceDbRow>(
       `SELECT id, name, email, mobile AS phone, whatsapp_number, password_hash, created_at
        FROM customers
        WHERE deleted_at IS NULL
@@ -429,7 +782,11 @@ async function handleMysqlCustomerRequest(request: Request, action: string) {
     if (!user || !valid) throw new ApiError(401, "Email/mobile number or password is incorrect.");
     await executeSql("DELETE FROM customer_sessions WHERE token_hash = ?", [hash(token(request))]);
     await executeSql("UPDATE customers SET last_login_at = NOW() WHERE id = ?", [user.id]);
-    return json(await mysqlCustomerData(user), 200, await mysqlNewSession(user.id, data.remember, request));
+    return json(
+      await mysqlCustomerData(user),
+      200,
+      await mysqlNewSession(user.id, data.remember, request),
+    );
   }
 
   if (action === "logout") {
@@ -438,7 +795,10 @@ async function handleMysqlCustomerRequest(request: Request, action: string) {
   }
 
   if (action === "forgot-password" || action === "reset-password") {
-    throw new ApiError(503, "Password reset for this account is not configured yet. Please contact support.");
+    throw new ApiError(
+      503,
+      "Password reset for this account is not configured yet. Please contact support.",
+    );
   }
 
   // Every authenticated action must use the same session store as login.
@@ -449,81 +809,194 @@ async function handleMysqlCustomerRequest(request: Request, action: string) {
   if (action === "profile") {
     const data = z.object({ name, phone: optionalPhone, whatsappNumber }).parse(input);
     try {
-      await executeSql("UPDATE customers SET name = ?, mobile = ?, whatsapp_number = ? WHERE id = ?",
-        [data.name, data.phone, data.whatsappNumber, user.id]);
+      await executeSql(
+        "UPDATE customers SET name = ?, mobile = ?, whatsapp_number = ? WHERE id = ?",
+        [data.name, data.phone, data.whatsappNumber, user.id],
+      );
     } catch (error) {
-      if (String(error).includes("Duplicate")) throw new ApiError(409, "That mobile number is already registered.");
+      if (String(error).includes("Duplicate"))
+        throw new ApiError(409, "That mobile number is already registered.");
       throw error;
     }
-    return json(await mysqlCustomerData({ ...user, name: data.name, phone: data.phone, whatsapp_number: data.whatsappNumber }));
+    return json(
+      await mysqlCustomerData({
+        ...user,
+        name: data.name,
+        phone: data.phone,
+        whatsapp_number: data.whatsappNumber,
+      }),
+    );
   }
 
   if (action === "password") {
     const data = z.object({ currentPassword: z.string().max(128), password }).parse(input);
     await mysqlLimit("password:" + user.id, 5);
-    if (!(await verifyPassword(data.currentPassword, user.password_hash))) throw new ApiError(400, "Current password is incorrect.");
+    if (!(await verifyPassword(data.currentPassword, user.password_hash)))
+      throw new ApiError(400, "Current password is incorrect.");
     const newHash = await hashPassword(data.password);
     const { mysqlTransaction } = await import("./mysql.server");
     await mysqlTransaction(async (connection) => {
-      await connection.execute("UPDATE customers SET password_hash = ? WHERE id = ?", [newHash, user.id]);
+      await connection.execute("UPDATE customers SET password_hash = ? WHERE id = ?", [
+        newHash,
+        user.id,
+      ]);
       await connection.execute("DELETE FROM customer_sessions WHERE customer_id = ?", [user.id]);
     });
-    return json({ message: "Password changed. Please sign in again." }, 200, setCookie("", 0, request));
+    return json(
+      { message: "Password changed. Please sign in again." },
+      200,
+      setCookie("", 0, request),
+    );
   }
 
   if (action === "wishlist") {
     const data = z.object({ slug: z.string().max(220), saved: z.boolean() }).parse(input);
-    const products = await queryRows<any>("SELECT id FROM products WHERE slug = ? AND deleted_at IS NULL", [data.slug]);
+    const products = await queryRows<CommerceDbRow>(
+      "SELECT id FROM products WHERE slug = ? AND deleted_at IS NULL",
+      [data.slug],
+    );
     if (products[0]) {
-      if (data.saved) await executeSql("INSERT IGNORE INTO customer_wishlists (customer_id, product_id) VALUES (?, ?)", [user.id, products[0].id]);
-      else await executeSql("DELETE FROM customer_wishlists WHERE customer_id = ? AND product_id = ?", [user.id, products[0].id]);
+      if (data.saved)
+        await executeSql(
+          "INSERT IGNORE INTO customer_wishlists (customer_id, product_id) VALUES (?, ?)",
+          [user.id, products[0].id],
+        );
+      else
+        await executeSql(
+          "DELETE FROM customer_wishlists WHERE customer_id = ? AND product_id = ?",
+          [user.id, products[0].id],
+        );
     } else if (data.saved) throw new ApiError(400, "This product is no longer available.");
     return json(await mysqlCustomerData(user));
   }
 
   if (action === "order-create") {
-    if (input.payment !== "Cash on Delivery" && process.env["NODE_ENV"] === "production") throw new ApiError(400, "Use the secure online checkout to pay.");
-    return await mysqlCreateOrder(user, input, input.payment === "Cash on Delivery" ? "cod" : "preview");
+    if (input.payment !== "Cash on Delivery" && process.env["NODE_ENV"] === "production")
+      throw new ApiError(400, "Use the secure online checkout to pay.");
+    return await mysqlCreateOrder(
+      user,
+      input,
+      input.payment === "Cash on Delivery" ? "cod" : "preview",
+    );
   }
 
   if (action === "order-cancel" || action === "order-review") {
-    const data = action === "order-cancel"
-      ? z.object({ id: z.string().max(64), reason: z.enum(["Ordered by mistake", "Need to change address", "Need to change product", "Found a better option", "Delivery is taking too long", "Other reason"]).default("Other reason") }).parse(input)
-      : z.object({ id: z.string().max(64), slug: z.string().max(220), rating: z.number().int().min(1).max(5), reviewText: z.string().trim().min(8).max(1000), photos: z.array(z.string().max(410000)).max(3).optional() }).parse(input);
+    const data =
+      action === "order-cancel"
+        ? z
+            .object({
+              id: z.string().max(64),
+              reason: z
+                .enum([
+                  "Ordered by mistake",
+                  "Need to change address",
+                  "Need to change product",
+                  "Found a better option",
+                  "Delivery is taking too long",
+                  "Other reason",
+                ])
+                .default("Other reason"),
+            })
+            .parse(input)
+        : z
+            .object({
+              id: z.string().max(64),
+              slug: z.string().max(220),
+              rating: z.number().int().min(1).max(5),
+              reviewText: z.string().trim().min(8).max(1000),
+              photos: z.array(z.string().max(410000)).max(3).optional(),
+            })
+            .parse(input);
     if ("photos" in data && data.photos !== undefined) {
-      try { await queryRows("SELECT review_images FROM reviews LIMIT 0"); }
-      catch (error) {
+      try {
+        await queryRows("SELECT review_images FROM reviews LIMIT 0");
+      } catch (error) {
         if ((error as { code?: string }).code !== "ER_BAD_FIELD_ERROR") throw error;
-        try { await executeSql("ALTER TABLE reviews ADD COLUMN review_images JSON NULL"); }
-        catch (schemaError) { if ((schemaError as { code?: string }).code !== "ER_DUP_FIELDNAME") throw schemaError; }
+        try {
+          await executeSql("ALTER TABLE reviews ADD COLUMN review_images JSON NULL");
+        } catch (schemaError) {
+          if ((schemaError as { code?: string }).code !== "ER_DUP_FIELDNAME") throw schemaError;
+        }
       }
     }
     const { mysqlTransaction } = await import("./mysql.server");
     await mysqlTransaction(async (connection) => {
-      const [orders] = await connection.query<any[]>(
-        "SELECT id, order_status, customer_note FROM orders WHERE order_number = ? AND customer_id = ? AND deleted_at IS NULL FOR UPDATE", [data.id, user.id],
+      const [orders] = await connection.query<CommerceDbRow[]>(
+        "SELECT id, order_status, customer_note FROM orders WHERE order_number = ? AND customer_id = ? AND deleted_at IS NULL FOR UPDATE",
+        [data.id, user.id],
       );
       const order = orders[0];
       if (!order) throw new ApiError(404, "Order not found.");
       if ("reason" in data) {
         if (order.order_status === "CANCELLED") return;
-        if (!["NEW", "CONFIRMED", "PROCESSING", "PACKED"].includes(order.order_status)) throw new ApiError(409, "This order can no longer be cancelled.");
-        let metadata = {};
-        try { metadata = JSON.parse(order.customer_note || "{}"); } catch { /* Older notes may be plain text. */ }
-        await connection.execute("UPDATE orders SET order_status = 'CANCELLED', cancelled_at = NOW(), customer_note = ? WHERE id = ? AND customer_id = ?",
-          [JSON.stringify({ ...metadata, cancellationReason: data.reason }), order.id, user.id]);
-        await connection.execute("INSERT INTO order_status_history (order_id, previous_status, new_status, note) VALUES (?, ?, 'CANCELLED', ?)", [order.id, order.order_status, data.reason]);
+        if (!["NEW", "CONFIRMED", "PROCESSING", "PACKED"].includes(order.order_status))
+          throw new ApiError(409, "This order can no longer be cancelled.");
+        let metadata: { commerceVersion?: number } = {};
+        try {
+          metadata = JSON.parse(order.customer_note || "{}");
+        } catch {
+          /* Older notes may be plain text. */
+        }
+        if (metadata.commerceVersion === 1) {
+          const [fulfillment] = await connection.query(
+            "SELECT status FROM ekart_shipments WHERE order_id = ? FOR UPDATE",
+            [order.id],
+          );
+          if (
+            (fulfillment as import("mysql2/promise").RowDataPacket[]).some((row) =>
+              ["PROCESSING", "UNKNOWN", "CREATED"].includes(row["status"]),
+            )
+          )
+            throw new ApiError(
+              409,
+              "This shipment requires carrier reconciliation or cancellation before the order can change.",
+            );
+          await transitionStock(connection, order.id, "restock");
+          await connection.execute(
+            "UPDATE ekart_shipments SET status = 'CANCELLED' WHERE order_id = ? AND status IN ('BLOCKED','QUEUED','FAILED')",
+            [order.id],
+          );
+        }
+        await connection.execute(
+          "UPDATE orders SET order_status = 'CANCELLED', cancelled_at = NOW(), customer_note = ? WHERE id = ? AND customer_id = ?",
+          [JSON.stringify({ ...metadata, cancellationReason: data.reason }), order.id, user.id],
+        );
+        await connection.execute(
+          "INSERT INTO order_status_history (order_id, previous_status, new_status, note) VALUES (?, ?, 'CANCELLED', ?)",
+          [order.id, order.order_status, data.reason],
+        );
       } else {
-        if (order.order_status !== "DELIVERED") throw new ApiError(409, "Reviews open after delivery.");
-        const [items] = await connection.query<any[]>("SELECT product_id FROM order_items WHERE order_id = ? AND product_slug = ?", [order.id, data.slug]);
+        if (order.order_status !== "DELIVERED")
+          throw new ApiError(409, "Reviews open after delivery.");
+        const [items] = await connection.query<CommerceDbRow[]>(
+          "SELECT product_id FROM order_items WHERE order_id = ? AND product_slug = ?",
+          [order.id, data.slug],
+        );
         if (!items[0]?.product_id) throw new ApiError(400, "Product not found in this order.");
-        const [reviews] = await connection.query<any[]>("SELECT * FROM reviews WHERE customer_id = ? AND order_id = ? AND product_id = ? AND deleted_at IS NULL", [user.id, order.id, items[0].product_id]);
-        if (reviews[0]) await connection.execute("UPDATE reviews SET rating = ?, review_text = ?, status = 'PENDING', moderated_at = NULL, moderated_by_admin_id = NULL, moderation_note = NULL WHERE id = ?", [data.rating, data.reviewText, reviews[0].id]);
-        else await connection.execute("INSERT INTO reviews (customer_id, order_id, product_id, rating, review_text, is_verified_purchase) VALUES (?, ?, ?, ?, ?, 1)", [user.id, order.id, items[0].product_id, data.rating, data.reviewText]);
+        const [reviews] = await connection.query<CommerceDbRow[]>(
+          "SELECT * FROM reviews WHERE customer_id = ? AND order_id = ? AND product_id = ? AND deleted_at IS NULL",
+          [user.id, order.id, items[0].product_id],
+        );
+        if (reviews[0])
+          await connection.execute(
+            "UPDATE reviews SET rating = ?, review_text = ?, status = 'PENDING', moderated_at = NULL, moderated_by_admin_id = NULL, moderation_note = NULL WHERE id = ?",
+            [data.rating, data.reviewText, reviews[0].id],
+          );
+        else
+          await connection.execute(
+            "INSERT INTO reviews (customer_id, order_id, product_id, rating, review_text, is_verified_purchase) VALUES (?, ?, ?, ?, ?, 1)",
+            [user.id, order.id, items[0].product_id, data.rating, data.reviewText],
+          );
         if (data.photos !== undefined) {
-          const photos = validateReviewPhotos(data.photos, storedReviewPhotos(reviews[0]?.review_images), reviews[0]?.id);
-          await connection.execute("UPDATE reviews SET review_images = ? WHERE customer_id = ? AND order_id = ? AND product_id = ? AND deleted_at IS NULL",
-            [JSON.stringify(photos), user.id, order.id, items[0].product_id]);
+          const photos = validateReviewPhotos(
+            data.photos,
+            storedReviewPhotos(reviews[0]?.["review_images"]),
+            reviews[0]?.id,
+          );
+          await connection.execute(
+            "UPDATE reviews SET review_images = ? WHERE customer_id = ? AND order_id = ? AND product_id = ? AND deleted_at IS NULL",
+            [JSON.stringify(photos), user.id, order.id, items[0].product_id],
+          );
         }
       }
     });
@@ -533,9 +1006,10 @@ async function handleMysqlCustomerRequest(request: Request, action: string) {
   if (action === "address-save" || action === "address-delete") {
     // MySQL uses numeric IDs; SQLite's address schema continues to require UUIDs.
     const idSchema = z.string().regex(/^[1-9][0-9]{0,19}$/, "Invalid address ID.");
-    const data = action === "address-save"
-      ? addressSchema.extend({ id: idSchema.optional() }).parse(input)
-      : z.object({ id: idSchema }).parse(input);
+    const data =
+      action === "address-save"
+        ? addressSchema.extend({ id: idSchema.optional() }).parse(input)
+        : z.object({ id: idSchema }).parse(input);
     const { mysqlTransaction } = await import("./mysql.server");
     await mysqlTransaction(async (connection) => {
       // Serialize changes per customer so limits and the default address stay consistent.
@@ -548,16 +1022,27 @@ async function handleMysqlCustomerRequest(request: Request, action: string) {
       const existing = current.find((address) => String(address.id) === data.id);
       if (data.id && !existing) throw new ApiError(404, "Address not found.");
       if (action === "address-save" && "name" in data) {
-        if (!existing && current.length >= 10) throw new ApiError(400, "You can save up to 10 addresses.");
-        const isDefault = data.isDefault || !current.length || Boolean(Number(existing?.is_default));
+        if (!existing && current.length >= 10)
+          throw new ApiError(400, "You can save up to 10 addresses.");
+        const isDefault =
+          data.isDefault || !current.length || Boolean(Number(existing?.is_default));
         if (isDefault) {
           await connection.execute(
             "UPDATE customer_addresses SET is_default = 0 WHERE customer_id = ? AND deleted_at IS NULL",
             [user.id],
           );
         }
-        const values = [data.label.toUpperCase(), data.name, data.phone, data.line1, data.line2,
-          data.city, data.state, data.pin, isDefault ? 1 : 0];
+        const values = [
+          data.label.toUpperCase(),
+          data.name,
+          data.phone,
+          data.line1,
+          data.line2,
+          data.city,
+          data.state,
+          data.pin,
+          isDefault ? 1 : 0,
+        ];
         if (existing) {
           await connection.execute(
             `UPDATE customer_addresses SET label = ?, recipient_name = ?, mobile = ?, address_line1 = ?,
@@ -579,10 +1064,11 @@ async function handleMysqlCustomerRequest(request: Request, action: string) {
         );
         if (Number(existing?.is_default)) {
           const replacement = current.find((address) => String(address.id) !== data.id);
-          if (replacement) await connection.execute(
-            "UPDATE customer_addresses SET is_default = 1 WHERE id = ? AND customer_id = ? AND deleted_at IS NULL",
-            [replacement.id, user.id],
-          );
+          if (replacement)
+            await connection.execute(
+              "UPDATE customer_addresses SET is_default = 1 WHERE id = ? AND customer_id = ? AND deleted_at IS NULL",
+              [replacement.id, user.id],
+            );
         }
       }
     });
@@ -604,9 +1090,10 @@ export async function mysqlLimit(key: string, max: number, window = 15 * 60 * 10
        expires_at = IF(expires_at <= NOW(), VALUES(expires_at), expires_at)`,
     [rateKey, expiresAt],
   );
-  const rows = await queryRows<any>("SELECT attempt_count FROM auth_rate_limits WHERE rate_key = ?", [
-    rateKey,
-  ]);
+  const rows = await queryRows<CommerceDbRow>(
+    "SELECT attempt_count FROM auth_rate_limits WHERE rate_key = ?",
+    [rateKey],
+  );
   if (Number(rows[0]?.attempt_count || 0) > max) {
     throw new ApiError(429, "Too many attempts. Please try again in 15 minutes.");
   }
@@ -655,12 +1142,14 @@ async function activeCouponDiscount(code: string, subtotal: number): Promise<Cou
 
   try {
     const { queryRows } = await import("./mysql.server");
-    const rows = await queryRows<{
-      discount_type: "PERCENTAGE" | "FIXED";
-      discount_value: number | string;
-      minimum_order_amount: number | string;
-      maximum_discount_amount: number | string | null;
-    }>(
+    const rows = await queryRows<
+      import("mysql2/promise").RowDataPacket & {
+        discount_type: "PERCENTAGE" | "FIXED";
+        discount_value: number | string;
+        minimum_order_amount: number | string;
+        maximum_discount_amount: number | string | null;
+      }
+    >(
       `SELECT discount_type, discount_value, minimum_order_amount, maximum_discount_amount
        FROM coupons
        WHERE code = ?
@@ -734,6 +1223,12 @@ export async function handleCustomerRequest(request: Request, action: string): P
     if (hasMysqlCustomerStore()) {
       return await handleMysqlCustomerRequest(request, action);
     }
+    if (action === "order-create") {
+      throw new ApiError(
+        503,
+        "Order placement requires the configured MySQL store and a verified delivery quote. Please contact support.",
+      );
+    }
     // Local SQLite is not durable on Vercel. Keep browsing available until
     // a hosted database adapter is connected; never create throwaway accounts.
     if (process.env["VERCEL"] === "1") {
@@ -764,7 +1259,14 @@ export async function handleCustomerRequest(request: Request, action: string): P
     }
     if (action === "register") {
       const data = z
-        .object({ name, email, phone: optionalPhone, whatsappNumber, password, remember: z.boolean().default(false) })
+        .object({
+          name,
+          email,
+          phone: optionalPhone,
+          whatsappNumber,
+          password,
+          remember: z.boolean().default(false),
+        })
         .parse(input);
       limit("register:" + data.email, 5);
       const passwordHash = await hashPassword(data.password);
@@ -983,7 +1485,16 @@ export async function handleCustomerRequest(request: Request, action: string): P
             .min(1)
             .max(50),
           coupon: z.string().trim().max(50).default(""),
-          donationAmount: z.union([z.literal(0), z.literal(10), z.literal(20), z.literal(50), z.literal(80), z.literal(100)]).default(0),
+          donationAmount: z
+            .union([
+              z.literal(0),
+              z.literal(10),
+              z.literal(20),
+              z.literal(50),
+              z.literal(80),
+              z.literal(100),
+            ])
+            .default(0),
           payment: z.enum(["UPI", "Cards", "Net Banking", "Wallet", "Cash on Delivery"]),
         })
         .parse(input);
@@ -1000,38 +1511,40 @@ export async function handleCustomerRequest(request: Request, action: string): P
           if (!i.name || !Number.isFinite(price) || price <= 0) {
             throw new ApiError(400, "Invalid product selection.");
           }
-          return { ...i, name: i.name, price, image: i.image };
+          return { ...i, name: i.name, price, image: i.image || "" };
         }
         if (!pack || !p.sizes.includes(i.size) || !p.flow.includes(i.flow))
           throw new ApiError(400, "Invalid product selection.");
         const key = i.slug + "|" + i.pack;
         const qty = (packTotals.get(key) || 0) + i.quantity;
         packTotals.set(key, qty);
-        if (pack.stock > 0 && qty > pack.stock) throw new ApiError(409, `${p.name} does not have enough stock.`);
-        return { ...i, name: p.name, price: pack.price, image: i.image || p.images[0] };
+        if (pack.stock > 0 && qty > pack.stock)
+          throw new ApiError(409, `${p.name} does not have enough stock.`);
+        return { ...i, name: p.name, price: pack.price, image: i.image || p.images[0] || "" };
       });
       const subtotal = items.reduce((s, i) => s + i.quantity * i.price, 0);
       const couponDiscount = await activeCouponDiscount(data.coupon, subtotal);
       const totals = calculateOrderTotals(subtotal, couponDiscount, data.donationAmount);
-      if (totals.total >= COD_MINIMUM_TOTAL && data.payment !== "Cash on Delivery") {
-        throw new ApiError(400, "Orders of ₹1,000 and above are Cash on Delivery only.");
-      }
-      if (totals.total < COD_MINIMUM_TOTAL && data.payment === "Cash on Delivery") {
-        throw new ApiError(400, "Cash on Delivery is available only on orders of ₹1,000 and above.");
-      }
+      const cod = codEligibility(totals.taxableAmount, totals.total, false);
+      if (data.payment === "Cash on Delivery" && !cod.eligible) throw new ApiError(400, cod.reason);
       return transaction(() => {
         // Recheck after asynchronous pricing so concurrent retries return the same order.
-        const retry = db.prepare("SELECT data FROM orders WHERE user_id=? AND request_id=?")
+        const retry = db
+          .prepare("SELECT data FROM orders WHERE user_id=? AND request_id=?")
           .get(user.id, data.requestId) as { data: string } | undefined;
         if (retry) return json({ order: JSON.parse(retry.data) });
-        const sequence = db.prepare(`
+        const sequence = db
+          .prepare(
+            `
           UPDATE order_number_sequence
           SET last_number = MAX(last_number, COALESCE((
             SELECT MAX(CAST(SUBSTR(id, 4) AS INTEGER)) FROM orders
             WHERE id GLOB 'SR-[0-9]*' AND SUBSTR(id, 4) NOT GLOB '*[^0-9]*'
           ), 1000)) + 1
           WHERE id = 1 RETURNING last_number
-        `).get() as { last_number: number };
+        `,
+          )
+          .get() as { last_number: number };
         const order: CustomerOrder = {
           id: `SR-${sequence.last_number}`,
           createdAt: new Date().toISOString(),
@@ -1076,7 +1589,8 @@ export async function handleCustomerRequest(request: Request, action: string): P
         .get(id, user.id) as { data: string } | undefined;
       if (!row) throw new ApiError(404, "Order not found.");
       const order = JSON.parse(row.data) as CustomerOrder;
-      if (order.status === "delivered") throw new ApiError(409, "Delivered orders cannot be cancelled.");
+      if (order.status === "delivered")
+        throw new ApiError(409, "Delivered orders cannot be cancelled.");
       order.status = "cancelled";
       order.cancellationReason = reason;
       order.cancelledAt = new Date().toISOString();
@@ -1101,11 +1615,21 @@ export async function handleCustomerRequest(request: Request, action: string): P
       if (!row) throw new ApiError(404, "Order not found.");
       const order = JSON.parse(row.data) as CustomerOrder;
       if (order.status !== "delivered") throw new ApiError(409, "Reviews open after delivery.");
-      if (!order.items.some((item) => item.slug === slug)) throw new ApiError(400, "Product not found in this order.");
+      if (!order.items.some((item) => item.slug === slug))
+        throw new ApiError(400, "Product not found in this order.");
       const reviews = order.reviews ?? [];
-      const savedPhotos = photos === undefined ? reviews.find((item) => item.slug === slug)?.photos : validateReviewPhotos(photos);
-      const review = { slug, rating, reviewText, reviewedAt: new Date().toISOString(), status: "PENDING" as const,
-        ...(savedPhotos ? { photos: savedPhotos } : {}) };
+      const savedPhotos =
+        photos === undefined
+          ? reviews.find((item) => item.slug === slug)?.photos
+          : validateReviewPhotos(photos);
+      const review = {
+        slug,
+        rating,
+        reviewText,
+        reviewedAt: new Date().toISOString(),
+        status: "PENDING" as const,
+        ...(savedPhotos ? { photos: savedPhotos } : {}),
+      };
       const existingIndex = reviews.findIndex((item) => item.slug === slug);
       if (existingIndex >= 0) reviews[existingIndex] = review;
       else reviews.push(review);
@@ -1121,12 +1645,19 @@ export async function handleCustomerRequest(request: Request, action: string): P
     if (error instanceof z.ZodError)
       return json({ error: error.issues[0]?.message || "Please check your details." }, 400);
     if (error instanceof ApiError) return json({ error: error.message }, error.status);
-    if (error instanceof Error && (error as { status?: number }).status === 400) return json({ error: error.message }, 400);
+    if (
+      error instanceof Error &&
+      [400, 409, 503].includes((error as { status?: number }).status || 0)
+    )
+      return json({ error: error.message }, (error as Error & { status: number }).status);
     // Log diagnostic codes, never SQL text/parameters, account details or session tokens.
     const diagnostic = error as { code?: string; errno?: number; sqlState?: string } | null;
     console.error("Customer service failed:", {
-      action, name: error instanceof Error ? error.name : "Unknown error",
-      code: diagnostic?.code, errno: diagnostic?.errno, sqlState: diagnostic?.sqlState,
+      action,
+      name: error instanceof Error ? error.name : "Unknown error",
+      code: diagnostic?.code,
+      errno: diagnostic?.errno,
+      sqlState: diagnostic?.sqlState,
     });
     return json({ error: "Something went wrong. Please try again." }, 500);
   }

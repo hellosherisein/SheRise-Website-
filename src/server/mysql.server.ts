@@ -19,7 +19,10 @@ export async function queryRows<T extends RowDataPacket>(sql: string, params: un
 }
 
 export async function executeSql(sql: string, params: unknown[] = []) {
-  const [result] = await pool.execute<ResultSetHeader>(sql, params);
+  const [result] = await pool.execute<ResultSetHeader>(
+    sql,
+    params as import("mysql2").ExecuteValues,
+  );
   return result;
 }
 

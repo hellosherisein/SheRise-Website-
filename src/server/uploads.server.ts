@@ -26,7 +26,11 @@ export async function handleProductImageUpload(request: Request): Promise<Respon
 }
 
 function extensionFromFile(file: File) {
-  const fromName = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const fromName = file.name
+    .split(".")
+    .pop()
+    ?.toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
   if (fromName) return fromName;
   if (file.type === "image/png") return "png";
   if (file.type === "image/webp") return "webp";
@@ -35,13 +39,14 @@ function extensionFromFile(file: File) {
 }
 
 function safeFileName(value: string, extension: string) {
-  const base = value
-    .replace(/\.[^.]+$/, "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80) || "product";
+  const base =
+    value
+      .replace(/\.[^.]+$/, "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80) || "product";
   return `${base}.${extension}`;
 }
 

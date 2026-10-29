@@ -66,7 +66,6 @@ export function SheRiseInitiative() {
           ))}
         </ol>
       </div>
-
     </section>
   );
 }

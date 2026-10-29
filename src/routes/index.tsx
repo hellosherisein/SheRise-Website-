@@ -47,14 +47,21 @@ function Home() {
   useEffect(() => {
     if (!communityCarousel || communityPaused) return;
     let dragging = false;
-    const startDrag = () => { dragging = true; };
-    const endDrag = () => { dragging = false; };
+    const startDrag = () => {
+      dragging = true;
+    };
+    const endDrag = () => {
+      dragging = false;
+    };
     communityCarousel.on("pointerDown", startDrag);
     communityCarousel.on("pointerUp", endDrag);
     const timer = window.setInterval(() => {
-      if (!dragging && !document.hidden &&
+      if (
+        !dragging &&
+        !document.hidden &&
         window.matchMedia("(max-width: 767px)").matches &&
-        !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ) {
         communityCarousel.scrollNext();
       }
     }, 3500);
@@ -97,11 +104,17 @@ function Home() {
     fetch("/api/content/blogs")
       .then(async (response) => {
         if (!response.ok) throw new Error("Could not load blogs.");
-        return await response.json() as { posts: BlogPost[] };
+        return (await response.json()) as { posts: BlogPost[] };
       })
-      .then((payload) => { if (!cancelled) setPublishedPosts(payload.posts.slice(0, 3)); })
-      .catch(() => { if (!cancelled) setPublishedPosts([]); });
-    return () => { cancelled = true; };
+      .then((payload) => {
+        if (!cancelled) setPublishedPosts(payload.posts.slice(0, 3));
+      })
+      .catch(() => {
+        if (!cancelled) setPublishedPosts([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (
@@ -141,8 +154,10 @@ function Home() {
           <div className="hero-note">
             <span className="font-display text-3xl md:text-4xl">
               Your cycle.
-              <br />Your comfort.
-              <br /><span className="text-[#e98f7a]">Your confidence.</span>
+              <br />
+              Your comfort.
+              <br />
+              <span className="text-[#e98f7a]">Your confidence.</span>
             </span>
             <span className="mt-3 block text-[10px] uppercase tracking-widest">
               RELEASE. RENEW & RISE.
@@ -153,9 +168,16 @@ function Home() {
       <div className="ngo-ribbon" tabIndex={0} role="region" aria-label="SheRise NGO initiative">
         <div className="ngo-ribbon-track">
           {[0, 1].map((copy) => (
-            <div key={copy} className="ngo-ribbon-message" aria-hidden={copy === 1 ? true : undefined}>
+            <div
+              key={copy}
+              className="ngo-ribbon-message"
+              aria-hidden={copy === 1 ? true : undefined}
+            >
               <Flower2 aria-hidden="true" />
-              <span>Together with NGO initiatives, SheRise supports menstrual health awareness, dignity and confidence for girls and women.</span>
+              <span>
+                Together with NGO initiatives, SheRise supports menstrual health awareness, dignity
+                and confidence for girls and women.
+              </span>
             </div>
           ))}
         </div>
@@ -192,7 +214,12 @@ function Home() {
         <div className="mx-auto grid max-w-3xl grid-cols-2 gap-4 sm:grid-cols-4">
           {careTiles.map(({ flow, href, icon: Icon }) => {
             return (
-              <Link key={flow} to={href} className="flow-tile" aria-label={`Shop ${flow} flow products`}>
+              <Link
+                key={flow}
+                to={href}
+                className="flow-tile"
+                aria-label={`Shop ${flow} flow products`}
+              >
                 <Icon className="mx-auto mb-4 size-8" />
                 <span>{flow}</span>
                 <span className="mt-2 inline-flex items-center justify-center gap-1 text-xs font-bold uppercase tracking-[0.16em] opacity-70">
@@ -281,10 +308,19 @@ function Home() {
         {approvedReviews.length ? (
           <div className="grid gap-4 md:grid-cols-3">
             {approvedReviews.map((review) => (
-              <article key={`${review.orderId}-${review.productSlug}`} className="border bg-white p-5 shadow-sm">
-                <div className="mb-4 flex gap-1 text-brand-coral" aria-label={`${review.rating} out of 5 stars`}>
+              <article
+                key={`${review.orderId}-${review.productSlug}`}
+                className="border bg-white p-5 shadow-sm"
+              >
+                <div
+                  className="mb-4 flex gap-1 text-brand-coral"
+                  aria-label={`${review.rating} out of 5 stars`}
+                >
                   {[1, 2, 3, 4, 5].map((value) => (
-                    <Star key={value} className={`size-4 ${value <= review.rating ? "fill-current" : ""}`} />
+                    <Star
+                      key={value}
+                      className={`size-4 ${value <= review.rating ? "fill-current" : ""}`}
+                    />
                   ))}
                 </div>
                 <p className="min-h-20 text-sm leading-6">"{review.reviewText}"</p>
@@ -314,19 +350,25 @@ function Home() {
           title="#RiseWithSheRise"
           copy="Everyday moments. Honest conversations. Care that connects us."
         />
-        <div ref={communityViewport} className="overflow-hidden" role="region" aria-label="SheRise community photos" aria-roledescription="carousel">
-        <div className="community-strip">
-          {[story, guide, flatlay, hero, guide, story].map((img, i) => (
-            <img
-              key={i}
-              src={img}
-              alt={`SheRise community moodboard ${i + 1}`}
-              loading="lazy"
-              width="320"
-              height="320"
-            />
-          ))}
-        </div>
+        <div
+          ref={communityViewport}
+          className="overflow-hidden"
+          role="region"
+          aria-label="SheRise community photos"
+          aria-roledescription="carousel"
+        >
+          <div className="community-strip">
+            {[story, guide, flatlay, hero, guide, story].map((img, i) => (
+              <img
+                key={i}
+                src={img}
+                alt={`SheRise community moodboard ${i + 1}`}
+                loading="lazy"
+                width="320"
+                height="320"
+              />
+            ))}
+          </div>
         </div>
         <button
           type="button"

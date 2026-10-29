@@ -12,20 +12,41 @@ const transpile = (source) =>
     },
   }).outputText;
 const { calculateOrderTotals } = await import(
-  dataModule(transpile(fs.readFileSync("src/lib/pricing.ts", "utf8"))),
+  dataModule(transpile(fs.readFileSync("src/lib/pricing.ts", "utf8")))
 );
-const withoutDonation = calculateOrderTotals(450, { discountType: "PERCENTAGE", discountValue: 10 });
+const withoutDonation = calculateOrderTotals(450, {
+  discountType: "PERCENTAGE",
+  discountValue: 10,
+});
 for (const amount of [0, 10, 20, 50, 80, 100]) {
-  const totals = calculateOrderTotals(450, { discountType: "PERCENTAGE", discountValue: 10 }, amount);
+  const totals = calculateOrderTotals(
+    450,
+    { discountType: "PERCENTAGE", discountValue: 10 },
+    amount,
+  );
   assert.equal(totals.total, withoutDonation.total + amount, "Donation adds to the final total");
   assert.equal(totals.discountAmount, 45, "Coupon does not discount the donation");
   assert.equal(totals.shippingAmount, 40, "Donation does not qualify the cart for free shipping");
   assert.equal(totals.donationAmount, amount);
 }
-assert.equal(calculateOrderTotals(500, null, 100).total, 600, "Free shipping still applies to eligible products");
-assert.equal(calculateOrderTotals(450, null, 0).total, 490, "Removing the donation restores the total");
-assert.equal(calculateOrderTotals(990, null, 10).total, 1000, "Donation counts toward the payment total");
-console.log("PASS: donation totals, removal, coupon exclusion, shipping eligibility and payment threshold.");
+assert.equal(
+  calculateOrderTotals(500, null, 100).total,
+  600,
+  "Free shipping still applies to eligible products",
+);
+assert.equal(
+  calculateOrderTotals(450, null, 0).total,
+  490,
+  "Removing the donation restores the total",
+);
+assert.equal(
+  calculateOrderTotals(990, null, 10).total,
+  1000,
+  "Donation counts toward the payment total",
+);
+console.log(
+  "PASS: donation totals, removal, coupon exclusion, shipping eligibility and payment threshold.",
+);
 const catalogSource = fs
   .readFileSync("src/lib/catalog.ts", "utf8")
   .replace(
@@ -75,9 +96,12 @@ assert.notEqual(
   cartKey({ ...item, pack: "Pack of 16" }),
   "Different packs are independent",
 );
-const sold = catalog.products.find((p) => !p.stock);
+const sold = { ...p, stock: 0, packOptions: p.packOptions.map((v) => ({ ...v, stock: 0 })) };
 assert.deepEqual(
-  validCart([{ ...item, slug: sold.slug, pack: sold.packOptions[0].label, flow: sold.flow[0] }]),
+  validCart(
+    [{ ...item, slug: sold.slug, pack: sold.packOptions[0].label, flow: sold.flow[0] }],
+    [sold],
+  ),
   [],
 );
 assert.deepEqual(readLocal("missing", []), [], "Storage unavailable should not crash");
@@ -89,9 +113,9 @@ for (const product of catalog.products) {
   for (const related of product.relatedProducts) assert.ok(slugs.has(related));
   for (const image of product.images) assert.ok(fs.existsSync("src" + image));
 }
-const tree = fs.readFileSync("src/routeTree.gen.ts", "utf8");
-assert.match(tree, /getParentRoute: \(\) => rootRouteImport/);
-assert.match(tree, /blog\/\$slug/);
+const tree = fs.readFileSync("src/main.tsx", "utf8");
+assert.match(tree, /pattern: "\/blog\/:slug"/);
+assert.match(tree, /pattern: "\/products\/:slug"/);
 assert.equal(catalog.getProduct("nonexistent"), undefined);
 assert.equal(catalog.getPost("nonexistent"), undefined);
 const sitemap = fs.readFileSync("public/sitemap.xml", "utf8");

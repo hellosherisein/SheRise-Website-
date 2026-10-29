@@ -1,5 +1,6 @@
 export async function prepareReviewPhoto(file: File): Promise<string> {
-  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) throw new Error("Choose JPG, PNG or WebP photos.");
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type))
+    throw new Error("Choose JPG, PNG or WebP photos.");
   if (file.size > 8 * 1024 * 1024) throw new Error("Choose photos smaller than 8 MB.");
   const bitmap = await createImageBitmap(file);
   try {
@@ -17,5 +18,7 @@ export async function prepareReviewPhoto(file: File): Promise<string> {
       if (value.length <= 409600) return value;
     }
     throw new Error("Photo is too detailed. Choose a smaller photo.");
-  } finally { bitmap.close(); }
+  } finally {
+    bitmap.close();
+  }
 }

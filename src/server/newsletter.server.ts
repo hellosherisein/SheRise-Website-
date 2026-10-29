@@ -18,10 +18,12 @@ export async function handleNewsletterRequest(request: Request): Promise<Respons
     }
 
     const body = (await request.json()) as Record<string, unknown>;
-    if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "Use a valid signup." }, 400);
+    if (!body || typeof body !== "object" || Array.isArray(body))
+      return json({ error: "Use a valid signup." }, 400);
     const email = typeof body["email"] === "string" ? body["email"].trim().toLowerCase() : "";
     const source = cleanText(body["source"], 80) || "Footer newsletter";
-    if (email.length > 254 || !isValidEmail(email)) return json({ error: "Enter a valid email address." }, 400);
+    if (email.length > 254 || !isValidEmail(email))
+      return json({ error: "Enter a valid email address." }, 400);
 
     const now = new Date().toISOString();
     if (process.env["MYSQL_HOST"] && process.env["MYSQL_USER"] && process.env["MYSQL_DATABASE"]) {
@@ -33,8 +35,8 @@ export async function handleNewsletterRequest(request: Request): Promise<Respons
       );
     } else {
       database()
-      .prepare(
-        `
+        .prepare(
+          `
           INSERT INTO newsletter_subscribers (id, email, source, status, created_at, updated_at)
           VALUES (?, ?, ?, 'ACTIVE', ?, ?)
           ON CONFLICT(email) DO UPDATE SET
@@ -42,8 +44,8 @@ export async function handleNewsletterRequest(request: Request): Promise<Respons
             status='ACTIVE',
             updated_at=excluded.updated_at
         `,
-      )
-      .run(randomUUID(), email, source, now, now);
+        )
+        .run(randomUUID(), email, source, now, now);
     }
 
     const subscriber: NewsletterSubscriber = {

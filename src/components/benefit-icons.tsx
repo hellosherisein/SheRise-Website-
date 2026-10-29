@@ -21,7 +21,11 @@ function CareIcon({ children, className }: { children: ReactNode; className?: st
 export function CottonComfort({ className = "" }: { className?: string }) {
   return (
     <CareIcon className={className}>
-      <path d="M11 25C4 25 3 16 9 14c-1-7 8-10 12-5 6-4 12 1 11 6 7 4 3 12-3 11" fill="#F8E4DF" stroke="none" />
+      <path
+        d="M11 25C4 25 3 16 9 14c-1-7 8-10 12-5 6-4 12 1 11 6 7 4 3 12-3 11"
+        fill="#F8E4DF"
+        stroke="none"
+      />
       <path d="M12 26c-7 0-9-10-2-12-1-7 8-11 12-5 6-4 12 1 10 7 7 3 3 12-4 11" />
       <path d="M20 34V23m0 7c-6 0-10-3-11-7 5-1 9 1 11 7Zm0 0c1-6 5-9 11-9-1 5-5 9-11 9Z" />
     </CareIcon>

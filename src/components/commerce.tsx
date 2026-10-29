@@ -68,7 +68,9 @@ export function PageHeading({
       {showBreadcrumb && <Breadcrumb title={title} />}
       <h1 className="text-4xl md:text-6xl text-brand-navy">{title}</h1>
       {copy && (
-        <p className={`mt-4 max-w-2xl leading-7 text-muted-foreground ${centered ? "mx-auto" : ""}`}>
+        <p
+          className={`mt-4 max-w-2xl leading-7 text-muted-foreground ${centered ? "mx-auto" : ""}`}
+        >
           {copy}
         </p>
       )}
@@ -182,7 +184,11 @@ export function Benefits() {
           title: "Thoughtful choices",
           copy: "Space to find what works for your flow.",
         },
-        { Icon: EverydayFlow, title: "Move your own way", copy: "Your day, your pace, your period." },
+        {
+          Icon: EverydayFlow,
+          title: "Move your own way",
+          copy: "Your day, your pace, your period.",
+        },
         {
           Icon: ThoughtfulDetails,
           title: "Little details matter",
@@ -279,7 +285,9 @@ export function Newsletter() {
               setDone(true);
               form.reset();
             } catch (submitError) {
-              setError(submitError instanceof Error ? submitError.message : "Could not save signup.");
+              setError(
+                submitError instanceof Error ? submitError.message : "Could not save signup.",
+              );
             } finally {
               setSaving(false);
             }
@@ -289,16 +297,20 @@ export function Newsletter() {
             Email address
           </label>
           <div className="flex border-b border-brand-navy">
-              <input
-                id="newsletter"
-                name="email"
-                required
-                type="email"
-                maxLength={254}
-                placeholder="Your email address"
-                className="min-w-0 flex-1 bg-transparent py-4 outline-none"
-              />
-            <button className="px-4 font-semibold disabled:opacity-60" type="submit" disabled={saving}>
+            <input
+              id="newsletter"
+              name="email"
+              required
+              type="email"
+              maxLength={254}
+              placeholder="Your email address"
+              className="min-w-0 flex-1 bg-transparent py-4 outline-none"
+            />
+            <button
+              className="px-4 font-semibold disabled:opacity-60"
+              type="submit"
+              disabled={saving}
+            >
               {saving ? "SAVING..." : "JOIN US ?"}
             </button>
           </div>

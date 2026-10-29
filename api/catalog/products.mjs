@@ -51,7 +51,8 @@ async function executeSql(sql, params = []) {
 
 async function loadCatalogProducts(slug) {
   await ensureCatalogSchema();
-  const rows = await queryRows(`
+  const rows = await queryRows(
+    `
     SELECT
       p.id,
       p.slug,
@@ -59,12 +60,14 @@ async function loadCatalogProducts(slug) {
       p.short_description,
       p.description,
       c.name AS category_name,
+      p.gst_percent,
       p.mrp,
       p.selling_price,
       p.discount_percent,
       p.sku,
       p.pack_quantity,
       p.flow_type,
+      p.shipping_weight_g, p.package_length_cm, p.package_width_cm, p.package_height_cm,
       p.product_dimensions,
       p.pad_length,
       p.front_pack_content,
@@ -84,7 +87,7 @@ async function loadCatalogProducts(slug) {
       p.shelf_life,
       p.is_featured,
       (
-        SELECT COALESCE(SUM(i.current_stock), 0)
+        SELECT COALESCE(SUM(GREATEST(0, i.current_stock - i.reserved_stock)), 0)
         FROM inventory i
         WHERE i.product_id = p.id
       ) AS stock
@@ -96,7 +99,9 @@ async function loadCatalogProducts(slug) {
       ${slug ? "AND p.slug = ?" : ""}
     ORDER BY p.is_featured DESC, p.created_at DESC, p.id DESC
     ${slug ? "LIMIT 1" : ""}
-  `, slug ? [slug] : []);
+  `,
+    slug ? [slug] : [],
+  );
 
   const imageMap = await productImagesById(rows.map((row) => row.id));
   return rows.map((row) => productRowToProduct(row, imageMap.get(Number(row.id)) || []));
@@ -128,7 +133,9 @@ async function prepareCatalogSchema() {
     ["shelf_life", "VARCHAR(120) NULL"],
   ];
 
-  const existingColumns = new Set((await queryRows("SHOW COLUMNS FROM products")).map((row) => row.Field));
+  const existingColumns = new Set(
+    (await queryRows("SHOW COLUMNS FROM products")).map((row) => row.Field),
+  );
   for (const [column, definition] of columns) {
     if (existingColumns.has(column)) continue;
     try {
@@ -181,13 +188,28 @@ function productRowToProduct(row, images) {
     ? [
         { label: "7 Pads - 4 XXXL + 3 XXL", price: salePrice, mrp, stock },
         { label: "7 Pads - 4 XXL + 3 XXXL", price: salePrice, mrp, stock },
-        { label: "20 Pads - 12 XXXL + 8 XXL", price: Math.round(salePrice * 2.55), mrp: Math.round(mrp * 2.5), stock },
-        { label: "20 Pads - 12 XXL + 8 XXXL", price: Math.round(salePrice * 2.55), mrp: Math.round(mrp * 2.5), stock },
+        {
+          label: "20 Pads - 12 XXXL + 8 XXL",
+          price: Math.round(salePrice * 2.55),
+          mrp: Math.round(mrp * 2.5),
+          stock,
+        },
+        {
+          label: "20 Pads - 12 XXL + 8 XXXL",
+          price: Math.round(salePrice * 2.55),
+          mrp: Math.round(mrp * 2.5),
+          stock,
+        },
       ]
     : [{ label: row.pack_quantity || "Default Pack", price: salePrice, mrp, stock }];
 
   return {
     id: String(row.id),
+    gstPercent: Number(row.gst_percent || 0),
+    shippingWeightG: row.shipping_weight_g == null ? null : Number(row.shipping_weight_g),
+    packageLengthCm: row.package_length_cm == null ? null : Number(row.package_length_cm),
+    packageWidthCm: row.package_width_cm == null ? null : Number(row.package_width_cm),
+    packageHeightCm: row.package_height_cm == null ? null : Number(row.package_height_cm),
     slug: row.slug,
     name: row.name,
     shortDescription: row.short_description || row.name,
@@ -195,7 +217,12 @@ function productRowToProduct(row, images) {
     category: row.category_name === "Period Care" ? "Period Care" : "Sanitary Pads",
     images,
     sizes: isComboOffer ? ["XXL", "XXXL"] : ["XL", "XXL", "XXXL"],
-    flow: row.flow_type ? String(row.flow_type).split(",").map((item) => item.trim()).filter(Boolean) : ["Medium"],
+    flow: row.flow_type
+      ? String(row.flow_type)
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean)
+      : ["Medium"],
     packOptions,
     mrp,
     salePrice,
@@ -205,9 +232,15 @@ function productRowToProduct(row, images) {
     rating: 0,
     reviewCount: 0,
     features: jsonList(row.features, ["Connected from SheRise MySQL catalog"]),
-    materials: row.material_composition ? [row.material_composition] : ["Material details will be updated from product specifications."],
-    usageInstructions: jsonList(row.usage_instructions, ["Follow the instructions provided on the product pack."]),
-    disposalInstructions: jsonList(row.disposal_instructions, ["Wrap and dispose responsibly. Do not flush."]),
+    materials: row.material_composition
+      ? [row.material_composition]
+      : ["Material details will be updated from product specifications."],
+    usageInstructions: jsonList(row.usage_instructions, [
+      "Follow the instructions provided on the product pack.",
+    ]),
+    disposalInstructions: jsonList(row.disposal_instructions, [
+      "Wrap and dispose responsibly. Do not flush.",
+    ]),
     faq: productInfoFaq(row),
     relatedProducts: [],
     featured: Number(row.is_featured) === 1,
@@ -216,13 +249,17 @@ function productRowToProduct(row, images) {
 
 function productInfoFaq(row) {
   const items = [];
-  const packDetails = [row.front_pack_content, row.product_dimensions, row.pad_length].filter(Boolean).join("\n");
+  const packDetails = [row.front_pack_content, row.product_dimensions, row.pad_length]
+    .filter(Boolean)
+    .join("\n");
   if (packDetails) items.push({ q: "Pack content", a: packDetails });
   if (row.brand_message) items.push({ q: "SheRise brand message", a: row.brand_message });
   if (row.storage_instruction || row.shelf_life) {
     items.push({
       q: "Storage & best before",
-      a: [row.storage_instruction, row.shelf_life ? `Best before: ${row.shelf_life}` : ""].filter(Boolean).join("\n"),
+      a: [row.storage_instruction, row.shelf_life ? `Best before: ${row.shelf_life}` : ""]
+        .filter(Boolean)
+        .join("\n"),
     });
   }
   const companyDetails = [
@@ -231,7 +268,9 @@ function productInfoFaq(row) {
     row.product_contact ? `Contact: ${row.product_contact}` : "",
     row.product_email ? `Email: ${row.product_email}` : "",
     row.product_website ? `Website: ${row.product_website}` : "",
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
   if (companyDetails) items.push({ q: "Product information", a: companyDetails });
   const safetyNotes = [row.safety_information, row.anion_strip_notes].filter(Boolean).join("\n\n");
   if (safetyNotes) items.push({ q: "Safety & packaging notes", a: safetyNotes });
@@ -257,8 +296,10 @@ function normalizeImagePath(value) {
   const trimmed = String(value || "").trim();
   if (!trimmed) return "";
   const fallbackProductUploadImage = "/uploads/products/1790248547777-eabeac00-product.png";
-  const fallbackFileName = trimmed.split(/[\\/]/).filter(Boolean).at(-1)?.toLowerCase() || trimmed.toLowerCase();
-  if (fallbackFileName === "pad.jpg" || fallbackFileName === "product.jpg") return fallbackProductUploadImage;
+  const fallbackFileName =
+    trimmed.split(/[\\/]/).filter(Boolean).at(-1)?.toLowerCase() || trimmed.toLowerCase();
+  if (fallbackFileName === "pad.jpg" || fallbackFileName === "product.jpg")
+    return fallbackProductUploadImage;
   if (
     trimmed.startsWith("/") ||
     trimmed.startsWith("http://") ||

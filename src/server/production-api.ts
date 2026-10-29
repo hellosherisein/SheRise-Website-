@@ -16,6 +16,22 @@ export async function handleProductionApiRequest(request: Request): Promise<Resp
   if (pathname === "/api/content/blog-image") return handleBlogImageRequest(request);
   if (pathname === "/api/reviews/image") return handleReviewImageRequest(request);
   if (pathname === "/api/catalog/product-image") return handleCatalogImageRequest(request);
+  if (pathname === "/api/shipping/ekart-webhook") {
+    return new Response(
+      JSON.stringify({
+        error:
+          "Ekart webhook verification is disabled until its signature algorithm, header and encoding are confirmed. Use authenticated tracking synchronization.",
+      }),
+      {
+        status: request.method === "POST" ? 503 : 405,
+        headers: { "content-type": "application/json", "cache-control": "no-store" },
+      },
+    );
+  }
+  if (pathname === "/api/shipping/quote") {
+    const { handleShippingRequest } = await import("./shipping.server");
+    return handleShippingRequest(request);
+  }
   if (pathname.startsWith("/api/payments/")) return handlePaymentsRequest(request);
 
   if (pathname === "/api/admin/upload-product-image") {

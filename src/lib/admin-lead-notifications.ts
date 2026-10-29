@@ -6,7 +6,10 @@ function seenLeads() {
   try {
     const stored: unknown = JSON.parse(window.localStorage.getItem(storageKey) || "[]");
     if (Array.isArray(stored)) {
-      return new Set([...sessionSeen, ...stored.filter((id): id is string => typeof id === "string")]);
+      return new Set([
+        ...sessionSeen,
+        ...stored.filter((id): id is string => typeof id === "string"),
+      ]);
     }
   } catch {
     // Keep notifications usable when browser storage is unavailable.

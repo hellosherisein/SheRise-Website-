@@ -17,7 +17,7 @@ Open the URL printed by Vite (normally http://localhost:8080). Register at `/reg
 - Separate customer dashboard, editable profile, default/saved addresses, server-backed wishlist, order history and order search.
 - Password change invalidates all sessions. Password reset uses expiring, hashed, single-use tokens. Reset email requires configuration below.
 - Checkout requires authentication, uses saved addresses, recalculates catalog prices on the server, validates stock and saves orders to the signed-in customer. Requests have idempotency keys.
-- Catalog and payments remain a preview: orders are marked `preview`; no payment or shipment is claimed. Customers can cancel their preview orders.
+- Checkout uses verified Razorpay capture or eligible COD, customer-owned shipping quotes and transactional stock allocation. Ekart shipment creation remains disabled until approved. See [commerce implementation](docs/commerce-implementation.md) and [Ekart setup, verification and blockers](docs/ekart-integration.md).
 - Guest carts transfer into the signed-in account's browser cart. Customer carts are namespaced by account on that device. Old unowned demo profile/order data is deliberately not imported into real accounts.
 
 ## Storage and security

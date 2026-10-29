@@ -11,17 +11,40 @@ type RouterState = {
 
 const LoaderDataContext = createContext<unknown>(undefined);
 
-export function LoaderDataProvider({ data, children }: { data: unknown; children: React.ReactNode }) {
+export function LoaderDataProvider({
+  data,
+  children,
+}: {
+  data: unknown;
+  children: React.ReactNode;
+}) {
   return <LoaderDataContext.Provider value={data}>{children}</LoaderDataContext.Provider>;
 }
 
-export function createFileRoute(_path: string) {
-  return function defineRoute<T extends Record<string, unknown>>(config: T) {
-    return {
-      ...config,
-      useLoaderData: () => useContext(LoaderDataContext),
-    } as T & { useLoaderData: () => unknown };
+type RouteArgs<T> = { params: Record<string, string>; loaderData: T };
+type ViewRoute<T> = {
+  component: React.ComponentType;
+  loader?: (args: { params: Record<string, string> }) => T | Promise<T>;
+  head?: (args: RouteArgs<T>) => unknown;
+  validateSearch?: (search: Record<string, unknown>) => unknown;
+};
+type ApiRoute = {
+  server: {
+    handlers: Record<
+      string,
+      (args: { request: Request; params: Record<string, string> }) => Response | Promise<Response>
+    >;
   };
+};
+export function createFileRoute(_path: string) {
+  function defineRoute<T>(config: ViewRoute<T>): ViewRoute<T> & { useLoaderData: () => T };
+  function defineRoute(config: ApiRoute): ApiRoute;
+  function defineRoute<T>(
+    config: ViewRoute<T> | ApiRoute,
+  ): (ViewRoute<T> & { useLoaderData: () => T }) | ApiRoute {
+    return { ...config, useLoaderData: () => useContext(LoaderDataContext) as T };
+  }
+  return defineRoute;
 }
 
 export function createRootRouteWithContext<T>() {
@@ -54,11 +77,17 @@ export function Link({
 }
 
 export function useNavigate() {
-  return (options: string | { to: string; replace?: boolean; search?: Record<string, unknown> }) => {
+  return (
+    options: string | { to: string; replace?: boolean; search?: Record<string, unknown> },
+  ) => {
     const href =
       typeof options === "string"
         ? options
-        : buildHref(options.to, undefined, options.search as Record<string, string | number | boolean | null | undefined>);
+        : buildHref(
+            options.to,
+            undefined,
+            options.search as Record<string, string | number | boolean | null | undefined>,
+          );
     if (typeof options !== "string" && options.replace) window.location.replace(href);
     else window.location.assign(href);
   };
@@ -88,7 +117,11 @@ export function Scripts() {
 }
 
 function useBrowserRouterState(): RouterState {
-  const snapshot = useSyncExternalStore(subscribeLocation, getLocationSnapshot, getLocationSnapshot);
+  const snapshot = useSyncExternalStore(
+    subscribeLocation,
+    getLocationSnapshot,
+    getLocationSnapshot,
+  );
   return useMemo(() => {
     const url = new URL(snapshot, window.location.origin);
     return {

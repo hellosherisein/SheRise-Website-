@@ -50,3 +50,12 @@ export function logoutAdmin() {
     window.localStorage.removeItem(adminSessionKey);
   }
 }
+
+export async function fetchAdminPayload<T>(module: string, init?: RequestInit): Promise<T> {
+  const response = await fetch("/api/admin/" + module, { ...init, credentials: "same-origin" });
+  if (!(response.headers.get("content-type") || "").includes("application/json"))
+    throw new Error("Admin API is unavailable.");
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.error || "Admin request failed.");
+  return payload as T;
+}

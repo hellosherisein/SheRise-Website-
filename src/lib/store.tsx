@@ -50,13 +50,17 @@ function CustomerStore({ children }: { children: ReactNode }) {
         let status: number | undefined;
         try {
           const response = await fetch(`/api/catalog/products?t=${Date.now()}`, {
-            cache: "no-store", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
+            cache: "no-store",
+            signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
           });
           status = response.status;
           if (!response.ok) throw new Error("Catalog request failed");
-          const payload = await response.json() as { products?: Product[] };
+          const payload = (await response.json()) as { products?: Product[] };
           if (!Array.isArray(payload.products)) throw new Error("Invalid catalog response");
-          if (!cancelled) { setCatalogProducts(payload.products); setCatalogError(""); }
+          if (!cancelled) {
+            setCatalogProducts(payload.products);
+            setCatalogError("");
+          }
           return;
         } catch {
           if (cancelled) return;
@@ -66,17 +70,37 @@ function CustomerStore({ children }: { children: ReactNode }) {
             if (cancelled) return;
             continue;
           }
-          setCatalogError(`Could not check current products. Please refresh and try again.${status ? ` (HTTP ${status})` : " (Connection timed out or unavailable)"}`);
+          setCatalogError(
+            `Could not check current products. Please refresh and try again.${status ? ` (HTTP ${status})` : " (Connection timed out or unavailable)"}`,
+          );
           return;
         }
       }
     })();
-    return () => { cancelled = true; controller.abort(); };
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
   }, [catalogAttempt]);
   useEffect(() => {
     if (auth.loading) return;
     const saved = validCart(readLocal("sherise-cart-v2:" + namespace, []), []);
-    setCart(catalogProducts ? saved.map((item) => resolveCartSelection(item, catalogProducts.find((p) => p.slug === item.slug)).item) : saved);
+    const restoredQuantities = new Map<string, number>();
+    const restored = catalogProducts
+      ? saved.flatMap((item) => {
+          const product = catalogProducts.find((p) => p.slug === item.slug);
+          if (product && product.stock <= 0) return [];
+          const resolved = resolveCartSelection(item, product).item;
+          const available = Math.max(
+            0,
+            (product?.stock ?? resolved.quantity) - (restoredQuantities.get(item.slug) || 0),
+          );
+          const quantity = Math.min(resolved.quantity, available);
+          restoredQuantities.set(item.slug, (restoredQuantities.get(item.slug) || 0) + quantity);
+          return quantity > 0 ? [{ ...resolved, quantity }] : [];
+        })
+      : saved;
+    setCart(restored);
     if (!signedIn) {
       const raw = readLocal<unknown>("sherise-guest-wishlist", []);
       setGuestWishlist(Array.isArray(raw) ? raw.filter((s) => typeof s === "string") : []);
@@ -99,10 +123,16 @@ function CustomerStore({ children }: { children: ReactNode }) {
         catalogProducts,
         catalogError,
         retryCatalog: () => setCatalogAttempt((attempt) => attempt + 1),
-        revise: (key, changes) => setCart((current) => current.map((item) => {
-          if (cartKey(item) !== key) return item;
-          return resolveCartSelection({ ...item, ...changes }, catalogProducts?.find((p) => p.slug === item.slug)).item;
-        })),
+        revise: (key, changes) =>
+          setCart((current) =>
+            current.map((item) => {
+              if (cartKey(item) !== key) return item;
+              return resolveCartSelection(
+                { ...item, ...changes },
+                catalogProducts?.find((p) => p.slug === item.slug),
+              ).item;
+            }),
+          ),
         ready: ready && !auth.loading && catalogProducts !== null,
         cart,
         wishlist,
@@ -116,19 +146,29 @@ function CustomerStore({ children }: { children: ReactNode }) {
           const selection = resolveCartSelection(item, product);
           const valid = selection.item;
           if (selection.issues.length) {
-            toast.error(`${product?.name || item.name || "Product"}: ${selection.issues.join(". ")}. Please choose options on the product page.`);
+            toast.error(
+              `${product?.name || item.name || "Product"}: ${selection.issues.join(". ")}. Please choose options on the product page.`,
+            );
             return;
           }
           setCart((c) => {
+            const otherQuantity = c
+              .filter((x) => x.slug === valid.slug && cartKey(x) !== cartKey(valid))
+              .reduce((n, x) => n + x.quantity, 0);
+            const available = Math.max(0, (product?.stock ?? 0) - otherQuantity);
+            if (!available) return c;
             const key = cartKey(valid),
               old = c.find((x) => cartKey(x) === key);
             return old
               ? c.map((x) =>
                   cartKey(x) === key
-                    ? { ...x, quantity: Math.min(product?.stock ?? 99, x.quantity + valid.quantity) }
+                    ? {
+                        ...x,
+                        quantity: Math.min(available, x.quantity + valid.quantity),
+                      }
                     : x,
                 )
-              : [...c, valid];
+              : [...c, { ...valid, quantity: Math.min(available, valid.quantity) }];
           });
           setCartOpen(true);
           toast.success("Added to your bag");
@@ -136,9 +176,25 @@ function CustomerStore({ children }: { children: ReactNode }) {
         remove: (key) => setCart((c) => c.filter((x) => cartKey(x) !== key)),
         update: (key, q) =>
           setCart((c) =>
-            c.map((x) =>
-              cartKey(x) === key ? { ...x, quantity: Math.min(catalogProducts?.find((p) => p.slug === x.slug)?.stock ?? 99, Math.max(1, q)) } : x,
-            ),
+            c
+              .map((x) =>
+                cartKey(x) === key
+                  ? {
+                      ...x,
+                      quantity: Math.min(
+                        Math.max(
+                          0,
+                          (catalogProducts?.find((p) => p.slug === x.slug)?.stock ?? 0) -
+                            c
+                              .filter((other) => other.slug === x.slug && cartKey(other) !== key)
+                              .reduce((n, other) => n + other.quantity, 0),
+                        ),
+                        Math.max(1, q),
+                      ),
+                    }
+                  : x,
+              )
+              .filter((item) => item.quantity > 0),
           ),
         toggleWish: (slug) => {
           if (!ready || auth.loading) return;

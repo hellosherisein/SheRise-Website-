@@ -1,0 +1,3 @@
+-- Non-destructive rollback: disable checkout/shipping, deploy the previous application,
+-- and retain additive tables/columns for recovery. Release RESERVED allocations transactionally
+-- before rollback. Do not drop shipment history, settlements, allocations or quotes.

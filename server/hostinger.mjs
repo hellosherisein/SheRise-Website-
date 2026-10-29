@@ -20,7 +20,9 @@ if (process.env.RAZORPAY_ENABLED === "true") {
       process.env.RAZORPAY_ENABLED = "false";
     }
   } catch {
-    console.error("Online payments disabled: payment API could not load. Check the server build and Node.js version.");
+    console.error(
+      "Online payments disabled: payment API could not load. Check the server build and Node.js version.",
+    );
     process.env.RAZORPAY_ENABLED = "false";
   }
 }
@@ -40,10 +42,7 @@ const server = createHttpServer(async (req, res) => {
     await sendWebResponse(res, staticResponse || (await indexResponse()));
   } catch (error) {
     console.error("Production server failed:", error);
-    await sendWebResponse(
-      res,
-      json({ error: "Server request failed." }, 500),
-    );
+    await sendWebResponse(res, json({ error: "Server request failed." }, 500));
   }
 });
 
@@ -63,7 +62,10 @@ async function handleNodeApiRequest(req, res, pathname) {
     await handleAdminLogout(req, responseAdapter(res));
     return true;
   }
-  if (adminModuleMatch && !["/api/admin/upload-product-image", "/api/admin/upload-blog-image"].includes(pathname)) {
+  if (
+    adminModuleMatch &&
+    !["/api/admin/upload-product-image", "/api/admin/upload-blog-image"].includes(pathname)
+  ) {
     const { default: handleAdminModule } = await import("../api/admin/[module].mjs");
     req.query = { module: decodeURIComponent(adminModuleMatch[1]) };
     await handleAdminModule(req, responseAdapter(res));
@@ -120,10 +122,7 @@ async function staticFileResponse(pathname) {
   const safePath = safeStaticPath(pathname);
   if (!safePath) return undefined;
 
-  const candidates = [
-    path.join(distDir, safePath),
-    path.join(publicDir, safePath),
-  ];
+  const candidates = [path.join(distDir, safePath), path.join(publicDir, safePath)];
 
   for (const candidate of candidates) {
     if (!isInside(candidate, candidate.startsWith(distDir) ? distDir : publicDir)) continue;

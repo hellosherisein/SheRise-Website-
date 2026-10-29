@@ -6,10 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  isAdminAuthenticated,
-  loginAdmin,
-} from "@/lib/admin-auth";
+import { isAdminAuthenticated, loginAdmin } from "@/lib/admin-auth";
 import { seo } from "@/lib/seo";
 
 export const Route = createFileRoute("/admin/login")({
@@ -46,15 +43,15 @@ function AdminLoginPage() {
           <p className="font-display text-4xl leading-none">
             She<span className="text-brand-coral">Rise</span>
           </p>
-          <p className="mt-3 text-xs font-bold uppercase text-muted-foreground">
-            Commerce Admin
-          </p>
+          <p className="mt-3 text-xs font-bold uppercase text-muted-foreground">Commerce Admin</p>
         </div>
         <div className="max-w-xl">
           <div className="mb-8 grid size-16 place-items-center rounded-full bg-brand-blush">
             <ShieldCheck className="size-8 text-brand-burgundy" />
           </div>
-          <h1 className="font-display text-5xl leading-tight">Admin access for store operations.</h1>
+          <h1 className="font-display text-5xl leading-tight">
+            Admin access for store operations.
+          </h1>
           <p className="mt-5 max-w-lg text-sm leading-7 text-muted-foreground">
             Manage products, orders, inventory, website content, enquiries and settings from one
             focused dashboard.

@@ -64,31 +64,32 @@ export function FounderSection({
             Meet Our Founder
           </h2>
           <p className="mt-3 text-sm font-semibold uppercase tracking-[0.14em] text-brand-coral">
-            {founderName || "Sweta Jadhav"} <span aria-hidden="true">|</span> Founder, SheRise Welfare Foundation
+            {founderName || "Sweta Jadhav"} <span aria-hidden="true">|</span> Founder, SheRise
+            Welfare Foundation
           </p>
           <p className="founder-prose mt-6">
-            For me, women&apos;s empowerment begins with awareness, self-belief, and the opportunity to
-            live with dignity. This belief inspired me to establish SheRise Welfare Foundation&mdash;a
-            platform dedicated to empowering women, promoting menstrual health awareness, and
-            nurturing holistic well-being.
+            For me, women&apos;s empowerment begins with awareness, self-belief, and the opportunity
+            to live with dignity. This belief inspired me to establish SheRise Welfare
+            Foundation&mdash;a platform dedicated to empowering women, promoting menstrual health
+            awareness, and nurturing holistic well-being.
           </p>
           <div className="my-7">
             <h3 className="mb-4 text-xs font-bold uppercase tracking-[0.16em] text-brand-burgundy">
               Education &amp; Certifications
             </h3>
             <ul className="grid gap-3 sm:grid-cols-2">
-            {qualifications.map((qualification) => (
-              <li
-                key={qualification}
-                className="flex min-h-14 items-center gap-3 rounded-lg border border-[#eadbd2] bg-[#fffaf6] px-4 py-3 text-sm font-medium leading-snug text-brand-navy shadow-[0_2px_10px_rgba(74,31,39,0.035)]"
-              >
-                <span
-                  aria-hidden="true"
-                  className="size-2 shrink-0 rounded-full bg-brand-coral ring-4 ring-[#f7e9e3]"
-                />
-                {qualification}
-              </li>
-            ))}
+              {qualifications.map((qualification) => (
+                <li
+                  key={qualification}
+                  className="flex min-h-14 items-center gap-3 rounded-lg border border-[#eadbd2] bg-[#fffaf6] px-4 py-3 text-sm font-medium leading-snug text-brand-navy shadow-[0_2px_10px_rgba(74,31,39,0.035)]"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="size-2 shrink-0 rounded-full bg-brand-coral ring-4 ring-[#f7e9e3]"
+                  />
+                  {qualification}
+                </li>
+              ))}
             </ul>
           </div>
           <p className="founder-prose">
@@ -98,12 +99,12 @@ export function FounderSection({
           <p className="founder-prose mt-4">
             I believe every woman deserves to be heard, respected, informed, and empowered to take
             charge of her well-being. Through SheRise, my mission is to break the silence around
-            menstrual health, encourage self-care, and create supportive communities where women
-            can learn, grow, and thrive.
+            menstrual health, encourage self-care, and create supportive communities where women can
+            learn, grow, and thrive.
           </p>
           <blockquote className="mt-7 rounded-r-lg border-l-[3px] border-brand-coral bg-[#fff8f4] px-5 py-4 font-display text-xl leading-relaxed text-brand-burgundy sm:text-2xl">
-            &ldquo;My vision is simple: to help every woman discover her strength, recognize her worth,
-            and rise with confidence.&rdquo;
+            &ldquo;My vision is simple: to help every woman discover her strength, recognize her
+            worth, and rise with confidence.&rdquo;
           </blockquote>
           <Button
             type="button"
@@ -119,7 +120,10 @@ export function FounderSection({
             className="mt-5 min-h-11 gap-3 px-6"
           >
             {messageOpen ? "Hide message" : "Join Me in Making a Difference"}
-            <ArrowDown aria-hidden="true" className={`size-4 transition-transform ${messageOpen ? "rotate-180" : ""}`} />
+            <ArrowDown
+              aria-hidden="true"
+              className={`size-4 transition-transform ${messageOpen ? "rotate-180" : ""}`}
+            />
           </Button>
         </div>
       </div>
@@ -145,7 +149,9 @@ export function FounderSection({
                   SheRise as a volunteer, partner, or supporter and help turn this vision into
                   meaningful action.
                 </p>
-                <p><strong>SheRise - Empowering Women. Inspiring Change.</strong></p>
+                <p>
+                  <strong>SheRise - Empowering Women. Inspiring Change.</strong>
+                </p>
               </div>
               <footer className="mt-7 flex items-center gap-4">
                 <span aria-hidden="true" className="h-px w-10 bg-brand-burgundy/40" />

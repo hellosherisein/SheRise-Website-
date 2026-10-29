@@ -5,7 +5,8 @@ import ts from "typescript";
 // Actual image request handler, isolated DB adapter; no production data changes.
 const bytes = Buffer.from("test raster image bytes");
 let stored = `data:image/png;base64,${bytes.toString("base64")}`;
-let queries = 0, fail = false;
+let queries = 0,
+  fail = false;
 globalThis.__catalogImageQuery = async (sql, params) => {
   queries++;
   assert.deepEqual(params, ["123"]);
@@ -15,11 +16,20 @@ globalThis.__catalogImageQuery = async (sql, params) => {
   if (fail) throw new Error("Private database details");
   return stored === null ? [] : [{ image_url: stored }];
 };
-const source = readFileSync("src/server/catalog-image.server.ts", "utf8")
-  .replace('import { queryRows } from "./mysql.server";', "const queryRows = (...args) => globalThis.__catalogImageQuery(...args);");
-const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
-const { handleCatalogImageRequest } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`);
-const request = (query = "id=123", method = "GET") => handleCatalogImageRequest(new Request(`https://example.test/api/catalog/product-image?${query}`, { method }));
+const source = readFileSync("src/server/catalog-image.server.ts", "utf8").replace(
+  'import { queryRows } from "./mysql.server";',
+  "const queryRows = (...args) => globalThis.__catalogImageQuery(...args);",
+);
+const compiled = ts.transpileModule(source, {
+  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
+}).outputText;
+const { handleCatalogImageRequest } = await import(
+  `data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`
+);
+const request = (query = "id=123", method = "GET") =>
+  handleCatalogImageRequest(
+    new Request(`https://example.test/api/catalog/product-image?${query}`, { method }),
+  );
 let response = await request();
 assert.equal(response.status, 200);
 assert.equal(response.headers.get("content-type"), "image/png");
@@ -35,7 +45,12 @@ assert.equal((await request("id=1%20OR%201=1")).status, 400);
 assert.equal((await request("")).status, 400);
 assert.equal((await request("id=123", "POST")).status, 405);
 assert.equal(queries, before);
-for (stored of [null, "https://example.test/image.png", "data:image/svg+xml;base64,PHN2Zz4=", "data:image/png;base64,not-valid!"]) {
+for (stored of [
+  null,
+  "https://example.test/image.png",
+  "data:image/svg+xml;base64,PHN2Zz4=",
+  "data:image/png;base64,not-valid!",
+]) {
   assert.equal((await request()).status, 404);
 }
 fail = true;
@@ -48,4 +63,6 @@ for (const file of ["api/catalog/products.mjs", "src/server/catalog.server.ts"])
   assert.match(catalog, /CASE WHEN LEFT\((?:pi\.)?image_url, 11\) = 'data:image\/'/);
   assert.match(catalog, /CONCAT\('\/api\/catalog\/product-image\?id=', (?:pi\.)?id\)/);
 }
-console.log("PASS: inline product images use separate public URLs; image bytes, HEAD, active-product checks, safe MIME types, bound IDs and private errors verified.");
+console.log(
+  "PASS: inline product images use separate public URLs; image bytes, HEAD, active-product checks, safe MIME types, bound IDs and private errors verified.",
+);

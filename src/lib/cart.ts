@@ -10,7 +10,7 @@ export type CartItem = {
   name?: string;
   image?: string;
 };
-export const cartKey = (i: CartItem) => [i.slug, i.size, i.flow, i.pack].join("|");
+export const cartKey = (i: CartItem) => [i["slug"], i["size"], i["flow"], i["pack"]].join("|");
 export function readLocal<T>(key: string, fallback: T): T {
   try {
     return JSON.parse(localStorage.getItem(key) || "null") ?? fallback;
@@ -27,17 +27,17 @@ export function saveLocal(key: string, value: unknown) {
   }
 }
 export function cartStock(i: CartItem) {
-  const productStock = getProduct(i.slug)?.packOptions.find((p) => p.label === i.pack)?.stock;
-  return productStock && productStock > 0 ? productStock : 99;
+  const productStock = getProduct(i["slug"])?.packOptions.find((p) => p.label === i["pack"])?.stock;
+  return Math.max(0, productStock ?? 0);
 }
 
 function customCartItem(i: Record<string, unknown>): CartItem[] {
-  const slug = typeof i.slug === "string" ? i.slug : "";
-  const pack = typeof i.pack === "string" ? i.pack : "";
-  const size = typeof i.size === "string" ? i.size : "";
-  const flow = typeof i.flow === "string" ? i.flow : "";
-  const price = Number(i.price);
-  const quantity = Number(i.quantity);
+  const slug = typeof i["slug"] === "string" ? i["slug"] : "";
+  const pack = typeof i["pack"] === "string" ? i["pack"] : "";
+  const size = typeof i["size"] === "string" ? i["size"] : "";
+  const flow = typeof i["flow"] === "string" ? i["flow"] : "";
+  const price = Number(i["price"]);
+  const quantity = Number(i["quantity"]);
   if (!slug || !pack || !size || !flow || !Number.isFinite(price) || !Number.isFinite(quantity))
     return [];
   return [
@@ -47,8 +47,8 @@ function customCartItem(i: Record<string, unknown>): CartItem[] {
       size,
       flow,
       price,
-      name: typeof i.name === "string" ? i.name : undefined,
-      image: typeof i.image === "string" ? i.image : undefined,
+      name: typeof i["name"] === "string" ? i["name"] : "",
+      image: typeof i["image"] === "string" ? i["image"] : "",
       quantity: Math.min(99, Math.max(1, Math.floor(quantity))),
     },
   ];
@@ -58,22 +58,22 @@ export function validCart(raw: unknown, catalog: Product[] = products): CartItem
   if (!Array.isArray(raw)) return [];
   return raw.flatMap((i) => {
     if (!i || typeof i !== "object") return [];
-    const p = catalog.find((product) => product.slug === i.slug),
-      v = p?.packOptions.find((v) => v.label === i.pack);
-    if (!Number.isFinite(i.quantity)) return [];
+    const p = catalog.find((product) => product.slug === i["slug"]),
+      v = p?.packOptions.find((v) => v.label === i["pack"]);
+    if (!Number.isFinite(i["quantity"])) return [];
     if (!p) return customCartItem(i as Record<string, unknown>);
-    if (!v || !p.sizes.includes(i.size) || !p.flow.includes(i.flow))
-      return customCartItem(i as Record<string, unknown>);
+    if (!v || !p.sizes.includes(i["size"]) || !p.flow.includes(i["flow"]) || v.stock <= 0)
+      return [];
     return [
       {
         slug: p.slug,
         pack: v.label,
-        size: i.size,
-        flow: i.flow,
+        size: i["size"],
+        flow: i["flow"],
         price: v.price,
-        name: typeof i.name === "string" ? i.name : p.name,
-        image: typeof i.image === "string" ? i.image : p.images[0],
-        quantity: Math.min(Math.max(v.stock, 99), Math.max(1, Math.floor(i.quantity))),
+        name: typeof i["name"] === "string" ? i["name"] : p.name,
+        image: typeof i["image"] === "string" ? i["image"] : p.images[0] || "",
+        quantity: Math.min(v.stock, Math.max(1, Math.floor(i["quantity"]))),
       },
     ];
   });

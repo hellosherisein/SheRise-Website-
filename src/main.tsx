@@ -5,7 +5,12 @@ import { Toaster } from "sonner";
 import { CartDrawer, Footer, Header, SearchOverlay, WelcomePopup } from "@/components/site-shell";
 import { AuthProvider } from "@/lib/auth";
 import { StoreProvider } from "@/lib/store";
-import { aboutLinks, periodCareLinks, sectionNavigation, whySheRiseLinks } from "@/lib/section-navigation";
+import {
+  aboutLinks,
+  periodCareLinks,
+  sectionNavigation,
+  whySheRiseLinks,
+} from "@/lib/section-navigation";
 import { LoaderDataProvider } from "@/router-shim";
 import "./styles.css";
 
@@ -46,7 +51,9 @@ import { Route as WishlistRoute } from "@/routes/wishlist";
 type RouteConfig = {
   component: React.ComponentType;
   loader?: (args: { params: Record<string, string> }) => unknown | Promise<unknown>;
-  head?: (args: { loaderData?: unknown; params: Record<string, string> }) => unknown;
+  head?: {
+    invoke(args: { loaderData: unknown; params: Record<string, string> }): unknown;
+  }["invoke"];
 };
 
 type RouteMatch = {
@@ -85,7 +92,11 @@ const routes: Array<{ pattern: string; route: RouteConfig; sectionId?: string }>
   { pattern: "/order-success", route: OrderSuccessRoute },
   { pattern: "/payment-failed", route: PaymentFailedRoute },
   { pattern: "/period-guide", route: PeriodGuideRoute },
-  ...periodCareLinks.map(({ to, sectionId }) => ({ pattern: to, route: PeriodGuideRoute, sectionId })),
+  ...periodCareLinks.map(({ to, sectionId }) => ({
+    pattern: to,
+    route: PeriodGuideRoute,
+    sectionId,
+  })),
   { pattern: "/privacy-policy", route: PrivacyRoute },
   { pattern: "/products/:slug", route: ProductRoute },
   { pattern: "/register", route: RegisterRoute },
@@ -196,18 +207,41 @@ function App() {
                 {error ? (
                   <section className="container-shell min-h-[60vh] py-16" role="alert">
                     <h1 className="text-3xl text-brand-navy">Could not load this page</h1>
-                    <p className="mt-4">{error instanceof Error ? error.message : "Please try again."}</p>
-                    <button type="button" onClick={() => window.location.reload()} className="mt-6 border border-brand-navy px-6 py-3 font-semibold text-brand-navy">Try again</button>
+                    <p className="mt-4">
+                      {error instanceof Error ? error.message : "Please try again."}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => window.location.reload()}
+                      className="mt-6 border border-brand-navy px-6 py-3 font-semibold text-brand-navy"
+                    >
+                      Try again
+                    </button>
                   </section>
                 ) : routeLoading ? (
-                  <section className="container-shell min-h-[70vh] py-10" role="status" aria-live="polite">
-                    <p className="mb-6 text-sm text-muted-foreground">{window.location.pathname.startsWith("/products/") ? "Loading product details…" : "Loading page…"}</p>
+                  <section
+                    className="container-shell min-h-[70vh] py-10"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <p className="mb-6 text-sm text-muted-foreground">
+                      {window.location.pathname.startsWith("/products/")
+                        ? "Loading product details…"
+                        : "Loading page…"}
+                    </p>
                     <div className="grid animate-pulse gap-10 md:grid-cols-2" aria-hidden="true">
                       <div className="aspect-square max-h-[65vh] bg-brand-blush" />
-                      <div className="space-y-6 py-4"><div className="h-10 w-3/4 bg-brand-blush" /><div className="h-6 w-1/3 bg-brand-blush" /><div className="h-24 bg-brand-cream" /><div className="h-12 bg-brand-blush" /></div>
+                      <div className="space-y-6 py-4">
+                        <div className="h-10 w-3/4 bg-brand-blush" />
+                        <div className="h-6 w-1/3 bg-brand-blush" />
+                        <div className="h-24 bg-brand-cream" />
+                        <div className="h-12 bg-brand-blush" />
+                      </div>
                     </div>
                   </section>
-                ) : <Page />}
+                ) : (
+                  <Page />
+                )}
               </main>
               <Footer />
               <CartDrawer />

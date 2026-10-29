@@ -34,7 +34,9 @@ type FaqRow = {
 
 let seeded = false;
 
-export async function listContentBlogs(options: { includeInactive?: boolean } = {}): Promise<BlogPost[]> {
+export async function listContentBlogs(
+  options: { includeInactive?: boolean } = {},
+): Promise<BlogPost[]> {
   if (hasMysqlContent()) {
     const { queryRows } = await import("./mysql.server");
     return (await listBlogs(queryRows, options)).map(blogToPost);
@@ -98,9 +100,9 @@ export async function upsertContentBlog(input: Record<string, unknown>) {
   const content = cleanText(input["description"], 8000) || excerpt;
   const status = contentStatus(input["status"]);
   const existing = originalKey
-    ? (database().prepare("SELECT id FROM content_blogs WHERE slug=? OR title=?").get(originalKey, originalKey) as
-        | { id: string }
-        | undefined)
+    ? (database()
+        .prepare("SELECT id FROM content_blogs WHERE slug=? OR title=?")
+        .get(originalKey, originalKey) as { id: string } | undefined)
     : undefined;
 
   if (existing) {
@@ -161,7 +163,10 @@ export async function deleteContentBlog(input: Record<string, unknown>) {
     return deleteBlog(executeSql, input);
   }
   seedContentDefaults();
-  const key = cleanText(input["originalKey"], 260) || cleanText(input["slug"], 260) || cleanText(input["code"], 260);
+  const key =
+    cleanText(input["originalKey"], 260) ||
+    cleanText(input["slug"], 260) ||
+    cleanText(input["code"], 260);
   if (!key) throw new Error("Blog slug is required.");
   database().prepare("DELETE FROM content_blogs WHERE slug=? OR title=?").run(key, key);
 }
@@ -175,7 +180,8 @@ export function upsertContentFaq(input: Record<string, unknown>) {
   const originalKey = cleanText(input["originalKey"], 500);
   const status = contentStatus(input["status"]);
   const existing = originalKey
-    ? (database().prepare("SELECT id FROM content_faqs WHERE question=?").get(originalKey) as { id: string } | undefined)
+    ? (database().prepare("SELECT id FROM content_faqs WHERE question=?").get(originalKey) as
+        { id: string } | undefined)
     : undefined;
 
   if (existing) {
@@ -185,7 +191,9 @@ export function upsertContentFaq(input: Record<string, unknown>) {
     return;
   }
 
-  const sortRow = database().prepare("SELECT COALESCE(MAX(sort_order), 0) + 10 AS next_sort FROM content_faqs").get() as {
+  const sortRow = database()
+    .prepare("SELECT COALESCE(MAX(sort_order), 0) + 10 AS next_sort FROM content_faqs")
+    .get() as {
     next_sort: number;
   };
   database()
@@ -206,7 +214,9 @@ function seedContentDefaults() {
   if (seeded) return;
   transaction(() => {
     const now = new Date().toISOString();
-    const blogCount = database().prepare("SELECT COUNT(*) AS count FROM content_blogs").get() as { count: number };
+    const blogCount = database().prepare("SELECT COUNT(*) AS count FROM content_blogs").get() as {
+      count: number;
+    };
     if (!blogCount.count) {
       const insertBlog = database().prepare(
         `INSERT INTO content_blogs
@@ -233,7 +243,9 @@ function seedContentDefaults() {
       }
     }
 
-    const faqCount = database().prepare("SELECT COUNT(*) AS count FROM content_faqs").get() as { count: number };
+    const faqCount = database().prepare("SELECT COUNT(*) AS count FROM content_faqs").get() as {
+      count: number;
+    };
     if (!faqCount.count) {
       const insertFaq = database().prepare(
         "INSERT INTO content_faqs (id, question, answer, status, sort_order, created_at, updated_at) VALUES (?, ?, ?, 'ACTIVE', ?, ?, ?)",
@@ -254,12 +266,17 @@ function blogRowToPost(row: BlogRow): BlogPost {
     category: row.category,
     date: row.published_date || "Draft",
     image: row.image_url,
-    content: row.content.split(/\n{2,}/).map((item) => item.trim()).filter(Boolean),
+    content: row.content
+      .split(/\n{2,}/)
+      .map((item) => item.trim())
+      .filter(Boolean),
   };
 }
 
 function cleanText(value: unknown, max = 1000) {
-  return String(value ?? "").trim().slice(0, max);
+  return String(value ?? "")
+    .trim()
+    .slice(0, max);
 }
 
 function slugify(value: string) {
@@ -277,5 +294,7 @@ function contentStatus(value: unknown) {
 }
 
 function hasMysqlContent() {
-  return Boolean(process.env["MYSQL_HOST"] && process.env["MYSQL_USER"] && process.env["MYSQL_DATABASE"]);
+  return Boolean(
+    process.env["MYSQL_HOST"] && process.env["MYSQL_USER"] && process.env["MYSQL_DATABASE"],
+  );
 }

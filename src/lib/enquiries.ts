@@ -43,7 +43,11 @@ export function createEnquirySubmitter(fetcher: typeof fetch = fetch) {
       }
       const result = await enquiryResponse(response, unavailable);
       if (!response.ok || result.ok !== true) {
-        throw new Error(typeof result.error === "string" ? result.error : "Could not save your enquiry. Please try again.");
+        throw new Error(
+          typeof result.error === "string"
+            ? result.error
+            : "Could not save your enquiry. Please try again.",
+        );
       }
       savedEnquiry = signature;
       window.dispatchEvent(new Event("sherise-popup-leads-updated"));
@@ -68,7 +72,9 @@ export function createEnquirySubmitter(fetcher: typeof fetch = fetch) {
       const result = await enquiryResponse(response, "Email delivery failed.");
       if (!response.ok || result.success !== true) throw new Error("Email delivery failed.");
     } catch {
-      throw new Error("Your enquiry is saved, but the email could not be sent. Please submit again to retry.");
+      throw new Error(
+        "Your enquiry is saved, but the email could not be sent. Please submit again to retry.",
+      );
     }
     savedEnquiry = "";
   };

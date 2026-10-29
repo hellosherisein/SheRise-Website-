@@ -27,7 +27,10 @@
     "start": "node app.js",
     "migrate:payments": "node scripts/migrate-payments.mjs",
     "migrate:review-photos": "node scripts/migrate-review-photos.mjs",
-    "test:accounts": "playwright test"
+    "test:accounts": "playwright test",
+    "test:commerce": "node scripts/verify-commerce.mjs",
+    "build:verify": "vite build && vite build --ssr src/server/production-api.ts --outDir dist/server --emptyOutDir false",
+    "test:ekart": "node scripts/verify-ekart.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1"

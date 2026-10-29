@@ -4,7 +4,8 @@ const cookieName = "sherise_admin_session";
 const maxAgeSeconds = 60 * 60 * 8;
 
 export const defaultAdminEmail = "hello_sherise";
-export const defaultAdminPasswordHash = "ba9df0fe2b12d33e2ffd2505f08a1dec28e9791d0432bc10c301d8eed0eac29e";
+export const defaultAdminPasswordHash =
+  "ba9df0fe2b12d33e2ffd2505f08a1dec28e9791d0432bc10c301d8eed0eac29e";
 
 export function requireSessionSecret() {
   const secret = process.env.ADMIN_SESSION_SECRET;

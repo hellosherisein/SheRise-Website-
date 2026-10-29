@@ -4,18 +4,38 @@ export async function newsletterPayload(queryRows) {
   );
   const active = subscribers.filter((subscriber) => subscriber.status === "ACTIVE").length;
   return {
-    title: "Newsletter Subscribers", action: "Add Subscriber",
+    title: "Newsletter Subscribers",
+    action: "Add Subscriber",
     columns: ["Email", "Source", "Subscribed", "Updated", "Status"],
     rows: subscribers.map((subscriber) => [
-      subscriber.email, "Website newsletter", dateValue(subscriber.subscribed_at), dateValue(subscriber.updated_at), subscriber.status,
+      subscriber.email,
+      "Website newsletter",
+      dateValue(subscriber.subscribed_at),
+      dateValue(subscriber.updated_at),
+      subscriber.status,
     ]),
     metrics: [
-      { label: "Subscribers", value: String(subscribers.length), trend: "Stored in MySQL", tone: "up" },
+      {
+        label: "Subscribers",
+        value: String(subscribers.length),
+        trend: "Stored in MySQL",
+        tone: "up",
+      },
       { label: "Active", value: String(active), trend: "Newsletter list", tone: "up" },
-      { label: "Unsubscribed", value: String(subscribers.filter((subscriber) => subscriber.status === "UNSUBSCRIBED").length), trend: "Not subscribed", tone: "neutral" },
+      {
+        label: "Unsubscribed",
+        value: String(
+          subscribers.filter((subscriber) => subscriber.status === "UNSUBSCRIBED").length,
+        ),
+        trend: "Not subscribed",
+        tone: "neutral",
+      },
       { label: "Storage", value: "MySQL", trend: "Admin visible", tone: "up" },
-    ], source: "mysql",
+    ],
+    source: "mysql",
   };
 }
 
-function dateValue(value) { return (value instanceof Date ? value.toISOString() : String(value)).slice(0, 10); }
+function dateValue(value) {
+  return (value instanceof Date ? value.toISOString() : String(value)).slice(0, 10);
+}

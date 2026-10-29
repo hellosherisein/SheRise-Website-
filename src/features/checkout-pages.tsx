@@ -1,4 +1,6 @@
-﻿import { useEffect, useState, useRef, type FormEvent } from "react";
+import { codEligibility } from "@/lib/checkout-rules";
+import { useShippingQuote, type ShippingQuote } from "@/lib/shipping";
+import { useEffect, useState, useRef, type FormEvent } from "react";
 import { Link, useNavigate } from "@/router-shim";
 import { CheckCircle2, Clock } from "lucide-react";
 import { useStore, cartKey, cartStock, readLocal, saveLocal, type CartItem } from "@/lib/store";
@@ -94,8 +96,11 @@ export function Coupon({
     [message, setMessage] = useState(appliedCoupon ? couponAppliedMessage(appliedCoupon) : "");
   const enteredCoupon = coupons.find((coupon) => coupon.code === code.trim().toUpperCase());
   const minimumNotMet = enteredCoupon && subtotal < Number(enteredCoupon.minimumOrderAmount || 0);
-  const feedback = minimumNotMet ? `Minimum order ${money(Number(enteredCoupon.minimumOrderAmount))} required.`
-    : !appliedCoupon && message.startsWith("Minimum order") ? "Minimum reached. Click Apply to use this coupon." : message;
+  const feedback = minimumNotMet
+    ? `Minimum order ${money(Number(enteredCoupon.minimumOrderAmount))} required.`
+    : !appliedCoupon && message.startsWith("Minimum order")
+      ? "Minimum reached. Click Apply to use this coupon."
+      : message;
   const feedbackError = Boolean(minimumNotMet) || message.startsWith("Coupon not active");
   useEffect(() => {
     if (!appliedCoupon) return;
@@ -133,7 +138,10 @@ export function Coupon({
             key={coupon.code}
             type="button"
             className={`flex w-full items-center justify-between gap-3 border px-3 py-2 text-left text-sm ${
-              appliedCoupon?.code === coupon.code && subtotal >= Number(coupon.minimumOrderAmount || 0) ? "border-brand-navy bg-brand-blush" : "border-[#eadbd2] bg-white"
+              appliedCoupon?.code === coupon.code &&
+              subtotal >= Number(coupon.minimumOrderAmount || 0)
+                ? "border-brand-navy bg-brand-blush"
+                : "border-[#eadbd2] bg-white"
             }`}
             onClick={() => applyCoupon(coupon.code)}
           >
@@ -141,8 +149,17 @@ export function Coupon({
               <span className="font-bold text-brand-navy">{coupon.code}</span>
               <span className="block text-xs text-muted-foreground">{couponLabel(coupon)}</span>
             </span>
-            <span className={`inline-flex items-center gap-1 text-xs font-bold ${subtotal < Number(coupon.minimumOrderAmount || 0) ? "text-red-700" : "text-emerald-700"}`}>
-              {subtotal < Number(coupon.minimumOrderAmount || 0) ? `Minimum ${money(Number(coupon.minimumOrderAmount))}` : <><CheckCircle2 className="size-4" />{appliedCoupon?.code === coupon.code ? "Applied" : "Eligible"}</>}
+            <span
+              className={`inline-flex items-center gap-1 text-xs font-bold ${subtotal < Number(coupon.minimumOrderAmount || 0) ? "text-red-700" : "text-emerald-700"}`}
+            >
+              {subtotal < Number(coupon.minimumOrderAmount || 0) ? (
+                `Minimum ${money(Number(coupon.minimumOrderAmount))}`
+              ) : (
+                <>
+                  <CheckCircle2 className="size-4" />
+                  {appliedCoupon?.code === coupon.code ? "Applied" : "Eligible"}
+                </>
+              )}
             </span>
           </button>
         ))}
@@ -177,14 +194,27 @@ export function Coupon({
           </Button>
         </div>
       </label>
-      <p role={feedbackError ? "alert" : "status"} className={`mt-2 text-xs ${feedbackError ? "font-medium text-red-700" : appliedCoupon ? "text-emerald-700" : "text-muted-foreground"}`}>
+      <p
+        role={feedbackError ? "alert" : "status"}
+        className={`mt-2 text-xs ${feedbackError ? "font-medium text-red-700" : appliedCoupon ? "text-emerald-700" : "text-muted-foreground"}`}
+      >
         {feedback}
       </p>
     </div>
   );
 }
-function Summary({ subtotal, discount, donationAmount = 0 }: { subtotal: number; discount: CouponDiscount; donationAmount?: number }) {
-  const totals = calculateOrderTotals(subtotal, discount, donationAmount);
+function Summary({
+  subtotal,
+  discount,
+  donationAmount = 0,
+  quote = null,
+}: {
+  subtotal: number;
+  discount: CouponDiscount;
+  donationAmount?: number;
+  quote?: ShippingQuote | null;
+}) {
+  const totals = quote || calculateOrderTotals(subtotal, discount, donationAmount);
   return (
     <dl className="space-y-4">
       <div className="flex justify-between">
@@ -197,8 +227,26 @@ function Summary({ subtotal, discount, donationAmount = 0 }: { subtotal: number;
       </div>
       <div className="flex justify-between">
         <dt>Shipping</dt>
-        <dd>{totals.shippingAmount ? money(totals.shippingAmount) : "Free"}</dd>
+        <dd>
+          {quote
+            ? totals.shippingAmount
+              ? money(totals.shippingAmount)
+              : "Free"
+            : "Enter PIN to verify"}
+        </dd>
       </div>
+      {quote && quote.codFee > 0 ? (
+        <div className="flex justify-between">
+          <dt>COD fee</dt>
+          <dd>{money(quote.codFee)}</dd>
+        </div>
+      ) : null}
+      {totals.gstAmount > 0 ? (
+        <div className="flex justify-between">
+          <dt>GST</dt>
+          <dd>{money(totals.gstAmount)}</dd>
+        </div>
+      ) : null}
       {donationAmount > 0 && (
         <div className="flex justify-between">
           <dt>Donation</dt>
@@ -207,18 +255,20 @@ function Summary({ subtotal, discount, donationAmount = 0 }: { subtotal: number;
       )}
       <div className="flex justify-between border-t pt-4 text-xl font-bold">
         <dt>Total</dt>
-        <dd>{money(totals.total)}</dd>
+        <dd>{quote ? money(totals.total) : "Awaiting delivery quote"}</dd>
       </div>
       <p className="text-xs text-muted-foreground">
-        Shipping is free on orders above {money(FREE_SHIPPING_THRESHOLD)}.
+        Delivery and final charges are verified for your PIN before payment.
       </p>
     </dl>
   );
 }
 export function Cart() {
+  const [cartPin, setCartPin] = useState("");
   const { cart, update, remove, catalogProducts } = useStore();
   const [discount, setDiscount] = useState<PublicCoupon | null>(null);
   const total = cart.reduce((a, i) => a + i.quantity * i.price, 0);
+  const cartShipping = useShippingQuote(cart, cartPin, "UPI", discount?.code || "", 0);
   return (
     <div className="container-shell section-space">
       <PageHeading title="Your bag" copy="A little care, ready when you are." />
@@ -272,7 +322,20 @@ export function Cart() {
           </div>
           <aside className="border bg-brand-cream p-6">
             <h2 className="mb-6 text-2xl">Order summary</h2>
-            <Summary subtotal={total} discount={discount} />
+            <label className="field">
+              Delivery PIN
+              <input
+                inputMode="numeric"
+                pattern="[1-9][0-9]{5}"
+                maxLength={6}
+                value={cartPin}
+                onChange={(event) => setCartPin(event.target.value)}
+              />
+            </label>
+            <p role="status" className="my-3 text-sm">
+              {cartShipping.loading ? "Checking delivery?" : cartShipping.error}
+            </p>
+            <Summary subtotal={total} discount={discount} quote={cartShipping.quote} />
             <Coupon appliedCoupon={discount} onApply={setDiscount} subtotal={total} />
             <Button asChild size="lg" className="w-full">
               <Link to="/checkout" search={{ coupon: discount?.code }}>
@@ -303,20 +366,37 @@ function CustomerCheckout() {
   const auth = useAuth();
   const [addressId, setAddressId] = useState(auth.addresses.find((a) => a.isDefault)?.id || "");
   const selectedAddress = auth.addresses.find((a) => a.id === addressId);
+  const [deliveryPin, setDeliveryPin] = useState(selectedAddress?.pin || "");
+  useEffect(() => {
+    setDeliveryPin(selectedAddress?.pin || "");
+  }, [selectedAddress?.pin]);
   const requestId = useRef(crypto.randomUUID());
   const lastCheckout = useRef("");
   const submitting = useRef(false);
   const [paymentsEnabled, setPaymentsEnabled] = useState(false);
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/payments/config").then((response) => response.ok ? response.json() : { enabled: false })
-      .then((result) => { if (!cancelled) setPaymentsEnabled(result.enabled === true); })
-      .catch(() => { if (!cancelled) setPaymentsEnabled(false); });
-    return () => { cancelled = true; };
+    fetch("/api/payments/config")
+      .then((response) => (response.ok ? response.json() : { enabled: false }))
+      .then((result) => {
+        if (!cancelled) setPaymentsEnabled(result.enabled === true);
+      })
+      .catch(() => {
+        if (!cancelled) setPaymentsEnabled(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
   const { cart, clear, catalogProducts, catalogError, revise, remove, update, ready } = useStore();
   const invalidSelections = catalogProducts
-    ? cart.filter((item) => resolveCartSelection(item, catalogProducts.find((p) => p.slug === item.slug)).issues.length)
+    ? cart.filter(
+        (item) =>
+          resolveCartSelection(
+            item,
+            catalogProducts.find((p) => p.slug === item.slug),
+          ).issues.length,
+      )
     : [];
   const navigate = useNavigate();
   const coupons = useActiveCoupons();
@@ -329,14 +409,32 @@ function CustomerCheckout() {
   useEffect(() => {
     const couponCode = new URLSearchParams(location.search).get("coupon")?.toUpperCase() || "";
     if (!couponCode || !coupons.length) return;
-    setDiscount(coupons.find((coupon) => coupon.code === couponCode && total >= Number(coupon.minimumOrderAmount || 0)) || null);
+    setDiscount(
+      coupons.find(
+        (coupon) => coupon.code === couponCode && total >= Number(coupon.minimumOrderAmount || 0),
+      ) || null,
+    );
   }, [coupons, total]);
   const orderTotals = calculateOrderTotals(total, discount, donationAmount);
-  const codAvailable = orderTotals.total >= COD_MINIMUM_TOTAL;
-  useEffect(() => {
-    if (codAvailable && payment !== "Cash on Delivery") setPayment("Cash on Delivery");
-    if (!codAvailable && payment === "Cash on Delivery") setPayment("UPI");
-  }, [codAvailable, payment]);
+  const shipping = useShippingQuote(
+    cart,
+    deliveryPin,
+    payment,
+    discount?.code || "",
+    donationAmount,
+  );
+  const cod = codEligibility(
+    shipping.quote
+      ? shipping.quote.subtotal - shipping.quote.discountAmount
+      : orderTotals.taxableAmount,
+    shipping.quote?.total || orderTotals.total,
+    shipping.quote?.codAvailable === true,
+    {
+      minimum: shipping.quote?.codMinimum ?? 1000,
+      maximumCollectible: shipping.quote?.codMaximum ?? 20000,
+    },
+  );
+  const codAvailable = cod.eligible;
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy || submitting.current) return;
@@ -361,7 +459,14 @@ function CustomerCheckout() {
         label: selectedAddress?.label || "Home",
         isDefault: false,
       };
+      if (!shipping.quote || new Date(shipping.quote.expiresAt).getTime() <= Date.now())
+        throw new Error(
+          "Check delivery and wait for a current shipping quote before placing your order.",
+        );
+      if (address.pin !== deliveryPin)
+        throw new Error("Delivery address changed. Check your PIN again.");
       const checkoutData = {
+        quoteId: shipping.quote.id,
         requestId: requestId.current,
         address,
         items: cart.map(({ slug, size, flow, pack, quantity, price, name, image }) => ({
@@ -378,27 +483,44 @@ function CustomerCheckout() {
         donationAmount,
         payment,
       };
-      const fingerprint = JSON.stringify({ ...checkoutData, requestId: "" });
-      if (lastCheckout.current && lastCheckout.current !== fingerprint) requestId.current = crypto.randomUUID();
+      const fingerprint = JSON.stringify({ ...checkoutData, requestId: "", quoteId: "" });
+      if (lastCheckout.current && lastCheckout.current !== fingerprint)
+        requestId.current = crypto.randomUUID();
       try {
-        const saved = JSON.parse(sessionStorage.getItem(`sherise-checkout:${auth.user?.id}`) || "null");
-        if (saved?.fingerprint === fingerprint && /^[a-f0-9-]{36}$/i.test(saved.requestId)) requestId.current = saved.requestId;
-        sessionStorage.setItem(`sherise-checkout:${auth.user?.id}`, JSON.stringify({ fingerprint, requestId: requestId.current }));
-      } catch { /* Memory retry IDs still work when browser storage is disabled. */ }
+        const saved = JSON.parse(
+          sessionStorage.getItem(`sherise-checkout:${auth.user?.id}`) || "null",
+        );
+        if (saved?.fingerprint === fingerprint && /^[a-f0-9-]{36}$/i.test(saved.requestId))
+          requestId.current = saved.requestId;
+        sessionStorage.setItem(
+          `sherise-checkout:${auth.user?.id}`,
+          JSON.stringify({ fingerprint, requestId: requestId.current }),
+        );
+      } catch {
+        /* Memory retry IDs still work when browser storage is disabled. */
+      }
       lastCheckout.current = fingerprint;
       checkoutData.requestId = requestId.current;
       let orderId: string;
       if (payment === "Cash on Delivery") {
-        const { order } = await customerRequest<{ order: CustomerOrder }>("order-create", checkoutData);
+        const { order } = await customerRequest<{ order: CustomerOrder }>(
+          "order-create",
+          checkoutData,
+        );
         orderId = order.id;
       } else {
-        if (!paymentsEnabled) throw new Error("Online payments are not available right now. Please try again later.");
+        if (!paymentsEnabled)
+          throw new Error("Online payments are not available right now. Please try again later.");
         const result = await beginPayment(checkoutData);
         if (!result.confirmed) throw new Error("Your payment has not yet been confirmed.");
         orderId = result.orderId;
       }
       clear();
-      try { sessionStorage.removeItem(`sherise-checkout:${auth.user?.id}`); } catch { /* Optional browser storage. */ }
+      try {
+        sessionStorage.removeItem(`sherise-checkout:${auth.user?.id}`);
+      } catch {
+        /* Optional browser storage. */
+      }
       await auth.refresh();
       await navigate({ to: "/order-success", search: { order: orderId } });
     } catch (e) {
@@ -428,39 +550,73 @@ function CustomerCheckout() {
           className="grid items-start gap-10 lg:grid-cols-[1.5fr_1fr]"
         >
           {(catalogError || !catalogProducts || invalidSelections.length > 0) && (
-            <section className="space-y-4 border border-brand-coral bg-brand-cream p-5 lg:col-span-2" aria-label="Review bag options">
+            <section
+              className="space-y-4 border border-brand-coral bg-brand-cream p-5 lg:col-span-2"
+              aria-label="Review bag options"
+            >
               <h2 className="text-xl">Review your bag</h2>
               <p role="status" className="text-sm">
-                {catalogError || (!catalogProducts ? "Checking current products…" : "Some saved options are no longer available. Choose the current options below to continue.")}
+                {catalogError ||
+                  (!catalogProducts
+                    ? "Checking current products…"
+                    : "Some saved options are no longer available. Choose the current options below to continue.")}
               </p>
               {invalidSelections.map((item) => {
                 const product = catalogProducts?.find((p) => p.slug === item.slug);
                 const key = cartKey(item);
                 return (
                   <div key={key} className="space-y-3 border-t pt-4">
-                    <p className="font-semibold">{product?.name || item.name || titleFromSlug(item.slug)}</p>
+                    <p className="font-semibold">
+                      {product?.name || item.name || titleFromSlug(item.slug)}
+                    </p>
                     {product ? (
                       <>
                         <div className="grid gap-3 sm:grid-cols-3">
-                          {([
-                            ["size", product.sizes], ["flow", product.flow], ["pack", product.packOptions.map((pack) => pack.label)],
-                          ] as const).map(([field, options]) => (
+                          {(
+                            [
+                              ["size", product.sizes],
+                              ["flow", product.flow],
+                              ["pack", product.packOptions.map((pack) => pack.label)],
+                            ] as const
+                          ).map(([field, options]) => (
                             <label key={field} className="field capitalize">
                               {field}
-                              <select value={item[field]} onChange={(event) => revise(key, { [field]: event.target.value })} aria-label={`${product.name} ${field}`}>
-                                {!options.includes(item[field]) && <option value={item[field]} disabled>{item[field]} (choose current option)</option>}
-                                {options.map((option) => <option key={option} value={option}>{option}</option>)}
+                              <select
+                                value={item[field]}
+                                onChange={(event) => revise(key, { [field]: event.target.value })}
+                                aria-label={`${product.name} ${field}`}
+                              >
+                                {!options.includes(item[field]) && (
+                                  <option value={item[field]} disabled>
+                                    {item[field]} (choose current option)
+                                  </option>
+                                )}
+                                {options.map((option) => (
+                                  <option key={option} value={option}>
+                                    {option}
+                                  </option>
+                                ))}
                               </select>
                             </label>
                           ))}
                         </div>
                         {item.quantity > product.stock && product.stock > 0 && (
-                          <Button type="button" variant="outline" onClick={() => update(key, product.stock)}>Update quantity to {product.stock}</Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => update(key, product.stock)}
+                          >
+                            Update quantity to {product.stock}
+                          </Button>
                         )}
                         {product.stock <= 0 && <p className="text-sm">Currently out of stock.</p>}
                       </>
-                    ) : <p className="text-sm">This product is no longer available.</p>}
-                    <button type="button" onClick={() => remove(key)} className="text-sm underline">Remove from bag</button>
+                    ) : (
+                      <p className="text-sm">This product is no longer available.</p>
+                    )}
+                    <button type="button" onClick={() => remove(key)} className="text-sm underline">
+                      Remove from bag
+                    </button>
                   </div>
                 );
               })}
@@ -491,12 +647,15 @@ function CustomerCheckout() {
                   { name: "State", auto: "address-level1" },
                   { name: "PIN code", pattern: "[1-9][0-9]{5}", auto: "postal-code" },
                 ].map((f) => (
-                  <label key={f.name} className="field">
+                  <label key={addressId + ":" + f.name} className="field">
                     {f.name}
                     <input
                       required={!f.optional}
                       type={f.type || "text"}
                       name={f.name}
+                      onChange={(event) => {
+                        if (f.name === "PIN code") setDeliveryPin(event.target.value);
+                      }}
                       defaultValue={
                         f.name === "Full name"
                           ? selectedAddress?.name || auth.user?.name
@@ -534,9 +693,19 @@ function CustomerCheckout() {
             <section>
               <h2 className="mb-4 text-2xl">02 · Shipping method</h2>
               <label className="block border p-4">
-                <input type="radio" defaultChecked name="shipping" /> Standard shipping · {orderTotals.shippingAmount ? money(orderTotals.shippingAmount) : "Free"}
+                <input type="radio" defaultChecked name="shipping" /> Standard shipping ·{" "}
+                {shipping.quote
+                  ? shipping.quote.shippingAmount
+                    ? money(shipping.quote.shippingAmount)
+                    : "Free"
+                  : "Awaiting delivery verification"}
                 <p className="mt-2 text-xs">
-                  Shipping is calculated in the order total. Free above {money(FREE_SHIPPING_THRESHOLD)}.
+                  {shipping.loading
+                    ? "Checking delivery and charges?"
+                    : shipping.error ||
+                      (shipping.quote
+                        ? "Delivery verified. Charges are included in the total."
+                        : "Enter a delivery PIN to check availability.")}
                 </p>
               </label>
             </section>
@@ -546,9 +715,7 @@ function CustomerCheckout() {
                   <h2 className="font-serif text-xl font-semibold leading-tight text-[#7f1d2a] md:text-2xl">
                     Donate & Support Transformative Social Work In India
                   </h2>
-                  <p className="mt-1 text-sm text-[#8b6f66]">
-                    SheRise Welfare Foundation - NGO
-                  </p>
+                  <p className="mt-1 text-sm text-[#8b6f66]">SheRise Welfare Foundation - NGO</p>
                 </div>
                 <a
                   href="/about"
@@ -583,7 +750,12 @@ function CustomerCheckout() {
                     : "Optional: choose an amount to add to your order."}
                 </p>
                 {donationAmount > 0 && (
-                  <button type="button" disabled={busy} onClick={() => setDonationAmount(0)} className="shrink-0 font-semibold text-[#8f1f2d] underline">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setDonationAmount(0)}
+                    className="shrink-0 font-semibold text-[#8f1f2d] underline"
+                  >
                     Remove donation
                   </button>
                 )}
@@ -593,28 +765,26 @@ function CustomerCheckout() {
               <legend className="mb-4 text-2xl font-display">03 · Payment method</legend>
               <div className="grid gap-2 sm:grid-cols-2">
                 {paymentMethods.map((m) => {
-                  const disabled = codAvailable ? m !== "Cash on Delivery" : m === "Cash on Delivery";
+                  const disabled = m === "Cash on Delivery" ? !codAvailable : !paymentsEnabled;
                   return (
-                  <label
-                    key={m}
-                    className={`border p-4 text-sm ${disabled ? "cursor-not-allowed opacity-50" : ""} ${payment === m ? "border-brand-navy bg-brand-blush" : ""}`}
-                  >
-                    <input
-                      type="radio"
-                      name="payment"
-                      checked={payment === m}
-                      disabled={disabled}
-                      onChange={() => setPayment(m)}
-                    />{" "}
-                    {m}
-                  </label>
+                    <label
+                      key={m}
+                      className={`border p-4 text-sm ${disabled ? "cursor-not-allowed opacity-50" : ""} ${payment === m ? "border-brand-navy bg-brand-blush" : ""}`}
+                    >
+                      <input
+                        type="radio"
+                        name="payment"
+                        checked={payment === m}
+                        disabled={disabled}
+                        onChange={() => setPayment(m)}
+                      />{" "}
+                      {m}
+                    </label>
                   );
                 })}
               </div>
               <p className="mt-4 text-xs">
-                {codAvailable
-                  ? `Orders of ${money(COD_MINIMUM_TOTAL)} and above are Cash on Delivery only.`
-                  : `Cash on Delivery is available only on orders of ${money(COD_MINIMUM_TOTAL)} and above.`}
+                {cod.reason} Online payment remains available for every serviceable order.
               </p>
             </fieldset>
           </div>
@@ -631,7 +801,12 @@ function CustomerCheckout() {
                 <span>{money(i.price * i.quantity)}</span>
               </div>
             ))}
-            <Summary subtotal={total} discount={discount} donationAmount={donationAmount} />
+            <Summary
+              subtotal={total}
+              discount={discount}
+              donationAmount={donationAmount}
+              quote={shipping.quote}
+            />
             <Coupon appliedCoupon={discount} onApply={setDiscount} subtotal={total} />
             <label className="my-5 flex gap-2 text-xs leading-5">
               <input type="checkbox" required />
@@ -642,9 +817,25 @@ function CustomerCheckout() {
                 </Link>
               </span>
             </label>
-            {!codAvailable && !paymentsEnabled ? <p className="my-3 text-sm" role="status">Online payments are temporarily unavailable. Please try again later.</p> : null}
-            <Button type="submit" size="lg" className="w-full" disabled={busy || !ready || invalidSelections.length > 0 || (!codAvailable && !paymentsEnabled)}>
-              {busy ? "Processing..." : codAvailable ? "PLACE ORDER" : "PAY NOW"}
+            {payment !== "Cash on Delivery" && !paymentsEnabled ? (
+              <p className="my-3 text-sm" role="status">
+                Online payments are temporarily unavailable. Please try again later.
+              </p>
+            ) : null}
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full"
+              disabled={
+                busy ||
+                !ready ||
+                !shipping.quote ||
+                shipping.loading ||
+                invalidSelections.length > 0 ||
+                (payment === "Cash on Delivery" ? !codAvailable : !paymentsEnabled)
+              }
+            >
+              {busy ? "Processing..." : payment === "Cash on Delivery" ? "PLACE ORDER" : "PAY NOW"}
             </Button>
             <p role="alert" className="mt-3 text-sm">
               {error}
@@ -671,21 +862,98 @@ function CustomerOrderSuccess() {
     <div className="container-shell section-space">
       {order ? (
         <div className="mx-auto max-w-xl border bg-brand-cream p-8 text-center">
-          {order.payment === "RAZORPAY" && order.paymentStatus !== "SUCCESS" ? <Clock className="mx-auto mb-6 size-12 text-brand-navy" /> : <CheckCircle2 className="mx-auto mb-6 size-12 text-brand-navy" />}
-          <h2 className="text-3xl">{order.payment === "RAZORPAY" && order.paymentStatus !== "SUCCESS" ? "Payment not confirmed" : `Thank you, ${auth.user?.name.split(" ")[0]}.`}</h2>
+          {order.payment === "RAZORPAY" && order.paymentStatus !== "SUCCESS" ? (
+            <Clock className="mx-auto mb-6 size-12 text-brand-navy" />
+          ) : (
+            <CheckCircle2 className="mx-auto mb-6 size-12 text-brand-navy" />
+          )}
+          <h2 className="text-3xl">
+            {order.payment === "RAZORPAY" && order.paymentStatus !== "SUCCESS"
+              ? "Payment not confirmed"
+              : `Thank you, ${auth.user?.name.split(" ")[0]}.`}
+          </h2>
           <p className="my-5">
             {order.id} · {money(order.total)}
           </p>
           <p className="mb-7 text-sm leading-6">
-            {order.payment === "RAZORPAY" ? order.paymentStatus === "SUCCESS" ? "Payment confirmed. You can track your order from My orders." : "Your order is saved, but payment is not confirmed. Check or retry your payment before placing another order." : "Your order is saved to your account. You can track status updates from My orders."}
+            {order.payment === "RAZORPAY"
+              ? order.paymentStatus === "SUCCESS"
+                ? "Payment confirmed. You can track your order from My orders."
+                : "Your order is saved, but payment is not confirmed. Check or retry your payment before placing another order."
+              : "Your order is saved to your account. You can track status updates from My orders."}
           </p>
           <dl className="mb-6 space-y-2 text-sm">
-            <div><dt className="inline font-medium">Payment status: </dt><dd className="inline">{order.paymentStatus || "PENDING"}</dd></div>
-            {order.gatewayPaymentId ? <div><dt className="inline font-medium">Payment ID: </dt><dd className="inline break-all">{order.gatewayPaymentId}</dd></div> : null}
-            {order.paidAt ? <div><dt className="inline font-medium">Paid at: </dt><dd className="inline">{new Date(order.paidAt).toLocaleString("en-IN")}</dd></div> : null}
+            <div>
+              <dt className="inline font-medium">Payment method: </dt>
+              <dd className="inline">
+                {order.payment === "RAZORPAY" ? "Online payment (Razorpay)" : order.payment}
+              </dd>
+            </div>
+            <div>
+              <dt className="inline font-medium">Order status: </dt>
+              <dd className="inline">
+                {order.status === "preview" ? "Order placed" : order.status}
+              </dd>
+            </div>
+            <div>
+              <dt className="inline font-medium">Subtotal: </dt>
+              <dd className="inline">{money(order.subtotal)}</dd>
+            </div>
+            <div>
+              <dt className="inline font-medium">Discount: </dt>
+              <dd className="inline">?{money(order.discount)}</dd>
+            </div>
+            <div>
+              <dt className="inline font-medium">Shipping: </dt>
+              <dd className="inline">{money(order.shippingAmount || 0)}</dd>
+            </div>
+            {order.codFee ? <div>COD fee: {money(order.codFee)}</div> : null}
+            {order.gstAmount ? <div>GST: {money(order.gstAmount)}</div> : null}
+            {order.donationAmount ? <div>Donation: {money(order.donationAmount)}</div> : null}
+            <div>
+              Deliver to: {order.address.name}, {order.address.line1}, {order.address.line2},{" "}
+              {order.address.city}, {order.address.state} {order.address.pin}. Phone:{" "}
+              {order.address.phone}
+            </div>
+            {order.payment === "Cash on Delivery" ? (
+              <div className="font-bold">
+                Pay {money(order.codAmount ?? order.total)} on delivery. Payment has not been
+                collected.
+              </div>
+            ) : null}
+            <div>
+              <dt className="inline font-medium">Payment status: </dt>
+              <dd className="inline">{order.paymentStatus || "PENDING"}</dd>
+            </div>
+            {order.gatewayPaymentId ? (
+              <div>
+                <dt className="inline font-medium">Payment ID: </dt>
+                <dd className="inline break-all">{order.gatewayPaymentId}</dd>
+              </div>
+            ) : null}
+            {order.paidAt ? (
+              <div>
+                <dt className="inline font-medium">Paid at: </dt>
+                <dd className="inline">{new Date(order.paidAt).toLocaleString("en-IN")}</dd>
+              </div>
+            ) : null}
           </dl>
-          <ul className="mb-6 space-y-2 text-left text-sm">{order.items.map((item, index) => <li key={`${item.slug}-${index}`} className="flex justify-between gap-3"><span>{item.name} ×{item.quantity}</span><span>{money(item.price * item.quantity)}</span></li>)}</ul>
-          {order.payment === "RAZORPAY" && !["SUCCESS", "REFUNDED"].includes(order.paymentStatus || "") ? <Action to={`/payment-failed?order=${encodeURIComponent(order.id)}`}>Check payment</Action> : null}
+          <ul className="mb-6 space-y-2 text-left text-sm">
+            {order.items.map((item, index) => (
+              <li key={`${item.slug}-${index}`} className="flex justify-between gap-3">
+                <span>
+                  {item.name} ×{item.quantity}
+                </span>
+                <span>{money(item.price * item.quantity)}</span>
+              </li>
+            ))}
+          </ul>
+          {order.payment === "RAZORPAY" &&
+          !["SUCCESS", "REFUNDED"].includes(order.paymentStatus || "") ? (
+            <Action to={`/payment-failed?order=${encodeURIComponent(order.id)}`}>
+              Check payment
+            </Action>
+          ) : null}
           <Action to="/account/orders">View my orders</Action>
         </div>
       ) : (
@@ -699,7 +967,11 @@ function CustomerOrderSuccess() {
 }
 
 export function PaymentFailed() {
-  return <AccountGate><CustomerPaymentFailed /></AccountGate>;
+  return (
+    <AccountGate>
+      <CustomerPaymentFailed />
+    </AccountGate>
+  );
 }
 
 function CustomerPaymentFailed() {
@@ -717,23 +989,66 @@ function CustomerPaymentFailed() {
     setError("");
     try {
       const result = await beginPayment({ orderId });
-      if (!result.confirmed) throw new Error("Payment is still pending. Please check again shortly.");
+      if (!result.confirmed)
+        throw new Error("Payment is still pending. Please check again shortly.");
       const order = auth.orders.find((item) => item.id === result.orderId);
-      const keys = (items: Array<{ slug: string; size: string; flow: string; pack: string; quantity: number; price: number }>) => items.map((item) => `${cartKey(item)}:${item.quantity}`).sort().join("|");
+      const keys = (
+        items: Array<{
+          slug: string;
+          size: string;
+          flow: string;
+          pack: string;
+          quantity: number;
+          price: number;
+        }>,
+      ) =>
+        items
+          .map((item) => `${cartKey(item)}:${item.quantity}`)
+          .sort()
+          .join("|");
       if (order && keys(order.items) === keys(cart)) clear();
-      try { sessionStorage.removeItem(`sherise-checkout:${auth.user?.id}`); } catch { /* Optional browser storage. */ }
+      try {
+        sessionStorage.removeItem(`sherise-checkout:${auth.user?.id}`);
+      } catch {
+        /* Optional browser storage. */
+      }
       await auth.refresh();
       await navigate({ to: "/order-success", search: { order: result.orderId } });
-    } catch (error) { setError(error instanceof Error ? error.message : "Could not confirm payment."); }
-    finally { retrying.current = false; setBusy(false); }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Could not confirm payment.");
+    } finally {
+      retrying.current = false;
+      setBusy(false);
+    }
   }
-  return <div className="container-shell section-space"><div className="mx-auto max-w-xl border bg-brand-cream p-8">
-    <h1 className="text-3xl">Payment not completed</h1>
-    <p className="my-5 text-sm leading-6">Your payment has not been confirmed here. If money was debited, check payment first. We verify an earlier payment before opening a new payment window.</p>
-    {orderId ? <p className="mb-4 break-all text-sm">Order: {orderId}</p> : null}
-    <div className="flex flex-wrap gap-3"><Button disabled={busy || !orderId} onClick={retry}>{busy ? "Checking payment..." : "Check / Retry Payment"}</Button><Action to="/checkout" outline>Back to checkout</Action><Action to="/account/orders" outline>My orders</Action></div>
-    {error ? <p role="alert" className="mt-4 text-sm text-red-700">{error}</p> : null}
-  </div></div>;
+  return (
+    <div className="container-shell section-space">
+      <div className="mx-auto max-w-xl border bg-brand-cream p-8">
+        <h1 className="text-3xl">Payment not completed</h1>
+        <p className="my-5 text-sm leading-6">
+          Your payment has not been confirmed here. If money was debited, check payment first. We
+          verify an earlier payment before opening a new payment window.
+        </p>
+        {orderId ? <p className="mb-4 break-all text-sm">Order: {orderId}</p> : null}
+        <div className="flex flex-wrap gap-3">
+          <Button disabled={busy || !orderId} onClick={retry}>
+            {busy ? "Checking payment..." : "Check / Retry Payment"}
+          </Button>
+          <Action to="/checkout" outline>
+            Back to checkout
+          </Action>
+          <Action to="/account/orders" outline>
+            My orders
+          </Action>
+        </div>
+        {error ? (
+          <p role="alert" className="mt-4 text-sm text-red-700">
+            {error}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 function titleFromSlug(slug: string) {

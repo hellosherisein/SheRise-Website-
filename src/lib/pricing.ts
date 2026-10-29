@@ -18,7 +18,11 @@ export type CouponDiscount =
   | null
   | undefined;
 
-export function calculateOrderTotals(subtotal: number, couponDiscount: CouponDiscount, donationAmount = 0) {
+export function calculateOrderTotals(
+  subtotal: number,
+  couponDiscount: CouponDiscount,
+  donationAmount = 0,
+) {
   const discountAmount = calculateDiscountAmount(subtotal, couponDiscount);
   const taxableAmount = Math.max(0, roundMoney(subtotal - discountAmount));
   const gstAmount = roundMoney(taxableAmount * GST_RATE);

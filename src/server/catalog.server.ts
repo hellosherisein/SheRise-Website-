@@ -5,6 +5,11 @@ import type { Product } from "@/lib/catalog";
 import { executeSql, queryRows } from "./mysql.server";
 
 type ProductRow = RowDataPacket & {
+  gst_percent: number | string;
+  shipping_weight_g: number | string | null;
+  package_length_cm: number | string | null;
+  package_width_cm: number | string | null;
+  package_height_cm: number | string | null;
   id: number;
   slug: string;
   name: string;
@@ -71,12 +76,14 @@ export async function loadCatalogProducts(): Promise<Product[]> {
         JOIN product_categories pc ON pc.id = pca.category_id
         WHERE pca.product_id = p.id
       ), c.name) AS category_names,
+      p.gst_percent,
       p.mrp,
       p.selling_price,
       p.discount_percent,
       p.sku,
       p.pack_quantity,
       p.flow_type,
+      p.shipping_weight_g, p.package_length_cm, p.package_width_cm, p.package_height_cm,
       p.product_dimensions,
       p.pad_length,
       p.front_pack_content,
@@ -96,7 +103,7 @@ export async function loadCatalogProducts(): Promise<Product[]> {
       p.shelf_life,
       p.is_featured,
       (
-        SELECT COALESCE(SUM(i.current_stock), 0)
+        SELECT COALESCE(SUM(GREATEST(0, i.current_stock - i.reserved_stock)), 0)
         FROM inventory i
         WHERE i.product_id = p.id
       ) AS stock,
@@ -138,13 +145,15 @@ export async function loadCatalogProduct(slug: string): Promise<Product | undefi
           JOIN product_categories pc ON pc.id = pca.category_id
           WHERE pca.product_id = p.id
         ), c.name) AS category_names,
-        p.mrp,
+        p.gst_percent,
+      p.mrp,
         p.selling_price,
         p.discount_percent,
         p.sku,
         p.pack_quantity,
         p.flow_type,
-        p.product_dimensions,
+        p.shipping_weight_g, p.package_length_cm, p.package_width_cm, p.package_height_cm,
+      p.product_dimensions,
         p.pad_length,
         p.front_pack_content,
         p.anion_strip_notes,
@@ -163,7 +172,7 @@ export async function loadCatalogProduct(slug: string): Promise<Product | undefi
         p.shelf_life,
         p.is_featured,
         (
-          SELECT COALESCE(SUM(i.current_stock), 0)
+          SELECT COALESCE(SUM(GREATEST(0, i.current_stock - i.reserved_stock)), 0)
           FROM inventory i
           WHERE i.product_id = p.id
         ) AS stock,
@@ -216,7 +225,9 @@ async function prepareCatalogPackagingColumns() {
     ["product_website", "VARCHAR(200) NULL"],
     ["shelf_life", "VARCHAR(120) NULL"],
   ];
-  const existingColumns = new Set((await queryRows<RowDataPacket>("SHOW COLUMNS FROM products")).map((row) => row["Field"]));
+  const existingColumns = new Set(
+    (await queryRows<RowDataPacket>("SHOW COLUMNS FROM products")).map((row) => row["Field"]),
+  );
   for (const [column, definition] of columns) {
     if (existingColumns.has(column)) continue;
     try {
@@ -250,8 +261,18 @@ function productRowToProduct(row: ProductRow): Product {
     ? [
         { label: "7 Pads - 4 XXXL + 3 XXL", price: salePrice, mrp, stock },
         { label: "7 Pads - 4 XXL + 3 XXXL", price: salePrice, mrp, stock },
-        { label: "20 Pads - 12 XXXL + 8 XXL", price: Math.round(salePrice * 2.55), mrp: Math.round(mrp * 2.5), stock },
-        { label: "20 Pads - 12 XXL + 8 XXXL", price: Math.round(salePrice * 2.55), mrp: Math.round(mrp * 2.5), stock },
+        {
+          label: "20 Pads - 12 XXXL + 8 XXL",
+          price: Math.round(salePrice * 2.55),
+          mrp: Math.round(mrp * 2.5),
+          stock,
+        },
+        {
+          label: "20 Pads - 12 XXL + 8 XXXL",
+          price: Math.round(salePrice * 2.55),
+          mrp: Math.round(mrp * 2.5),
+          stock,
+        },
       ]
     : [
         {
@@ -263,15 +284,27 @@ function productRowToProduct(row: ProductRow): Product {
       ];
   return {
     id: String(row.id),
+    gstPercent: Number(row.gst_percent || 0),
+    shippingWeightG: row.shipping_weight_g == null ? null : Number(row.shipping_weight_g),
+    packageLengthCm: row.package_length_cm == null ? null : Number(row.package_length_cm),
+    packageWidthCm: row.package_width_cm == null ? null : Number(row.package_width_cm),
+    packageHeightCm: row.package_height_cm == null ? null : Number(row.package_height_cm),
     slug: row.slug,
     name: row.name,
     shortDescription: row.short_description || row.name,
     description: row.description || row.short_description || row.name,
     category: row.category_name === "Period Care" ? "Period Care" : "Sanitary Pads",
     categories: (row.category_names || row.category_name || "").split("||").filter(Boolean),
-    images: row.image_urls ? row.image_urls.split("||").map(normalizeImagePath).filter(Boolean) : [],
+    images: row.image_urls
+      ? row.image_urls.split("||").map(normalizeImagePath).filter(Boolean)
+      : [],
     sizes: isComboOffer ? ["XXL", "XXXL"] : ["XL", "XXL", "XXXL"],
-    flow: row.flow_type ? row.flow_type.split(",").map((item) => item.trim()).filter(Boolean) : ["Medium"],
+    flow: row.flow_type
+      ? row.flow_type
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean)
+      : ["Medium"],
     packOptions,
     mrp,
     salePrice,
@@ -280,12 +313,25 @@ function productRowToProduct(row: ProductRow): Product {
     sku: row.sku,
     rating: 0,
     reviewCount: 0,
-    features: jsonList(row.features, isComboOffer
-      ? ["Mixed XXL and XXXL pads", "7-pack and 20-pack offers", "Choose the combination that suits your routine"]
-      : ["Connected from SheRise MySQL catalog"]),
-    materials: row.material_composition ? [row.material_composition] : ["Material details will be updated from product specifications."],
-    usageInstructions: jsonList(row.usage_instructions, ["Follow the instructions provided on the product pack."]),
-    disposalInstructions: jsonList(row.disposal_instructions, ["Wrap and dispose responsibly. Do not flush."]),
+    features: jsonList(
+      row.features,
+      isComboOffer
+        ? [
+            "Mixed XXL and XXXL pads",
+            "7-pack and 20-pack offers",
+            "Choose the combination that suits your routine",
+          ]
+        : ["Connected from SheRise MySQL catalog"],
+    ),
+    materials: row.material_composition
+      ? [row.material_composition]
+      : ["Material details will be updated from product specifications."],
+    usageInstructions: jsonList(row.usage_instructions, [
+      "Follow the instructions provided on the product pack.",
+    ]),
+    disposalInstructions: jsonList(row.disposal_instructions, [
+      "Wrap and dispose responsibly. Do not flush.",
+    ]),
     faq: productInfoFaq(row),
     relatedProducts: [],
     featured: row.is_featured === 1,
@@ -294,13 +340,17 @@ function productRowToProduct(row: ProductRow): Product {
 
 function productInfoFaq(row: ProductRow): Product["faq"] {
   const items: Product["faq"] = [];
-  const packDetails = [row.front_pack_content, row.product_dimensions, row.pad_length].filter(Boolean).join("\n");
+  const packDetails = [row.front_pack_content, row.product_dimensions, row.pad_length]
+    .filter(Boolean)
+    .join("\n");
   if (packDetails) items.push({ q: "Pack content", a: packDetails });
   if (row.brand_message) items.push({ q: "SheRise brand message", a: row.brand_message });
   if (row.storage_instruction || row.shelf_life) {
     items.push({
       q: "Storage & best before",
-      a: [row.storage_instruction, row.shelf_life ? `Best before: ${row.shelf_life}` : ""].filter(Boolean).join("\n"),
+      a: [row.storage_instruction, row.shelf_life ? `Best before: ${row.shelf_life}` : ""]
+        .filter(Boolean)
+        .join("\n"),
     });
   }
   const companyDetails = [
@@ -309,7 +359,9 @@ function productInfoFaq(row: ProductRow): Product["faq"] {
     row.product_contact ? `Contact: ${row.product_contact}` : "",
     row.product_email ? `Email: ${row.product_email}` : "",
     row.product_website ? `Website: ${row.product_website}` : "",
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
   if (companyDetails) items.push({ q: "Product information", a: companyDetails });
   const safetyNotes = [row.safety_information, row.anion_strip_notes].filter(Boolean).join("\n\n");
   if (safetyNotes) items.push({ q: "Safety & packaging notes", a: safetyNotes });
@@ -319,7 +371,10 @@ function productInfoFaq(row: ProductRow): Product["faq"] {
 function jsonList(value: unknown, fallback: string[]): string[] {
   // mysql2 decodes JSON columns into arrays; older databases return JSON/text strings.
   if (Array.isArray(value)) {
-    const items = value.map(String).map((item) => item.trim()).filter(Boolean);
+    const items = value
+      .map(String)
+      .map((item) => item.trim())
+      .filter(Boolean);
     return items.length ? items : fallback;
   }
   if (typeof value !== "string" || !value.trim()) return fallback;
@@ -331,7 +386,10 @@ function jsonList(value: unknown, fallback: string[]): string[] {
   } catch {
     // Older records may contain comma or newline separated text.
   }
-  const items = String(value).split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean);
+  const items = String(value)
+    .split(/\r?\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
   return items.length ? items : fallback;
 }
 
@@ -339,8 +397,10 @@ function normalizeImagePath(value: string) {
   const trimmed = value.trim();
   if (!trimmed) return "";
   const fallbackProductUploadImage = "/uploads/products/1790248547777-eabeac00-product.png";
-  const fallbackFileName = trimmed.split(/[\\/]/).filter(Boolean).at(-1)?.toLowerCase() || trimmed.toLowerCase();
-  if (fallbackFileName === "pad.jpg" || fallbackFileName === "product.jpg") return fallbackProductUploadImage;
+  const fallbackFileName =
+    trimmed.split(/[\\/]/).filter(Boolean).at(-1)?.toLowerCase() || trimmed.toLowerCase();
+  if (fallbackFileName === "pad.jpg" || fallbackFileName === "product.jpg")
+    return fallbackProductUploadImage;
   if (
     trimmed.startsWith("/") ||
     trimmed.startsWith("http://") ||
